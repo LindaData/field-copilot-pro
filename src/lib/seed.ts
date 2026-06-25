@@ -20,7 +20,7 @@ const mfg = (label: string, value: string, group: Spec["group"], key: string): S
 });
 
 export const COMPANY: Company = {
-  name: "Carolina Comfort HVAC",
+  name: "Caloosa Cooling",
   phone: "(704) 555-0144",
   address: "1820 Commerce Park Dr, Charlotte, NC 28203",
   laborRate: 145,
@@ -145,7 +145,7 @@ export const AUTHORIZATIONS: Authorization[] = [];
 export const DOCS: DocItem[] = [
   { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: "https://www.goodmanmfg.com/products/air-conditioners/gsxn3", status: "Approved", uploadedAt: "2026-04-02" },
   { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf", status: "Approved", uploadedAt: "2026-04-02" },
-  { id: "d-3", title: "Carolina Comfort HVAC — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
+  { id: "d-3", title: "Caloosa Cooling — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
   { id: "d-4", title: "Goodman GSXN3 installation manual", manufacturer: "Goodman", model: "GSXN3", category: "installation_manual", url: "#", status: "Needs Review", uploadedAt: "2026-06-21" },
 ];
 
