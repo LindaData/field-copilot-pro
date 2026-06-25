@@ -13,7 +13,9 @@ export type VerificationStatus =
   | "Technician Observation"
   | "Prior Demo Job"
   | "Fictional Demo Data"
+  | "Demo Equipment — Specifications Not Verified"
   | "Verification Required";
+
 
 
 export interface Source {
@@ -27,8 +29,19 @@ export interface Spec {
   key: string;
   label: string;
   value: string;
+  unit?: string;
   group: "Capacity" | "Compressor" | "Fan" | "Refrigeration" | "Electrical" | "Physical" | "Certifications";
   source: Source;
+  /** Linked DocItem id (preferred) */
+  sourceDocumentId?: string;
+  sourcePage?: number | string;
+  verificationStatus?: VerificationStatus;
+  approvedBy?: string;
+  approvedAt?: string;
+  reviewNotes?: string;
+  lastReviewedAt?: string;
+  conflicts?: string;
+  notes?: string;
 }
 
 export interface ErrorCode {
@@ -37,6 +50,17 @@ export interface ErrorCode {
   likelyCauses: string[];
   safeChecks: string[];
   source: Source;
+  sourceDocumentId?: string;
+  sourcePage?: number | string;
+  trigger?: string;
+  approvedInterpretation?: string;
+  approvedStartingPoint?: string;
+  safetyConsiderations?: string;
+  alternativeCauses?: string[];
+  approvedBy?: string;
+  approvedAt?: string;
+  lastReviewedAt?: string;
+  approvalNotes?: string;
 }
 
 export interface BomItem {
@@ -45,7 +69,22 @@ export interface BomItem {
   specHint?: string;    // e.g. "40/5 µF 440 V"
   approvedPartIds?: string[];
   source: Source;
+  manufacturerPartNumber?: string;
+  applicability?: string;
+  serialApplicability?: string;
+  supersededBy?: string;
+  approvedSubstitute?: string;
+  sourceDocumentId?: string;
+  sourcePage?: number | string;
+  approvalReason?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  compatibilityStatus?: "Verified" | "Likely" | "Unknown" | "Not Compatible";
+  stockStatus?: "In Stock" | "Order Required" | "Backordered";
+  supplier?: string;
+  installationNotes?: string;
 }
+
 
 export interface WiringDiagram {
   id: string;
@@ -342,7 +381,22 @@ export interface UserProfile {
   active?: boolean;
 }
 
-export interface Company { name: string; phone: string; address: string; laborRate: number; tax: number; }
+export interface Company {
+  name: string;
+  phone: string;
+  address: string;
+  laborRate: number;
+  tax: number;
+  establishedYear?: number;
+  weekdayHours?: string;
+  weekendHours?: string;
+  services?: string[];
+  serviceAreas?: string[];
+  logoDataUrl?: string;
+  brandPrimary?: string;
+  brandAccent?: string;
+}
+
 
 export interface Photo {
   id: string;

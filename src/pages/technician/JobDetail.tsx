@@ -240,9 +240,24 @@ export default function JobDetail() {
 
       <section className="flex flex-col gap-2">
         <Button onClick={onStartDiag} className="touch-target h-14 w-full justify-between text-base" disabled={!job.arrivedAt && job.status !== "Diagnosing"}>
-          <span className="inline-flex items-center gap-2"><Bot className="h-5 w-5" /> {diag?.results?.length ? "Resume diagnostic" : "Start guided diagnostic"}</span>
+          <span className="inline-flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            {diag?.completed ? "Review diagnostic" :
+              diag?.results?.length ? `Continue diagnosis · step ${diag.currentStepId}` :
+              "Start guided diagnostic"}
+          </span>
           <ArrowRight className="h-5 w-5" />
         </Button>
+        {diag?.results?.length ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Link to={`/app/jobs/${job.id}/diagnostics?review=1`}>
+              <Button variant="outline" className="touch-target h-10 w-full">Review completed steps</Button>
+            </Link>
+            <Link to={`/app/equipment/${job.equipmentId ?? ""}#specs`}>
+              <Button variant="outline" className="touch-target h-10 w-full">View specifications</Button>
+            </Link>
+          </div>
+        ) : null}
         <Link to={`/app/jobs/${job.id}/approval`}>
           <Button variant="outline" className="touch-target h-12 w-full justify-between"><span className="inline-flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Customer approval</span><ArrowRight className="h-5 w-5" /></Button>
         </Link>
@@ -250,6 +265,7 @@ export default function JobDetail() {
           <Button variant="outline" className="touch-target h-12 w-full justify-between"><span className="inline-flex items-center gap-2"><FileText className="h-5 w-5" /> {hasReport ? "View" : "Generate"} service report</span><ArrowRight className="h-5 w-5" /></Button>
         </Link>
       </section>
+
 
       {(job.pauses?.length ?? 0) > 0 && (
         <section className="card-elev p-4 text-xs">

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SourceBadge } from "@/components/SourceBadge";
 import { VoiceInput } from "@/components/VoiceInput";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, ListChecks, MoreVertical, RefreshCw, ShieldAlert, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown, FileText, ListChecks, MoreVertical, RefreshCw, ShieldAlert, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -26,7 +26,10 @@ export default function Diagnostics() {
   const [ack, setAck] = useState(false);
   const [val, setVal] = useState("");
   const [confirmEdit, setConfirmEdit] = useState<string | null>(null);
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const step = findStep(currentId);
+  const equipment = state.equipment.find((e) => e.id === job?.equipmentId);
+
 
   // Pre-fill val when stepping onto a previously-answered measurement step
   useEffect(() => {
@@ -135,6 +138,49 @@ export default function Diagnostics() {
                 </div>
               </SheetContent>
             </Sheet>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 gap-1"><BookOpen className="h-4 w-4" /> Specs</Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-96 overflow-y-auto">
+                <SheetHeader><SheetTitle>{equipment ? `${equipment.manufacturer} ${equipment.model}` : "Specifications"}</SheetTitle></SheetHeader>
+                {equipment ? (
+                  <div className="mt-3 space-y-3 text-xs">
+                    {equipment.verificationStatus !== "Manufacturer Verified" && (
+                      <div className="rounded-md border border-warning bg-warning/10 p-2">
+                        Demo Equipment — Specifications Not Verified. No manufacturer specifications are displayed.
+                      </div>
+                    )}
+                    {(["Capacity","Compressor","Fan","Refrigeration","Electrical","Physical","Certifications"] as const).map((g) => {
+                      const items = equipment.specs.filter((s) => s.group === g);
+                      if (!items.length) return null;
+                      return (
+                        <div key={g} className="rounded-md border">
+                          <div className="border-b bg-muted/30 px-2 py-1 font-semibold">{g}</div>
+                          <ul className="divide-y">
+                            {items.map((s) => (
+                              <li key={s.key} className="flex items-baseline justify-between gap-2 px-2 py-1.5">
+                                <span className="text-muted-foreground">{s.label}</span>
+                                <span className="font-medium">{s.value}{s.unit ? ` ${s.unit}` : ""}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                    <div className="flex gap-2">
+                      <Button asChild variant="outline" size="sm" className="flex-1">
+                        <a href={`/app/equipment/${equipment.id}#specs`} target="_blank" rel="noreferrer"><FileText className="mr-1 h-3 w-3" /> Open full profile</a>
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Opening Specs does not reset the diagnostic session, lose entered data, or change the diagnosis.</p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-muted-foreground">No equipment is linked to this job.</p>
+                )}
+              </SheetContent>
+            </Sheet>
+
           </div>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -205,7 +251,7 @@ export default function Diagnostics() {
           {step.type === "alt-end" && (
             <div className="space-y-2">
               <div className="rounded-md border border-accent/40 bg-accent/10 p-2 text-xs">{step.detail ?? "Follow company SOP and applicable codes. Do not bypass safety devices."}</div>
-              <Button variant="outline" className="touch-target w-full" onClick={() => { goToStep(job.id, "A"); toast("Returned to start"); }}>Restart diagnostic</Button>
+              <Button variant="ghost" className="touch-target w-full text-muted-foreground" onClick={() => setConfirmRestart(true)}>Restart diagnosis</Button>
               <Button className="touch-target w-full" onClick={escalate}>Escalate this job</Button>
             </div>
           )}
@@ -259,9 +305,23 @@ export default function Diagnostics() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={confirmRestart} onOpenChange={setConfirmRestart}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Restart diagnosis?</DialogTitle></DialogHeader>
+          <div className="text-sm">
+            This will return to step A and clear the current hypothesis. Entered measurements and notes will remain in the job record but the active session pointer will reset. This action cannot be undone.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmRestart(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { goToStep(job.id, "A"); setConfirmRestart(false); toast("Returned to start"); }}>Restart diagnosis</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function nextStepIdOrSame(s: DiagStep) {
   if (s.choices && s.choices[0]) return s.choices[0].nextStepId;
