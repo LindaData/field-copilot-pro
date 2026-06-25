@@ -82,7 +82,6 @@ const ownerTabs = [
   { to: "/app/owner/jobs", label: "jobs", icon: Briefcase },
   { to: "/app/owner/customers", label: "customers", icon: Users },
   { to: "/app/owner/equipment", label: "equipment", icon: Wrench },
-  { to: "/app/owner/readiness", label: "more", icon: Gauge },
   { to: "/app/owner/more", label: "more", icon: MoreHorizontal },
 ];
 
@@ -160,10 +159,7 @@ export function OwnerShell() {
   const nav = useNavigate();
 
   const doReset = () => { if (confirm("Reset demo?")) { reset(); nav("/"); } };
-  const doHelp = () => toast("Help", { description: "Owner overview for jobs, customers, and equipment." });
-
-  // Owner-visible nav: exclude QA + Readiness per spec
-  const visibleOwnerTabs = ownerTabs.filter((t) => t.to !== "/app/owner/qa" && t.to !== "/app/owner/readiness");
+  const visibleOwnerTabs = ownerTabs;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col">
