@@ -159,6 +159,7 @@ export function OwnerShell() {
   const nav = useNavigate();
 
   const doReset = () => { if (confirm("Reset demo?")) { reset(); nav("/"); } };
+  const doHelp = () => toast("Help", { description: "Owner overview for jobs, customers, and equipment." });
   const visibleOwnerTabs = ownerTabs;
 
   return (
