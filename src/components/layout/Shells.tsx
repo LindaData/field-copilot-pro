@@ -1,9 +1,10 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, RotateCcw, ChevronLeft, HelpCircle, LayoutDashboard, Users, Wrench, ShieldCheck } from "lucide-react";
+import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, RotateCcw, ChevronLeft, HelpCircle, LayoutDashboard, Users, Wrench, ShieldCheck, Gauge } from "lucide-react";
 import { useStore, useCurrentUser } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { DemoBanner } from "@/components/DemoBanner";
 
 const tabs = [
   { to: "/app/today", label: "Today", icon: Home },
@@ -19,6 +20,7 @@ const ownerTabs = [
   { to: "/app/owner/customers", label: "Customers", icon: Users },
   { to: "/app/owner/equipment", label: "Equipment", icon: Wrench },
   { to: "/app/owner/qa", label: "QA", icon: ShieldCheck },
+  { to: "/app/owner/readiness", label: "Readiness", icon: Gauge },
   { to: "/app/owner/more", label: "More", icon: MoreHorizontal },
 ];
 
@@ -61,6 +63,7 @@ export function MobileShell() {
         </div>
       </header>
 
+      <DemoBanner />
       <main className="flex-1 overflow-y-auto pb-24">
         <Outlet />
       </main>
@@ -115,6 +118,7 @@ export function OwnerShell() {
           </NavLink>
         ))}
       </nav>
+      <DemoBanner />
       <main className="flex-1 p-4 md:p-6"><Outlet /></main>
     </div>
   );

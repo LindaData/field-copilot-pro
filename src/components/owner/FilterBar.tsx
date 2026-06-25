@@ -161,6 +161,20 @@ export default function FilterBar({
           />
         )}
 
+        <MultiCheck label="Class" allLabel="Residential & commercial"
+          values={filters.serviceClasses} onChange={(v) => patch({ serviceClasses: v as ("Residential" | "Light Commercial")[] })}
+          options={[{ value: "Residential", label: "Residential" }, { value: "Light Commercial", label: "Light Commercial" }]}
+        />
+
+        <Select value={filters.visitType ?? "all"} onValueChange={(v) => patch({ visitType: v === "all" ? undefined : (v as "first" | "callback") })}>
+          <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">First & callback</SelectItem>
+            <SelectItem value="first">First visits only</SelectItem>
+            <SelectItem value="callback">Callbacks only</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="h-9 gap-1">More <ChevronDown className="h-3 w-3" /></Button>
@@ -173,10 +187,6 @@ export default function FilterBar({
             <label className="flex items-center justify-between text-sm">
               <span>Waiting for parts</span>
               <Switch checked={!!filters.waitingPartsOnly} onCheckedChange={(v) => patch({ waitingPartsOnly: v })} />
-            </label>
-            <label className="flex items-center justify-between text-sm">
-              <span>Callbacks only</span>
-              <Switch checked={!!filters.callbackOnly} onCheckedChange={(v) => patch({ callbackOnly: v })} />
             </label>
             <label className="flex items-center justify-between text-sm">
               <span>Maintenance plan customers</span>

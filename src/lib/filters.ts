@@ -5,6 +5,9 @@ export type RangeKey =
   | "last-30" | "this-quarter" | "last-quarter" | "ytd" | "last-year"
   | "custom" | "all-time";
 
+export type ServiceClassFilter = "Residential" | "Light Commercial";
+export type CallbackFilter = "first" | "callback";
+
 export interface JobFilters {
   range: RangeKey;
   customStart?: string;
@@ -16,9 +19,13 @@ export interface JobFilters {
   serviceCategories: string[];
   billingTypes: string[];
   equipmentTypes: string[];
+  serviceClasses: ServiceClassFilter[];
   cities: string[];
   customerIds: string[];
   propertyIds: string[];
+  /** "first" = first visit only, "callback" = callback only, undefined = both */
+  visitType?: CallbackFilter;
+  /** Legacy flag preserved for backwards compatibility (synonym for visitType === "callback") */
   callbackOnly?: boolean;
   openOnly?: boolean;
   waitingPartsOnly?: boolean;
@@ -31,6 +38,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   range: "last-30",
   techIds: [], statuses: [], brands: [], jobTypes: [],
   serviceCategories: [], billingTypes: [], equipmentTypes: [],
+  serviceClasses: [],
   cities: [], customerIds: [], propertyIds: [],
 };
 
@@ -120,7 +128,8 @@ export function applyJobFilters(jobs: Job[], f: JobFilters, ctx: FilterContext):
     if (f.statuses.length && !f.statuses.includes(j.status)) return false;
     if (f.openOnly && !OPEN_STATUSES.includes(j.status)) return false;
     if (f.waitingPartsOnly && j.status !== "Waiting for Parts") return false;
-    if (f.callbackOnly && !j.isCallback) return false;
+    if ((f.visitType === "callback" || f.callbackOnly) && !j.isCallback) return false;
+    if (f.visitType === "first" && j.isCallback) return false;
     const eq = ctx.equipment.find((e) => e.id === j.equipmentId);
     if (f.brands.length && (!eq || !f.brands.includes(eq.manufacturer))) return false;
     if (f.equipmentTypes.length && (!eq?.type || !f.equipmentTypes.includes(eq.type))) return false;
@@ -131,6 +140,10 @@ export function applyJobFilters(jobs: Job[], f: JobFilters, ctx: FilterContext):
     const prop = ctx.properties.find((p) => p.id === j.propertyId);
     const city = cust?.city ?? prop?.city;
     if (f.cities.length && (!city || !f.cities.includes(city))) return false;
+    if (f.serviceClasses.length) {
+      const sc = prop?.serviceClass ?? "Residential";
+      if (!f.serviceClasses.includes(sc as ServiceClassFilter)) return false;
+    }
     if (f.customerIds.length && !f.customerIds.includes(j.customerId)) return false;
     if (f.propertyIds.length && !f.propertyIds.includes(j.propertyId)) return false;
     if (f.maintenancePlanOnly && !cust?.maintenancePlan) return false;
@@ -142,9 +155,10 @@ export function applyJobFilters(jobs: Job[], f: JobFilters, ctx: FilterContext):
 
 export function activeFilterCount(f: JobFilters): number {
   let n = 0;
-  const arr: (keyof JobFilters)[] = ["techIds","statuses","brands","jobTypes","serviceCategories","billingTypes","equipmentTypes","cities","customerIds","propertyIds"];
+  const arr: (keyof JobFilters)[] = ["techIds","statuses","brands","jobTypes","serviceCategories","billingTypes","equipmentTypes","serviceClasses","cities","customerIds","propertyIds"];
   for (const k of arr) if ((f[k] as string[]).length > 0) n++;
-  if (f.callbackOnly) n++;
+  if (f.visitType) n++;
+  if (f.callbackOnly && f.visitType !== "callback") n++;
   if (f.openOnly) n++;
   if (f.waitingPartsOnly) n++;
   if (f.maintenancePlanOnly) n++;
@@ -171,12 +185,15 @@ export function buildChips(
   f.serviceCategories.forEach((s) => mk(`cat:${s}`, `Category: ${s}`, () => patch({ serviceCategories: f.serviceCategories.filter((x) => x !== s) })));
   f.billingTypes.forEach((s) => mk(`bill:${s}`, `Billing: ${s}`, () => patch({ billingTypes: f.billingTypes.filter((x) => x !== s) })));
   f.equipmentTypes.forEach((s) => mk(`eqt:${s}`, `Equipment: ${s}`, () => patch({ equipmentTypes: f.equipmentTypes.filter((x) => x !== s) })));
+  f.serviceClasses.forEach((s) => mk(`sc:${s}`, `Class: ${s}`, () => patch({ serviceClasses: f.serviceClasses.filter((x) => x !== s) })));
   f.cities.forEach((s) => mk(`city:${s}`, `City: ${s}`, () => patch({ cities: f.cities.filter((x) => x !== s) })));
   f.customerIds.forEach((id) => {
     const name = ctx.customers.find((c) => c.id === id)?.name ?? id;
     mk(`cust:${id}`, `Customer: ${name}`, () => patch({ customerIds: f.customerIds.filter((x) => x !== id) }));
   });
-  if (f.callbackOnly) mk("callback", "Callbacks only", () => patch({ callbackOnly: false }));
+  if (f.visitType === "callback") mk("vt", "Callbacks only", () => patch({ visitType: undefined }));
+  else if (f.visitType === "first") mk("vt", "First visits only", () => patch({ visitType: undefined }));
+  if (f.callbackOnly && f.visitType !== "callback") mk("callback", "Callbacks only", () => patch({ callbackOnly: false }));
   if (f.openOnly) mk("open", "Open only", () => patch({ openOnly: false }));
   if (f.waitingPartsOnly) mk("wparts", "Waiting for parts", () => patch({ waitingPartsOnly: false }));
   if (f.maintenancePlanOnly) mk("mp", "Maintenance plan", () => patch({ maintenancePlanOnly: false }));
