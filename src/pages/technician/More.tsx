@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { useStore } from "@/lib/store";
-import { Building2, FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare } from "lucide-react";
+import { Building2, FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function More() {
   const { state, reset } = useStore();
   const items: { to: string; label: string; icon: typeof Building2; sub?: string }[] = [
+    { to: "/app/field-test", label: "Field Test Mode", icon: ClipboardCheck, sub: "Log feedback while testing on a real call" },
     { to: "/app/documents", label: "Documents", icon: FileText, sub: `${state.docs.length} on file` },
     { to: "/app/parts", label: "Parts & inventory", icon: Package, sub: `${state.parts.length} parts` },
     { to: "/app/knowledge", label: "Knowledge base", icon: Book, sub: `${state.knowledge.length} cases` },
