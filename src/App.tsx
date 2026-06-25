@@ -15,6 +15,7 @@ import EquipmentProfile from "./pages/technician/EquipmentProfile";
 import Diagnostics from "./pages/technician/Diagnostics";
 import Approval from "./pages/technician/Approval";
 import Report from "./pages/technician/Report";
+import PartsRequest from "./pages/technician/PartsRequest";
 import Copilot from "./pages/technician/Copilot";
 import Documents from "./pages/technician/Documents";
 import DocumentViewer from "./pages/technician/DocumentViewer";
