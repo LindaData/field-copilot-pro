@@ -15,8 +15,13 @@ export default function Approval() {
   const sigRef = useRef<HTMLCanvasElement | null>(null);
   const [signed, setSigned] = useState(false);
   const [email, setEmail] = useState(state.customers.find(c => c.id === job?.customerId)?.email ?? "");
-  const labor = 145 * 0.75; // 45 min
-  const total = +(cap.price + labor + (cap.price + labor) * (state.company.tax / 100)).toFixed(2);
+  const [partPrice, setPartPrice] = useState(cap.price);
+  const [laborHrs, setLaborHrs] = useState(0.75);
+  const [laborRate, setLaborRate] = useState(state.company.laborRate);
+  const labor = +(laborHrs * laborRate).toFixed(2);
+  const subtotal = +(partPrice + labor).toFixed(2);
+  const tax = +(subtotal * (state.company.tax / 100)).toFixed(2);
+  const total = +(subtotal + tax).toFixed(2);
 
   useEffect(() => {
     const c = sigRef.current; if (!c) return;
