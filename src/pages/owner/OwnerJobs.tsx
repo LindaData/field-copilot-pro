@@ -36,7 +36,7 @@ export default function OwnerJobs() {
     const lines = [header.join(",")].concat(rows.map((j) => {
       const c = state.customers.find((x) => x.id === j.customerId);
       const u = state.users.find((x) => x.id === j.technicianId);
-      return [j.id, c?.name ?? "", j.complaint.replaceAll(",", ";"), deriveJobType(j), u?.name ?? "", j.status, j.scheduledFor].join(",");
+      return [j.id, c?.name ?? "", j.complaint.replace(/,/g, ";"), deriveJobType(j), u?.name ?? "", j.status, j.scheduledFor].join(",");
     }));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `jobs-${Date.now()}.csv`; a.click();
