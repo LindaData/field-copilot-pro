@@ -251,7 +251,7 @@ export default function Diagnostics() {
           {step.type === "alt-end" && (
             <div className="space-y-2">
               <div className="rounded-md border border-accent/40 bg-accent/10 p-2 text-xs">{step.detail ?? "Follow company SOP and applicable codes. Do not bypass safety devices."}</div>
-              <Button variant="outline" className="touch-target w-full" onClick={() => { goToStep(job.id, "A"); toast("Returned to start"); }}>Restart diagnostic</Button>
+              <Button variant="ghost" className="touch-target w-full text-muted-foreground" onClick={() => setConfirmRestart(true)}>Restart diagnosis</Button>
               <Button className="touch-target w-full" onClick={escalate}>Escalate this job</Button>
             </div>
           )}
