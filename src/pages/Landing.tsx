@@ -29,7 +29,7 @@ export default function Landing() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground font-bold text-lg">FC</div>
           <div>
             <div className="text-xl font-semibold leading-tight">HVAC Field Copilot</div>
-            <div className="text-xs opacity-80">Demo · Caloosa Cooling</div>
+            <div className="text-xs opacity-80">Demo · Carolina Comfort HVAC</div>
           </div>
         </div>
 
