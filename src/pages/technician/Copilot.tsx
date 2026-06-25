@@ -6,6 +6,8 @@ import { SourceBadge } from "@/components/SourceBadge";
 import { VoiceInput } from "@/components/VoiceInput";
 import { Send, Bot } from "lucide-react";
 import { goodmanPdfSource } from "@/lib/seed";
+import { classifyPrompt } from "@/lib/qa/safety";
+import { ShieldAlert } from "lucide-react";
 
 interface Msg { role: "user" | "ai"; text: string; nextAction?: string; confidence?: string; escalate?: string; sourceKind?: "manufacturer_verified" | "company_sop" | "demo_inference" | "technician_observation"; }
 
@@ -27,6 +29,17 @@ export default function Copilot() {
   ]);
 
   const reply = (q: string): Msg => {
+    // 1) Safety gate — runs before any deterministic answer
+    const verdict = classifyPrompt(q);
+    if (verdict.allow === false) {
+      return {
+        role: "ai",
+        text: `I can't help with that request. ${verdict.reason}`,
+        sourceKind: "demo_inference",
+        confidence: "Blocked",
+        escalate: `Safety gate (${verdict.category}). Ask your service manager if you believe this is a valid request.`,
+      };
+    }
     const t = q.toLowerCase();
     if (t.includes("mca") || t.includes("ampacity")) return { role: "ai", text: "Goodman GSXN3N2410A* requires MCA 11.2 A and MOP 15 A.", sourceKind: "manufacturer_verified", confidence: "High", nextAction: "Confirm breaker matches MOP." };
     if (t.includes("voltage") && (t.includes("range") || t.includes("allowed"))) return { role: "ai", text: "Allowed line voltage range is 197 V – 253 V. Measured 229 V on this job is within range.", sourceKind: "manufacturer_verified", confidence: "High" };
@@ -39,7 +52,8 @@ export default function Copilot() {
       return { role: "ai", text: "Always verify the installed component's printed label before purchasing a replacement. Treat the label as a technician observation, not a Goodman spec. Confirm against unit documentation and your approved parts database.", sourceKind: "technician_observation", confidence: "Medium", escalate: "If installed component disagrees with unit documentation, escalate." };
     }
     if (t.includes("charge") || t.includes("refrigerant")) return { role: "ai", text: "Factory charge 71 oz, applies to 15 ft of 3/8\" liquid line. Adjust per installation instructions for longer line sets.", sourceKind: "manufacturer_verified", confidence: "High" };
-    return { role: "ai", text: "Not found in current documents. Try MCA, MOP, line size, allowed voltage, or refrigerant charge.", sourceKind: "demo_inference", confidence: "Low" };
+    // Default: abstain rather than invent.
+    return { role: "ai", text: "Not found in approved documentation for this unit. Technician verification required. Try MCA, MOP, line size, allowed voltage, or refrigerant charge — or check the unit's documents tab.", sourceKind: "demo_inference", confidence: "Low" };
   };
 
   const send = (q?: string) => {

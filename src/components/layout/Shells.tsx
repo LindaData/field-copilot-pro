@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, RotateCcw, ChevronLeft, HelpCircle, LayoutDashboard, Users, Wrench } from "lucide-react";
+import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, RotateCcw, ChevronLeft, HelpCircle, LayoutDashboard, Users, Wrench, ShieldCheck } from "lucide-react";
 import { useStore, useCurrentUser } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ const ownerTabs = [
   { to: "/app/owner/jobs", label: "Jobs", icon: Briefcase },
   { to: "/app/owner/customers", label: "Customers", icon: Users },
   { to: "/app/owner/equipment", label: "Equipment", icon: Wrench },
+  { to: "/app/owner/qa", label: "QA", icon: ShieldCheck },
   { to: "/app/owner/more", label: "More", icon: MoreHorizontal },
 ];
 

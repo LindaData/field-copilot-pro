@@ -9,7 +9,7 @@ const KEY = "hvac-copilot-store-v1";
 
 type Role = "guest-tech" | "guest-owner" | "user";
 
-interface StoreState {
+export interface StoreState {
   company: Company;
   users: UserProfile[];
   currentUserId: string;

@@ -28,6 +28,8 @@ import OwnerJobs from "./pages/owner/OwnerJobs";
 import OwnerCustomers from "./pages/owner/OwnerCustomers";
 import OwnerEquipment from "./pages/owner/OwnerEquipment";
 import OwnerMore from "./pages/owner/OwnerMore";
+import QACenter from "./pages/owner/QACenter";
+import FieldTest from "./pages/technician/FieldTest";
 import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
 
@@ -63,6 +65,7 @@ const App = () => (
               <Route path="training" element={<Training />} />
               <Route path="settings" element={<Settings />} />
               <Route path="more" element={<More />} />
+              <Route path="field-test" element={<FieldTest />} />
             </Route>
 
             <Route path="/app/owner" element={<OwnerShell />}>
@@ -70,6 +73,7 @@ const App = () => (
               <Route path="jobs" element={<OwnerJobs />} />
               <Route path="customers" element={<OwnerCustomers />} />
               <Route path="equipment" element={<OwnerEquipment />} />
+              <Route path="qa" element={<QACenter />} />
               <Route path="more" element={<OwnerMore />} />
             </Route>
 
