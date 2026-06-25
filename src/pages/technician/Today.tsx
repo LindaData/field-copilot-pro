@@ -172,22 +172,56 @@ export default function Today() {
       {/* ONE primary action */}
       <PrimaryCta action={action} />
 
-      {/* Up next (compact) */}
-      {current && next && (
-        <Link to={`/app/jobs/${next.id}`} className="card-elev flex items-center gap-3 p-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <ArrowRight className="h-4 w-4" />
-          </div>
-          <div className="flex-1">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Up next</div>
-            <div className="text-sm font-semibold leading-tight">{customerOf(next.customerId)?.name}</div>
-            <div className="text-[11px] text-muted-foreground">
-              {new Date(next.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-              {remaining > 1 && <span> · {remaining - 1} more after this</span>}
+      {/* Today's schedule — all jobs */}
+      {myJobs.length > 0 && (
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Today's schedule ({myJobs.length})
             </div>
+            <Link to="/app/jobs" className="text-[11px] font-medium text-primary">View all</Link>
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
+          <div className="flex flex-col gap-2">
+            {[...myJobs]
+              .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor))
+              .map((j) => {
+                const c = customerOf(j.customerId);
+                const p = propertyOf(j.propertyId);
+                const isCurrent = current?.id === j.id;
+                const done = j.status === "Completed";
+                return (
+                  <Link
+                    key={j.id}
+                    to={`/app/jobs/${j.id}`}
+                    className={cn(
+                      "card-elev flex items-center gap-3 p-3",
+                      isCurrent && "border-l-4 border-l-accent",
+                      done && "opacity-60",
+                    )}
+                  >
+                    <div className="w-14 shrink-0 text-center">
+                      <div className="text-sm font-semibold leading-tight">
+                        {new Date(j.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="truncate text-sm font-semibold">{c?.name}</div>
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">{j.status}</Badge>
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">{j.complaint}</div>
+                      {p && (
+                        <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <MapPin className="h-3 w-3" /> {p.address.split(",")[0]}
+                        </div>
+                      )}
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                );
+              })}
+          </div>
+        </section>
       )}
 
       {/* Quick links — secondary */}
