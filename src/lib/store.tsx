@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as seed from "./seed";
 import type {
-  ArrivalMethod, Authorization, Company, Customer, DiagnosticSession, DiagStepResult,
+  AiFeedback, ArrivalMethod, Authorization, Company, Customer, DiagnosticSession, DiagStepResult,
   DocItem, Equipment, Job, JobPart, JobStage, JobStatus, KnowledgeCase, Measurement,
   PartRequest, PartRequestStatus, Part, PauseRecord, PauseReason, Property,
   UserProfile,
