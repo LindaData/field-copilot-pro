@@ -26,7 +26,7 @@ export function MobileShell() {
   const user = useCurrentUser();
   const nav = useNavigate();
   const loc = useLocation();
-  const canBack = loc.pathname !== "/app/jobs" && loc.pathname !== "/app/owner";
+  const canBack = loc.pathname !== "/app/today" && loc.pathname !== "/app/jobs" && loc.pathname !== "/app/owner";
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
