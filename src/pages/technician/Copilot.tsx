@@ -31,7 +31,7 @@ export default function Copilot() {
   const reply = (q: string): Msg => {
     // 1) Safety gate — runs before any deterministic answer
     const verdict = classifyPrompt(q);
-    if (!verdict.allow) {
+    if (verdict.allow === false) {
       return {
         role: "ai",
         text: `I can't help with that request. ${verdict.reason}`,
