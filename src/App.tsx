@@ -24,6 +24,11 @@ import More from "./pages/technician/More";
 import Settings from "./pages/technician/Settings";
 import Training from "./pages/technician/Training";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
+import OwnerJobs from "./pages/owner/OwnerJobs";
+import OwnerCustomers from "./pages/owner/OwnerCustomers";
+import OwnerEquipment from "./pages/owner/OwnerEquipment";
+import OwnerMore from "./pages/owner/OwnerMore";
+import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
