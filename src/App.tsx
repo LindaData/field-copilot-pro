@@ -45,7 +45,8 @@ const App = () => (
             <Route path="/signin" element={<SignIn />} />
 
             <Route path="/app" element={<MobileShell />}>
-              <Route index element={<Navigate to="/app/jobs" replace />} />
+              <Route index element={<Navigate to="/app/today" replace />} />
+              <Route path="today" element={<Today />} />
               <Route path="jobs" element={<JobsHome />} />
               <Route path="jobs/:id" element={<JobDetail />} />
               <Route path="jobs/:id/diagnose" element={<Diagnostics />} />
@@ -66,6 +67,10 @@ const App = () => (
 
             <Route path="/app/owner" element={<OwnerShell />}>
               <Route index element={<OwnerDashboard />} />
+              <Route path="jobs" element={<OwnerJobs />} />
+              <Route path="customers" element={<OwnerCustomers />} />
+              <Route path="equipment" element={<OwnerEquipment />} />
+              <Route path="more" element={<OwnerMore />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
