@@ -24,6 +24,11 @@ import More from "./pages/technician/More";
 import Settings from "./pages/technician/Settings";
 import Training from "./pages/technician/Training";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
+import OwnerJobs from "./pages/owner/OwnerJobs";
+import OwnerCustomers from "./pages/owner/OwnerCustomers";
+import OwnerEquipment from "./pages/owner/OwnerEquipment";
+import OwnerMore from "./pages/owner/OwnerMore";
+import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,7 +45,8 @@ const App = () => (
             <Route path="/signin" element={<SignIn />} />
 
             <Route path="/app" element={<MobileShell />}>
-              <Route index element={<Navigate to="/app/jobs" replace />} />
+              <Route index element={<Navigate to="/app/today" replace />} />
+              <Route path="today" element={<Today />} />
               <Route path="jobs" element={<JobsHome />} />
               <Route path="jobs/:id" element={<JobDetail />} />
               <Route path="jobs/:id/diagnose" element={<Diagnostics />} />
@@ -61,6 +67,10 @@ const App = () => (
 
             <Route path="/app/owner" element={<OwnerShell />}>
               <Route index element={<OwnerDashboard />} />
+              <Route path="jobs" element={<OwnerJobs />} />
+              <Route path="customers" element={<OwnerCustomers />} />
+              <Route path="equipment" element={<OwnerEquipment />} />
+              <Route path="more" element={<OwnerMore />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

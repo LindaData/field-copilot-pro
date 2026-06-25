@@ -26,6 +26,7 @@ interface StoreState {
   diag: Record<string, DiagnosticSession>; // by jobId
   online: boolean;
   tourSeen: boolean;
+  recentEquipmentIds: string[];
 }
 
 const initialState = (): StoreState => ({
@@ -45,6 +46,7 @@ const initialState = (): StoreState => ({
   diag: { "j-1": seed.INITIAL_DIAG },
   online: true,
   tourSeen: false,
+  recentEquipmentIds: ["eq-1"],
 });
 
 interface Ctx {
@@ -65,6 +67,8 @@ interface Ctx {
   promoteDoc: (id: string) => void;
   toggleOnline: () => void;
   markTourSeen: () => void;
+  touchEquipment: (id: string) => void;
+  removeJobPart: (jobId: string, partId: string) => void;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -134,6 +138,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })),
     toggleOnline: () => setStateRaw((s) => ({ ...s, online: !s.online })),
     markTourSeen: () => setStateRaw((s) => ({ ...s, tourSeen: true })),
+    touchEquipment: (id) => setStateRaw((s) => ({ ...s, recentEquipmentIds: [id, ...(s.recentEquipmentIds ?? []).filter((x) => x !== id)].slice(0, 6) })),
+    removeJobPart: (jobId, partId) => setStateRaw((s) => ({ ...s, jobParts: s.jobParts.filter((x) => !(x.jobId === jobId && x.partId === partId)) })),
   }), [state, setState]);
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;

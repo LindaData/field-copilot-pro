@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { SourceBadge } from "@/components/SourceBadge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,12 @@ const GROUP_ORDER: Spec["group"][] = ["Capacity", "Compressor", "Fan", "Refriger
 
 export default function EquipmentProfile() {
   const { id = "" } = useParams();
-  const { state } = useStore();
+  const { state, touchEquipment } = useStore();
   const eq = state.equipment.find((e) => e.id === id);
   const [q, setQ] = useState("");
   const [answer, setAnswer] = useState<null | { text: string; spec?: Spec }>(null);
+
+  useEffect(() => { if (eq) touchEquipment(eq.id); }, [eq?.id]);
 
   if (!eq) return <div className="p-6">Not found</div>;
 

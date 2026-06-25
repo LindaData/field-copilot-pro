@@ -15,8 +15,13 @@ export default function Approval() {
   const sigRef = useRef<HTMLCanvasElement | null>(null);
   const [signed, setSigned] = useState(false);
   const [email, setEmail] = useState(state.customers.find(c => c.id === job?.customerId)?.email ?? "");
-  const labor = 145 * 0.75; // 45 min
-  const total = +(cap.price + labor + (cap.price + labor) * (state.company.tax / 100)).toFixed(2);
+  const [partPrice, setPartPrice] = useState(cap.price);
+  const [laborHrs, setLaborHrs] = useState(0.75);
+  const [laborRate, setLaborRate] = useState(state.company.laborRate);
+  const labor = +(laborHrs * laborRate).toFixed(2);
+  const subtotal = +(partPrice + labor).toFixed(2);
+  const tax = +(subtotal * (state.company.tax / 100)).toFixed(2);
+  const total = +(subtotal + tax).toFixed(2);
 
   useEffect(() => {
     const c = sigRef.current; if (!c) return;
@@ -69,9 +74,20 @@ export default function Approval() {
         </div>
 
         <div className="mt-3 rounded-md border p-3 text-sm">
-          <div className="flex justify-between"><span>Part — {cap.name}</span><span>${cap.price.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span>Labor (45 min @ ${state.company.laborRate}/hr)</span><span>${labor.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span>Tax ({state.company.tax}%)</span><span>${((cap.price + labor) * state.company.tax / 100).toFixed(2)}</span></div>
+          <div className="flex items-center justify-between gap-2">
+            <span>Part — {cap.name}</span>
+            <div className="inline-flex items-center gap-1">$<Input type="number" inputMode="decimal" value={partPrice} onChange={(e) => setPartPrice(+e.target.value || 0)} className="h-8 w-20 text-right" /></div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span>Labor</span>
+            <div className="inline-flex items-center gap-1 text-xs">
+              <Input type="number" step="0.25" value={laborHrs} onChange={(e) => setLaborHrs(+e.target.value || 0)} className="h-8 w-16 text-right" /> hr ×
+              $<Input type="number" value={laborRate} onChange={(e) => setLaborRate(+e.target.value || 0)} className="h-8 w-20 text-right" />/hr
+            </div>
+          </div>
+          <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Labor subtotal</span><span>${labor.toFixed(2)}</span></div>
+          <div className="mt-1 flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span>Tax ({state.company.tax}%)</span><span>${tax.toFixed(2)}</span></div>
           <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold"><span>Total</span><span>${total.toFixed(2)}</span></div>
           <div className="mt-1 text-[11px] text-muted-foreground">Prices are editable demo values.</div>
         </div>

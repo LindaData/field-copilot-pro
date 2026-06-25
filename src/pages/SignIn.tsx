@@ -24,7 +24,7 @@ export default function SignIn() {
             if (!email || !pw) { toast.error("Enter email and password"); return; }
             setRole("user", "u-alex");
             toast.success("Signed in (demo)");
-            nav("/app/jobs");
+            nav("/app/today");
           }}
           className="mt-6 space-y-3 rounded-xl bg-card p-5 text-card-foreground"
         >

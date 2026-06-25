@@ -1,16 +1,24 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Briefcase, Camera, Bot, Wrench, MoreHorizontal, Wifi, WifiOff, RotateCcw, ChevronLeft, HelpCircle } from "lucide-react";
+import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, RotateCcw, ChevronLeft, HelpCircle, LayoutDashboard, Users, Wrench } from "lucide-react";
 import { useStore, useCurrentUser } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const tabs = [
+  { to: "/app/today", label: "Today", icon: Home },
   { to: "/app/jobs", label: "Jobs", icon: Briefcase },
   { to: "/app/scan", label: "Scan", icon: Camera },
   { to: "/app/copilot", label: "Copilot", icon: Bot },
-  { to: "/app/equipment", label: "Equipment", icon: Wrench },
   { to: "/app/more", label: "More", icon: MoreHorizontal },
+];
+
+const ownerTabs = [
+  { to: "/app/owner", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/app/owner/jobs", label: "Jobs", icon: Briefcase },
+  { to: "/app/owner/customers", label: "Customers", icon: Users },
+  { to: "/app/owner/equipment", label: "Equipment", icon: Wrench },
+  { to: "/app/owner/more", label: "More", icon: MoreHorizontal },
 ];
 
 export function MobileShell() {
@@ -18,7 +26,7 @@ export function MobileShell() {
   const user = useCurrentUser();
   const nav = useNavigate();
   const loc = useLocation();
-  const canBack = loc.pathname !== "/app/jobs" && loc.pathname !== "/app/owner";
+  const canBack = loc.pathname !== "/app/today" && loc.pathname !== "/app/jobs" && loc.pathname !== "/app/owner";
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
@@ -90,12 +98,22 @@ export function OwnerShell() {
             {state.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
             {state.online ? "Synced" : "Offline"}
           </button>
-          <Button variant="secondary" size="sm" onClick={() => nav("/app/jobs")}>Switch to Tech</Button>
+          <Button variant="secondary" size="sm" onClick={() => nav("/app/today")}>Switch to Tech</Button>
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-soft" onClick={() => { if (confirm("Reset demo?")) { reset(); nav("/"); } }}>
             <RotateCcw className="h-5 w-5" />
           </Button>
         </div>
       </header>
+      <nav className="sticky top-[60px] z-20 flex items-center gap-1 overflow-x-auto border-b bg-card px-3 py-2">
+        {ownerTabs.map(({ to, label, icon: Icon, end }) => (
+          <NavLink key={to} to={to} end={end} className={({ isActive }) => cn(
+            "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap",
+            isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+          )}>
+            <Icon className="h-4 w-4" />{label}
+          </NavLink>
+        ))}
+      </nav>
       <main className="flex-1 p-4 md:p-6"><Outlet /></main>
     </div>
   );
