@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, ChevronLeft, LayoutDashboard, Users, Wrench, ShieldCheck, Gauge, MoreVertical, RotateCcw, HelpCircle, LogOut, MessageSquare } from "lucide-react";
+import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, ChevronLeft, LayoutDashboard, Users, Wrench, ShieldCheck, MoreVertical, RotateCcw, HelpCircle, LogOut, MessageSquare } from "lucide-react";
 import { useStore, useCurrentUser } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
