@@ -341,3 +341,58 @@ export interface UserProfile {
 }
 
 export interface Company { name: string; phone: string; address: string; laborRate: number; tax: number; }
+
+export interface Photo {
+  id: string;
+  jobId?: string;
+  equipmentId?: string;
+  customerId?: string;
+  kind: "Nameplate" | "Before" | "After" | "Issue" | "Other";
+  caption?: string;
+  /** Tailwind class used as a placeholder swatch (no binary in the demo). */
+  swatchClass?: string;
+  capturedAt: string;
+  capturedBy: string;
+}
+
+export interface CustomerFeedback {
+  id: string;
+  jobId: string;
+  customerId: string;
+  technicianId: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  communication?: 1 | 2 | 3 | 4 | 5;
+  timeliness?: 1 | 2 | 3 | 4 | 5;
+  explanationClarity?: 1 | 2 | 3 | 4 | 5;
+  cleanliness?: 1 | 2 | 3 | 4 | 5;
+  overall?: 1 | 2 | 3 | 4 | 5;
+  comment?: string;
+  testimonialOk?: boolean;
+  submittedAt: string;
+}
+
+export interface TechFeedback {
+  id: string;
+  jobId?: string;
+  technicianId: string;
+  diagnosticStepId?: string;
+  helpful?: boolean;
+  confusing?: boolean;
+  incorrect?: boolean;
+  unsafe?: boolean;
+  missingSource?: boolean;
+  suggestedImprovement?: string;
+  voiceNotePlaceholder?: string;
+  submittedAt: string;
+}
+
+export interface ServiceReport {
+  id: string;
+  jobId: string;
+  customerId: string;
+  technicianId: string;
+  summary: string;
+  recommendations?: string[];
+  generatedAt: string;
+}
+
