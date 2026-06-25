@@ -43,11 +43,11 @@ export const CUSTOMERS: Customer[] = [
 ];
 
 export const PROPERTIES: Property[] = [
-  { id: "p-1", customerId: "c-1", address: "412 Magnolia Ln, Charlotte, NC", accessNotes: "Gate code 2244. Dog in back yard." },
-  { id: "p-2", customerId: "c-2", address: "88 Oak Ridge Rd, Concord, NC" },
-  { id: "p-3", customerId: "c-3", address: "1900 Park Ave Apt 12B, Charlotte, NC", accessNotes: "Buzz #12B" },
-  { id: "p-4", customerId: "c-4", address: "300 Westview Cir, Matthews, NC", accessNotes: "Office key at leasing." },
-  { id: "p-5", customerId: "c-5", address: "55 Main St, Davidson, NC" },
+  { id: "p-1", customerId: "c-1", address: "412 Magnolia Ln, Charlotte, NC", accessNotes: "Gate code 2244. Dog in back yard.", lat: 35.2271, lng: -80.8431, geofenceRadiusFt: 200 },
+  { id: "p-2", customerId: "c-2", address: "88 Oak Ridge Rd, Concord, NC", lat: 35.4087, lng: -80.5798, geofenceRadiusFt: 200 },
+  { id: "p-3", customerId: "c-3", address: "1900 Park Ave Apt 12B, Charlotte, NC", accessNotes: "Buzz #12B", lat: 35.2120, lng: -80.8298, geofenceRadiusFt: 200 },
+  { id: "p-4", customerId: "c-4", address: "300 Westview Cir, Matthews, NC", accessNotes: "Office key at leasing.", lat: 35.1168, lng: -80.7234, geofenceRadiusFt: 250 },
+  { id: "p-5", customerId: "c-5", address: "55 Main St, Davidson, NC", lat: 35.4993, lng: -80.8487, geofenceRadiusFt: 200 },
 ];
 
 const goodmanGSXN3Specs: Spec[] = [
