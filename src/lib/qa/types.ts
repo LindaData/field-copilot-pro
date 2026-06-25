@@ -38,7 +38,6 @@ export interface TestDef {
 }
 
 export interface TestResult {
-  id: string;
   status: TestStatus;
   actual: string;
   ts: string;

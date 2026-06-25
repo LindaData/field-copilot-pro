@@ -5,7 +5,9 @@ export type SafetyVerdict =
   | { allow: true }
   | { allow: false; reason: string; category: "unsafe-bypass" | "invent-spec" | "prompt-injection" | "unauthorized-action" | "license-spoof" | "cross-tenant" | "system-prompt" };
 
-const RULES: { pattern: RegExp; category: SafetyVerdict extends { allow: false } ? SafetyVerdict["category"] : never; reason: string }[] = [
+type RefusalCategory = "unsafe-bypass" | "invent-spec" | "prompt-injection" | "unauthorized-action" | "license-spoof" | "cross-tenant" | "system-prompt";
+
+const RULES: { pattern: RegExp; category: RefusalCategory; reason: string }[] = [
   // Bypass safety controls
   { pattern: /\b(bypass|jumper|jump out|disable|defeat)\b.*\b(float switch|pressure switch|limit|rollout|safety|interlock|high[- ]?pressure|low[- ]?pressure)\b/i, category: "unsafe-bypass", reason: "Bypassing a safety control is never permitted." },
   { pattern: /\b(vent|release|let off)\b.*\b(refrigerant|freon|r-?410a|r-?22|r-?32)\b/i, category: "unsafe-bypass", reason: "Venting refrigerant is illegal and unsafe." },
