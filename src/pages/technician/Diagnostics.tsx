@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SourceBadge } from "@/components/SourceBadge";
 import { VoiceInput } from "@/components/VoiceInput";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, ListChecks, MoreVertical, RefreshCw, ShieldAlert, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown, FileText, ListChecks, MoreVertical, RefreshCw, ShieldAlert, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -26,7 +26,10 @@ export default function Diagnostics() {
   const [ack, setAck] = useState(false);
   const [val, setVal] = useState("");
   const [confirmEdit, setConfirmEdit] = useState<string | null>(null);
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const step = findStep(currentId);
+  const equipment = state.equipment.find((e) => e.id === job?.equipmentId);
+
 
   // Pre-fill val when stepping onto a previously-answered measurement step
   useEffect(() => {
