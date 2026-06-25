@@ -155,9 +155,10 @@ export function applyJobFilters(jobs: Job[], f: JobFilters, ctx: FilterContext):
 
 export function activeFilterCount(f: JobFilters): number {
   let n = 0;
-  const arr: (keyof JobFilters)[] = ["techIds","statuses","brands","jobTypes","serviceCategories","billingTypes","equipmentTypes","cities","customerIds","propertyIds"];
+  const arr: (keyof JobFilters)[] = ["techIds","statuses","brands","jobTypes","serviceCategories","billingTypes","equipmentTypes","serviceClasses","cities","customerIds","propertyIds"];
   for (const k of arr) if ((f[k] as string[]).length > 0) n++;
-  if (f.callbackOnly) n++;
+  if (f.visitType) n++;
+  if (f.callbackOnly && f.visitType !== "callback") n++;
   if (f.openOnly) n++;
   if (f.waitingPartsOnly) n++;
   if (f.maintenancePlanOnly) n++;
