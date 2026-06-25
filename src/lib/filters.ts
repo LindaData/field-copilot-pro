@@ -5,6 +5,9 @@ export type RangeKey =
   | "last-30" | "this-quarter" | "last-quarter" | "ytd" | "last-year"
   | "custom" | "all-time";
 
+export type ServiceClassFilter = "Residential" | "Light Commercial";
+export type CallbackFilter = "first" | "callback";
+
 export interface JobFilters {
   range: RangeKey;
   customStart?: string;
@@ -16,9 +19,13 @@ export interface JobFilters {
   serviceCategories: string[];
   billingTypes: string[];
   equipmentTypes: string[];
+  serviceClasses: ServiceClassFilter[];
   cities: string[];
   customerIds: string[];
   propertyIds: string[];
+  /** "first" = first visit only, "callback" = callback only, undefined = both */
+  visitType?: CallbackFilter;
+  /** Legacy flag preserved for backwards compatibility (synonym for visitType === "callback") */
   callbackOnly?: boolean;
   openOnly?: boolean;
   waitingPartsOnly?: boolean;
@@ -31,6 +38,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   range: "last-30",
   techIds: [], statuses: [], brands: [], jobTypes: [],
   serviceCategories: [], billingTypes: [], equipmentTypes: [],
+  serviceClasses: [],
   cities: [], customerIds: [], propertyIds: [],
 };
 
