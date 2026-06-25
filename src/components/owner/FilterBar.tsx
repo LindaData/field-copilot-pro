@@ -2,12 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { ChevronDown, Download, Users, X } from "lucide-react";
 import {
-  JOB_TYPES, RANGE_OPTIONS, activeFilterCount, summarize, type JobFilters,
-  rangeBounds, type RangeBounds,
+  JOB_TYPES, SERVICE_CATEGORIES, BILLING_TYPES, RANGE_OPTIONS,
+  activeFilterCount, buildChips, rangeBounds, type JobFilters, type RangeBounds,
 } from "@/lib/filters";
-import type { JobStatus, UserProfile } from "@/lib/types";
+import type { Customer, JobStatus, UserProfile } from "@/lib/types";
 
 const STATUSES: JobStatus[] = [
   "Scheduled", "En Route", "On Site", "Diagnosing",
@@ -20,8 +21,11 @@ interface Props {
   reset: () => void;
   techs: UserProfile[];
   brands: string[];
+  cities?: string[];
+  equipmentTypes?: string[];
+  customers?: Customer[];
   onExport?: () => void;
-  /** Hide controls the caller doesn't want (e.g. a customer-detail page hides customer filter). */
+  matchedCount?: number;
   hide?: { brand?: boolean; jobType?: boolean; status?: boolean; tech?: boolean };
 }
 
@@ -68,10 +72,16 @@ function MultiCheck({
   );
 }
 
-export default function FilterBar({ filters, patch, reset, techs, brands, onExport, hide }: Props) {
+export default function FilterBar({
+  filters, patch, reset, techs, brands, cities = [], equipmentTypes = [],
+  customers = [], onExport, matchedCount, hide,
+}: Props) {
   const b: RangeBounds = rangeBounds(filters);
   const count = activeFilterCount(filters);
-  const chips = summarize(filters, b);
+  const chips = buildChips(filters, patch, {
+    techs: techs.map((t) => ({ id: t.id, name: t.name })),
+    customers: customers.map((c) => ({ id: c.id, name: c.name })),
+  });
 
   return (
     <div className="space-y-2">
@@ -94,41 +104,99 @@ export default function FilterBar({ filters, patch, reset, techs, brands, onExpo
         {!hide?.tech && (
           <MultiCheck
             label="Technicians" icon={Users} allLabel="All technicians"
-            values={filters.techIds}
-            onChange={(techIds) => patch({ techIds })}
-            options={techs.map((t) => ({ value: t.id, label: t.name, sub: t.role }))}
+            values={filters.techIds} onChange={(v) => patch({ techIds: v })}
+            options={techs.map((t) => ({ value: t.id, label: t.name, sub: t.active === false ? "inactive" : t.role }))}
           />
         )}
 
         {!hide?.brand && (
-          <MultiCheck
-            label="Brands" allLabel="All brands"
-            values={filters.brands}
-            onChange={(brandsNext) => patch({ brands: brandsNext })}
+          <MultiCheck label="Brands" allLabel="All brands"
+            values={filters.brands} onChange={(v) => patch({ brands: v })}
             options={brands.map((b) => ({ value: b, label: b }))}
           />
         )}
 
+        {equipmentTypes.length > 0 && (
+          <MultiCheck label="Equip type" allLabel="All equipment"
+            values={filters.equipmentTypes} onChange={(v) => patch({ equipmentTypes: v })}
+            options={equipmentTypes.map((t) => ({ value: t, label: t }))}
+          />
+        )}
+
         {!hide?.jobType && (
-          <MultiCheck
-            label="Job types" allLabel="All job types"
-            values={filters.jobTypes}
-            onChange={(jobTypes) => patch({ jobTypes })}
+          <MultiCheck label="Job types" allLabel="All job types"
+            values={filters.jobTypes} onChange={(v) => patch({ jobTypes: v })}
             options={JOB_TYPES.map((t) => ({ value: t, label: t }))}
           />
         )}
 
+        <MultiCheck label="Category" allLabel="All categories"
+          values={filters.serviceCategories} onChange={(v) => patch({ serviceCategories: v })}
+          options={SERVICE_CATEGORIES.map((t) => ({ value: t, label: t }))}
+        />
+
+        <MultiCheck label="Billing" allLabel="All billing"
+          values={filters.billingTypes} onChange={(v) => patch({ billingTypes: v })}
+          options={BILLING_TYPES.map((t) => ({ value: t, label: t }))}
+        />
+
+        {cities.length > 0 && (
+          <MultiCheck label="City" allLabel="All cities"
+            values={filters.cities} onChange={(v) => patch({ cities: v })}
+            options={cities.map((c) => ({ value: c, label: c }))}
+          />
+        )}
+
+        {customers.length > 0 && (
+          <MultiCheck label="Customer" allLabel="All customers"
+            values={filters.customerIds} onChange={(v) => patch({ customerIds: v })}
+            options={customers.map((c) => ({ value: c.id, label: c.name, sub: c.city }))}
+          />
+        )}
+
         {!hide?.status && (
-          <MultiCheck
-            label="Statuses" allLabel="All statuses"
-            values={filters.statuses}
-            onChange={(s) => patch({ statuses: s as JobStatus[] })}
+          <MultiCheck label="Statuses" allLabel="All statuses"
+            values={filters.statuses} onChange={(s) => patch({ statuses: s as JobStatus[] })}
             options={STATUSES.map((s) => ({ value: s, label: s }))}
           />
         )}
 
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="h-9 gap-1">More <ChevronDown className="h-3 w-3" /></Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 space-y-3">
+            <label className="flex items-center justify-between text-sm">
+              <span>Open jobs only</span>
+              <Switch checked={!!filters.openOnly} onCheckedChange={(v) => patch({ openOnly: v })} />
+            </label>
+            <label className="flex items-center justify-between text-sm">
+              <span>Waiting for parts</span>
+              <Switch checked={!!filters.waitingPartsOnly} onCheckedChange={(v) => patch({ waitingPartsOnly: v })} />
+            </label>
+            <label className="flex items-center justify-between text-sm">
+              <span>Callbacks only</span>
+              <Switch checked={!!filters.callbackOnly} onCheckedChange={(v) => patch({ callbackOnly: v })} />
+            </label>
+            <label className="flex items-center justify-between text-sm">
+              <span>Maintenance plan customers</span>
+              <Switch checked={!!filters.maintenancePlanOnly} onCheckedChange={(v) => patch({ maintenancePlanOnly: v })} />
+            </label>
+            <div>
+              <div className="mb-1 text-xs font-semibold">Revenue range ($)</div>
+              <div className="flex items-center gap-1">
+                <Input type="number" placeholder="Min" className="h-8" value={filters.revenueMin ?? ""}
+                  onChange={(e) => patch({ revenueMin: e.target.value === "" ? undefined : Number(e.target.value) })} />
+                <span className="text-xs text-muted-foreground">–</span>
+                <Input type="number" placeholder="Max" className="h-8" value={filters.revenueMax ?? ""}
+                  onChange={(e) => patch({ revenueMax: e.target.value === "" ? undefined : Number(e.target.value) })} />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <Button variant="ghost" className="h-9" onClick={reset} disabled={count === 0 && filters.range === "last-30"}>
-          <X className="mr-1 h-4 w-4" /> Reset
+          <X className="mr-1 h-4 w-4" /> Clear all
         </Button>
         {onExport && (
           <Button variant="outline" className="h-9" onClick={onExport}>
@@ -138,9 +206,18 @@ export default function FilterBar({ filters, patch, reset, techs, brands, onExpo
       </div>
 
       <div className="flex flex-wrap items-center gap-1 text-[11px]">
+        <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">{b.label}</span>
+        {typeof matchedCount === "number" && (
+          <span className="rounded bg-muted px-2 py-0.5 text-muted-foreground">{matchedCount} match{matchedCount === 1 ? "" : "es"}</span>
+        )}
         {chips.map((c) => (
-          <span key={c} className="rounded bg-muted px-2 py-0.5 text-muted-foreground">{c}</span>
+          <button key={c.key} onClick={c.clear} className="group inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20">
+            {c.label} <X className="h-3 w-3 opacity-60 group-hover:opacity-100" />
+          </button>
         ))}
+        {count > 0 && (
+          <button onClick={reset} className="text-muted-foreground underline">Clear all ({count})</button>
+        )}
         {b.invalid && <span className="rounded bg-destructive/10 px-2 py-0.5 text-destructive">{b.invalid}</span>}
       </div>
     </div>

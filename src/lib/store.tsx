@@ -7,7 +7,7 @@ import type {
   UserProfile,
 } from "./types";
 
-const KEY = "hvac-copilot-store-v3";
+const KEY = "hvac-copilot-store-v4";
 
 type Role = "guest-tech" | "guest-owner" | "user";
 
