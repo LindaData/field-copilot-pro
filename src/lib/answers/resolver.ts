@@ -1,6 +1,14 @@
 import type { Equipment, Spec } from "@/lib/types";
 import type { Answer } from "./types";
-import { classifyPrompt } from "@/lib/qa/safety";
+// Inline safety classifier (previously @/lib/qa/safety)
+function classifyPrompt(q: string): { allow: boolean; reason?: string; category?: string } {
+  const s = q.toLowerCase();
+  if (/\b(bypass|disable|defeat)\b.*\b(safety|limit|switch|interlock)\b/.test(s))
+    return { allow: false, reason: "Bypassing safety devices is not permitted.", category: "safety-bypass" };
+  if (/\b(refrigerant|r-?(22|410a|32|454b))\b.*\b(vent|release|dump)\b/.test(s))
+    return { allow: false, reason: "Venting refrigerant is illegal under EPA Section 608.", category: "epa-violation" };
+  return { allow: true };
+}
 
 const ABSTAIN_NEXT = "Verify on nameplate, manufacturer documentation, or escalate to a senior technician.";
 
