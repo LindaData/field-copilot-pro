@@ -30,6 +30,7 @@ export interface StoreState {
   online: boolean;
   tourSeen: boolean;
   recentEquipmentIds: string[];
+  aiFeedback: AiFeedback[];
 }
 
 const initialState = (): StoreState => ({
