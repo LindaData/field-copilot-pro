@@ -87,6 +87,9 @@ interface Ctx {
   // part requests
   addPartRequest: (pr: PartRequest) => void;
   updatePartRequest: (id: string, patch: Partial<PartRequest>) => void;
+  // AI feedback
+  addAiFeedback: (fb: AiFeedback) => void;
+  markAiFeedbackReviewed: (id: string, reviewed: boolean) => void;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
