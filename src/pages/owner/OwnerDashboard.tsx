@@ -271,7 +271,10 @@ function computeMetrics(jobs: Job[], state: ReturnType<typeof useStore>["state"]
   const avg = (xs: number[]) => xs.length === 0 ? 0 : Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
 
   const partsForRangeJobs = state.jobParts.filter((jp) => jobs.some((j) => j.id === jp.jobId));
-  const partsCost = Math.round(partsForRangeJobs.reduce((sum, jp) => sum + jp.qty * jp.unitPrice, 0));
+  const partsCost = Math.round(partsForRangeJobs.reduce((sum, jp) => {
+    const p = state.parts.find((x) => x.id === jp.partId);
+    return sum + jp.qty * (p?.price ?? 0);
+  }, 0));
   const revenue = Math.round(completed.length * 280 + partsCost); // simple model
   const fixRate = completed.length === 0 ? 0 : Math.round(((completed.length - followUps) / completed.length) * 100);
   const callbackRate = jobs.length === 0 ? 0 : Math.round((followUps / jobs.length) * 100);
