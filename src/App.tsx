@@ -31,6 +31,7 @@ import OwnerEquipment from "./pages/owner/OwnerEquipment";
 import OwnerMore from "./pages/owner/OwnerMore";
 import QACenter from "./pages/owner/QACenter";
 import AwsStorage from "./pages/owner/integrations/AwsStorage";
+import OwnerReadiness from "./pages/owner/OwnerReadiness";
 import FieldTest from "./pages/technician/FieldTest";
 import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
@@ -77,6 +78,7 @@ const App = () => (
               <Route path="customers" element={<OwnerCustomers />} />
               <Route path="equipment" element={<OwnerEquipment />} />
               <Route path="qa" element={<QACenter />} />
+              <Route path="readiness" element={<OwnerReadiness />} />
               <Route path="integrations/aws" element={<AwsStorage />} />
               <Route path="more" element={<OwnerMore />} />
             </Route>
