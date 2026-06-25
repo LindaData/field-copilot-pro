@@ -1,110 +1,114 @@
+# Make All Demo Filters Functional and Data-Driven
 
-# AWS Connection & Storage Setup — Plan
+Goal: every filter chip in the app must change the data shown — metrics, charts, tables, drill-downs, and exports — all driven from a single shared filtering + aggregation layer over deterministic seed data.
 
-## What Lovable can and cannot do here
+## Approach
 
-Before I start, two honest boundaries you should know:
+One **shared filter object** (`JobFilters`) → one **aggregator** (`computeMetrics(filteredJobs, ctx)`) → every card, chart, table, and export reads from the same result. Pages do not compute their own totals.
 
-1. **Lovable cannot provision AWS infrastructure for you.** Creating the S3 bucket, RDS database, EC2 instance, Cognito user pool, IAM roles, and Secrets Manager entries has to happen in your AWS account (you, your IT, or an AWS partner). Lovable will scaffold the wizard and the checklist so a nontechnical owner can follow along, but the "Create EC2 backend" step is a `Mark complete` checkbox + instructions, not a Lovable button that spins one up.
-2. **Lovable's only first-class AWS integration is the S3 connector.** That connector is real and works exactly the way your brief asks: short-lived presigned URLs, no AWS keys in the browser, server-side signing. **EC2, RDS, Cognito, and Secrets Manager are not Lovable connectors.** They exist in your AWS account; this app can call them only over HTTPS to an endpoint you stand up (your EC2 API), or it can use Lovable's built-in equivalents until then.
+## Phase F1 — Seed data expansion (deterministic)
 
-Given those, here's how I propose to honor every requirement in your brief:
+Expand `src/lib/seed.ts` so filters produce visibly different results. Keep IDs stable for Reset Demo determinism.
 
-| Your AWS service | What ships now in this app | What you (or your AWS admin) must do externally |
-|---|---|---|
-| **S3** for files | **Real S3, via the AWS S3 connector** — presigned upload/download URLs minted by an edge function. No keys in the browser. | Create private bucket, enable Block Public Access, add CORS for your app origin, link the connector in Lovable. |
-| **EC2** API backend | A **repository abstraction** (`AwsApiRepository`) that points at your EC2 base URL once you publish it. Until then, the same interface is implemented by `DemoDataRepository` (existing local demo) and `LovableCloudRepository` (Postgres + edge functions). | Build/deploy your EC2 API (your IT). Then paste the base URL into the wizard. |
-| **RDS PostgreSQL** | The schema we'd want in RDS is created in **Lovable Cloud Postgres now** so the app has a real DB to test against. The repository layer means swapping to RDS later is one adapter swap, not a rewrite. | Stand up RDS, run the same migration there, point your EC2 API at it. |
-| **Cognito** auth | A Cognito **configuration screen** (region/pool/client/domain), and an `AuthAdapter` interface. Default adapter is Lovable Cloud auth so the demo keeps working; a Cognito adapter stub is included for your EC2 backend to honor. | Create Cognito pool + app client; paste safe IDs into the wizard. |
-| **Secrets Manager** | The wizard refuses to accept secrets in the browser. It only stores non-secret config (region, bucket name, EC2 URL, Cognito IDs). | Put DB password, third-party keys, and Cognito client secret in AWS Secrets Manager; reference them from your EC2 IAM role. |
+- **3 technicians**: Alex Reed, Jordan Park, Sam Diaz (+ 1 inactive: Pat Lowry with historical jobs only).
+- **~30 jobs across ~90 days**, spread across statuses (Scheduled, En Route, On Site, Diagnosing, Waiting for Approval, Waiting for Parts, Completed, Follow-Up).
+- New `Job` fields: `jobType` ("Repair" | "Maintenance" | "Install" | "Inspection" | "Warranty"), `serviceCategory` ("No Cooling" | "No Heat" | "Leak" | "Noise" | "Tune-Up" | "Install"), `billingType` ("Billable" | "Warranty" | "Maintenance Plan"), `isCallback: boolean`, `originalJobId?`, `revenue`, `partsCost`, `laborCost`, `travelMinutes`, `diagnosticMinutes`, `activeLaborMinutes`, `pausedMinutes`, `totalDurationMinutes`, `rating?` (1-5), `estimateApproved?: boolean`, `firstTimeFix: boolean`.
+- **~10 customers** across **4 cities** (Cape Coral, Fort Myers, Naples, Bonita Springs), some flagged `maintenancePlan: true`.
+- **Equipment**: 4 brands (Goodman, Trane, Carrier, Lennox), 3 types (Heat Pump, AC, Furnace).
+- **Parts usage** records distributed across jobs (capacitor, contactor, TXV, blower motor) including 2 "parts-related return visits".
+- All numbers chosen so totals are non-trivial and filterable subsets are still non-empty.
 
-If you read those rows and think "wait, I expected Lovable to build the EC2/RDS/Cognito side too" — please say so now. I'd rather pause and have that conversation than build the wizard.
+## Phase F2 — Filter model expansion
 
-## Decisions I need
+Extend `src/lib/filters.ts`:
 
-**D1. Should I enable Lovable Cloud so the S3 connector and the edge functions that mint presigned URLs can actually run?**
-This is required for *any* real S3 upload from the app, even in demo. Without it, the AWS Storage page can only display config fields and the migration preview — every "Test S3 upload" will return "AWS not yet enabled in this environment". Default if you stay silent: **yes**, enable Lovable Cloud.
+- Add to `JobFilters`: `serviceCategories[]`, `equipmentTypes[]`, `cities[]`, `billingTypes[]`, `callbackOnly?: "first-visit"|"callback"|null`, `maintenancePlanOnly?: boolean`, `revenueMin?`, `revenueMax?`.
+- Add `"last-quarter"` and `"last-year"` to `RangeKey`; implement bounds.
+- Extend `applyJobFilters` to honor every new field (AND semantics).
+- Add `previousPeriodBounds(filters)` for trend comparisons; return `null` when prior period has < N matching jobs → "Not enough comparison data."
+- Add `activeFilterCount` + `summarize` updates.
 
-**D2. Default DATA_PROVIDER while you wire AWS?**
-- `demo` — current behavior, localStorage only. Default if you stay silent.
-- `cloud` — write to Lovable Cloud Postgres now. Mirrors the schema your RDS will need; lets technicians test real persistence today.
-- `aws` — only valid once your EC2 base URL test passes.
+## Phase F3 — Shared metrics aggregator
 
-**D3. Auth.** Lovable Cloud email + Google sign-in stays on as the working auth until your EC2 + Cognito are deployed. Then your admin can flip an `AUTH_PROVIDER=cognito` toggle. OK?
+New `src/lib/metrics.ts`:
 
-**D4. Real S3 connector now or skip?**
-If you have an AWS account and a private bucket, I can wire the connector and end-to-end test an upload **this session**. If not, I scaffold everything but every test button reports "Connector not yet linked — share AWS bucket details when ready". Say **link now** or **scaffold only**.
+```ts
+computeMetrics(jobs: Job[], ctx): {
+  openJobs, completed, scheduled,
+  revenue, grossProfit, grossMargin, avgTicket,
+  firstTimeFixRate, callbackRate,
+  avgTravelMin, avgDiagnosticMin, avgActiveLaborMin, avgTotalDurationMin, pausedMin,
+  techUtilization,        // active / (active+paused+travel)
+  estimateApprovalRate,
+  partsUsage: { partId, name, count, jobIds }[],
+  partsReturnVisits,
+  failureTypes: { category, count }[],
+  brandsServiced: { brand, count }[],
+  ratings: { avg, count, dist },
+  estimatedSavings,
+  byTech: Record<techId, {...subset}>,
+  byDay: { date, revenue, jobs }[],   // for charts
+  byStatus: Record<JobStatus, number>,
+}
+```
 
-If silent on all four: I proceed with D1 yes, D2 demo (preserves the working demo as you required), D3 yes, D4 scaffold only.
+Plus `computeTrend(current, previous)` returning `{ delta, pct, hasComparison }`.
 
-## Phased implementation
+## Phase F4 — Owner Dashboard rewrite
 
-### Phase A1 — Repository layer (`DataRepository`)
-- Define `src/lib/data/repository.ts` interface covering every store API the app already uses: companies, users, roles, customers, properties, equipment, jobs, status history, diag sessions, measurements, observations, parts, inventory, labor, pauses, authorizations, feedback, reports, audit logs, file refs.
-- `DemoDataRepository` wraps the current `useStore` API so nothing breaks.
-- `LovableCloudRepository` (built in A4) and `AwsApiRepository` (built in A6) implement the same interface.
-- `DATA_PROVIDER` resolves from `import.meta.env.VITE_DATA_PROVIDER` falling back to the wizard's saved choice in localStorage. App boot picks the matching adapter.
+`src/pages/owner/OwnerDashboard.tsx`:
 
-### Phase A2 — AWS config model + wizard storage
-- `src/lib/aws/config.ts` defines `AwsConfig = { region, s3Bucket, ec2BaseUrl, cognito: { userPoolId, clientId, domain }, environment, companyId }` and validates each field (no secrets accepted; rejects strings matching AWS access-key patterns).
-- Saved in localStorage under `caloosa.aws.config` AND mirrored into Lovable Cloud's `app_settings` table once Cloud is enabled, so the values survive across browsers.
+- One `useMemo` runs `applyJobFilters` → `computeMetrics`. Every card, chart, list reads from that result.
+- Cards: Open / Completed / Scheduled, Revenue, Gross Profit, Gross Margin, Avg Ticket, First-Time Fix %, Callback %, Avg Travel/Diagnostic/Active Labor/Total Duration, Paused time, Tech Utilization, Estimate Approval %, Parts Return Visits, Avg Rating.
+- Charts (recharts already in deps): Revenue over time (byDay), Jobs by status (bar), Jobs by technician (bar), Failure categories (bar), Brand mix (bar), Rating distribution.
+- Each card/chart bar is a `<Link>` to `/app/owner/jobs?from=metric&...` carrying filters + optional sub-filter (status=Completed, techId=..., partId=...) so drill-down counts match.
+- Trend deltas via `computeTrend`; show "Not enough comparison data" when null.
+- Empty states ("No jobs match these filters") instead of stale numbers.
 
-### Phase A3 — AWS Storage wizard page (Owner only)
-- Route: `/app/owner/integrations/aws`. Added to OwnerShell sub-nav under "More → Integrations".
-- Five status cards (AWS Account, S3, PostgreSQL, EC2, Cognito) with the exact state machine from your brief: `Not Started / Information Needed / Testing / Connected / Connection Failed / Action Required`. State persists with the config.
-- Plain-language explanations exactly as you wrote them.
-- Configuration form for the non-secret fields only. Secret fields are explicitly absent and a callout explains why ("Passwords and AWS access keys belong in AWS Secrets Manager and never in this screen").
-- Five test buttons + Run Full Connection Test. Each renders a friendly result message; never a raw stack trace.
-- 13-step nontechnical checklist with `What this does / Where to find it in AWS / What to copy / What not to share / Mark Complete`.
+## Phase F5 — FilterBar upgrades
 
-### Phase A4 — Lovable Cloud database (the "RDS now, swap later" schema)
-- Enable Lovable Cloud.
-- Migration creates the full structured schema: `companies, users, user_roles, customers, properties, equipment, equipment_specs, jobs, job_status_history, diag_sessions, measurements, observations, parts, inventory, labor_entries, pauses, authorizations, ai_feedback, reports, audit_logs, file_refs`. Each table has tenant isolation via `company_id`, RLS scoping to the authenticated user's company, and explicit `GRANT`s per Lovable conventions.
-- `LovableCloudRepository` implements `DataRepository` against this schema. Verified by writing one record per table from a smoke test.
-- This same SQL is exported to `db/aws-rds-schema.sql` so your DBA can apply it verbatim to RDS later.
+`src/components/owner/FilterBar.tsx` + new sub-pieces:
 
-### Phase A5 — S3 presigned-URL backend (real, when connector is linked)
-- Edge functions:
-  - `POST /functions/v1/files-upload-url` — verifies session, company, target entity (job/equipment), generates safe filename, mints presigned PUT, inserts `file_refs` row in `processing=pending` state.
-  - `POST /functions/v1/files-complete` — marks the row uploaded, records size + MIME, writes audit log.
-  - `POST /functions/v1/files-download-url` — verifies tenancy + visibility, mints presigned GET.
-  - `DELETE /functions/v1/files/:fileId` — soft-deletes row, writes audit log, deletes S3 object via gateway.
-- Validates MIME against allowlist (image/*, application/pdf, video/mp4, audio/*, text/csv) and size cap (configurable; default 50 MB), and rejects extensions in a deny list (`.exe .js .sh .bat .ps1 .cmd .com .scr .msi .dll`).
-- S3 key template uses only IDs, never customer-identifying names: `companies/{companyId}/jobs/{jobId}/photos/{fileId}/{safeFilename}` etc.
-- Tenant isolation enforced server-side; the request body cannot override `companyId`.
+- Add MultiCheck instances for Service Category, Equipment Type, City, Billing Type.
+- Add toggles: First-visit/Callback, Maintenance plan only, Open/Completed quick toggles, Waiting-for-parts quick toggle.
+- Add Revenue range inputs (min/max).
+- Active-filter **chips with X to remove each**, plus Clear all + filter count badge.
+- Date range: enforce end ≥ start, show selected range label; include `last-quarter`, `last-year`.
+- **Saved views** (seeded): "My team this week", "Completed this month", "Callbacks last 30 days", "Waiting for parts", "Warranty work". Stored in `localStorage` under `filter-views:owner`.
+- Export button writes CSV including: range, active filters, timestamp, timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`), row count.
 
-### Phase A6 — `AwsApiRepository` stub
-- Implements `DataRepository` by calling your EC2 API at `${ec2BaseUrl}/api/...` with the Cognito ID token attached.
-- Until you publish the EC2 API, calls fail fast with a friendly "EC2 backend not yet configured — your administrator must deploy it" message, and the wizard's EC2 card stays at `Action Required`.
+## Phase F6 — Wire every other filtered surface
 
-### Phase A7 — Technician upload UX
-- Technicians only see: Take Photo / Choose File / Uploading / Saved / Offline — waiting to sync / Upload Failed — retry. No "S3", no "presigned URL", no "bucket" in the UI string table.
-- Photo compression (canvas resize to max 2000px, 0.85 jpeg), upload progress bar via XHR, cancel, retry, offline queue persisted to IndexedDB, dedupe by sha1+size, remove file, Internal vs Customer Shareable classifier.
+All use the same `useJobFilters` + shared aggregator/filter pipeline; no page does ad-hoc filtering.
 
-### Phase A8 — Failure handling & sync status
-- All writes funnel through an `OutboxQueue` so a failed AWS write becomes a queued retry rather than data loss. Sync status surfaces on the technician Today screen ("3 items waiting to sync") and on the Owner dashboard's new AWS panel.
+- `OwnerJobs.tsx` — FilterBar + filtered table; search runs inside filtered set; sortable columns.
+- `OwnerCustomers.tsx` — customer list filtered by city / maintenance plan / activity in date range.
+- `OwnerEquipment.tsx` — filter by brand / type / city / has-jobs-in-range.
+- `QACenter.tsx` — filter test results by suite/category/status; totals reflect filter.
+- `FieldTest.tsx` — filter feedback by tech, step, rating, date.
+- Technician `Parts.tsx`, `Documents.tsx`, `Knowledge.tsx`, `JobsHome.tsx` — search + category filters update list and counts.
 
-### Phase A9 — Owner admin AWS dashboard panel
-- On Owner dashboard: AWS connection status, last successful API response timestamp, last DB write, last S3 upload, files awaiting sync, failed uploads, storage used (queried from `file_refs` aggregate), environment, security warnings (e.g. "Bucket not yet verified as private"), migration status.
+## Phase F7 — State, loading, error, performance
 
-### Phase A10 — Migration preview
-- Owner-only `/app/owner/integrations/aws/migrate` shows per-record-type: Ready / Invalid / Duplicate / Missing required information. Requires typed confirmation ("MIGRATE") before running. Source = current `DemoDataRepository`; target = currently selected non-demo repository. Idempotent: re-running skips already-migrated rows by deterministic UUID.
+- Filters persist via existing `useJobFilters` (sessionStorage) — confirmed working; extend scopes per page.
+- Drill-down preserves filters via URL search params; back-nav restores them.
+- Add tiny `useDeferredValue` on filter changes so the metrics recompute feels instant but ignores stale closures.
+- Empty + error states standardized in `<EmptyState />` and `<FilterErrorState onRetry />`.
 
-### Phase A11 — Acceptance test pass
-Runs your acceptance list as deterministic checks in the QA Center: "No AWS key in frontend source" (regex sweep of bundled JS), "Cross-company file access blocked" (forced cross-tenant call returns 403), "Presigned URL works", "Audit log written on delete", "Customer report excludes Internal files", "Offline upload resumes", "Duplicate tap doesn't double-create", "Demo still works without AWS configured". Results visible in QA Center; release verdict factors them in.
+## Phase F8 — Acceptance tests
 
-## Out of scope (I will refuse mid-build)
-- Provisioning AWS resources from inside Lovable (EC2, RDS, Cognito, IAM, Secrets Manager). Wizard guides you; AWS console is where it happens.
-- Writing or storing AWS access keys anywhere in the project.
-- Auto-migrating production data to AWS without explicit typed confirmation.
-- Adding a "skip security check" button anywhere.
+Add `src/test/filters.test.ts` covering the 25 listed scenarios via the pure `applyJobFilters` + `computeMetrics` functions (no DOM): all/one/multi technician, every date preset, custom ranges crossing month/year, invalid range, status/type/brand/city, combined AND, empty result, callback only, warranty only, etc. Each assertion verifies metric totals, byTech subset sums, and drill-down job-id lists are consistent.
 
-## Order of approval
-Say one of:
-- **"Approve all, defaults are fine"** → I start at Phase A1 and ship A1–A3 this turn (repo layer + config model + wizard page), then continue.
-- **"Approve A1–A4 only, link S3 later"** → I stop after the schema migration.
-- **"Link S3 now, here's the bucket"** → I wire the connector and run a live upload test this turn.
-- **"Pick option X for decision N"** → I revise.
-- **"Resume tech / owner / equipment-AI plan first"** → I park this and finish that one.
+## Technical notes
 
-Your call.
+- Types added/changed in `src/lib/types.ts`: new `Job` fields above; new `Customer.maintenancePlan`, `Customer.city`; `Equipment.type`.
+- All new fields populated in `seed.ts` deterministically (no `Math.random`, no `Date.now`).
+- Store version bumped to `hvac-copilot-store-v4` so existing localStorage clears.
+- No backend changes; all in-memory.
+- Reset Demo (existing in `OwnerMore`) reseeds + clears `filter-views:*` and `filters:*` keys.
+
+## Out of scope
+
+- AWS integration (existing scaffolding untouched).
+- AI/Copilot changes.
+- Visual redesign of dashboard cards beyond what's needed to surface new metrics.
