@@ -1,142 +1,78 @@
+# Caloosa Demo Data, Equipment Detail, Document Viewer & Diagnostics
 
-# Field Copilot — Interface, Navigation, Role & Workflow Upgrade
+Builds on the prior interface/navigation update. Five focused workstreams.
 
-This is a large change set. I will ship it in **six phases** so the app keeps working between steps and you can review after each. Confirm the plan and I will start with Phase 1.
+## 1. Caloosa Cooling company profile
 
----
+Extend the `Company` type with the full Caloosa profile (phone `239-226-0202`, office `14241 Jetport Loop, Unit #1, Fort Myers, FL 33913`, established 2001, weekday/weekend hours, services list, geography list, optional logo + brand colors).
 
-## Phase 1 — Foundation: i18n, Company Profile, Header, Landing
+- Seed values from the brief.
+- Add a Company Profile section on the Owner Settings page that:
+  - Renders the structured profile read-only.
+  - Lets owners upload a logo (object URL into state) and pick brand colors.
+- Header company mark uses uploaded logo when present, otherwise the initials chip.
+- Luis Gomez remains the seeded Owner with full title "Co-Owner & General Manager".
 
-**Internationalization (EN / ES)**
-- Add `react-i18next` + a lightweight `src/i18n/` module with `en.json` and `es.json` namespaces: `common`, `nav`, `jobs`, `equipment`, `parts`, `diagnostics`, `feedback`, `owner`, `report`, `glossary`.
-- Persist selection in `localStorage` (`fc.lang`) and on the current user profile.
-- Add an HVAC glossary file so terms (superheat, subcool, TXV, capacitor, contactor, etc.) translate consistently.
-- Missing-key fallback → English; never throw.
-- Compact `EN / ES` selector with globe icon in both shells' headers, plus a full selector in Settings.
-- Reports gain a Language toggle (EN / ES / Both side-by-side).
-- Customer record gains `preferredLanguage`; customer-facing summary uses it.
-- Owner-only "Translation editor" placeholder page (edits stored locally in demo).
-- Never translated: model #s, serial #s, part #s, units, brand names.
+## 2. Structured specifications dataset
 
-**Shared company profile**
-- One `state.company` becomes the source for all screens (landing, headers, reports, signatures). Remove hardcoded "Carolina Comfort" strings.
-- Rename to **Caloosa Cooling** everywhere. Owner = **Luis Gomez**, short title "Owner", full title "Co-Owner & General Manager".
+New `EquipmentSpec` record type with the fields the brief requires:
 
-**Mobile + Owner header cleanup**
-- Two-row layout, no overlap:
-  - Row 1: Logo · "Caloosa Cooling" · EN/ES · overflow menu (⋮)
-  - Row 2: "Luis Gomez" · role title · Synced pill · "Switch to Tech" (owner) / hidden (tech)
-- Reset Demo, Help, Sign out → overflow menu.
+```text
+equipmentId, category, fieldName, value, unit,
+sourceType, sourceDocumentId, sourcePage,
+verificationStatus, approvedBy, approvedAt,
+reviewNotes, lastReviewedAt
+```
 
-**Landing page**
-- New tagline: "A mobile-friendly working prototype."
-- Remove "Share This Demo" section entirely.
-- Reads company + user info from shared profile.
+Seed every Goodman GSXN3 field from the brief into `SPECS` keyed by `eq-1`, grouped into categories: `capacity`, `compressor`, `fan`, `refrigeration`, `electrical`, `physical`, `certifications`, plus the existing `errorCodes` and `bom` collections.
 
----
+- Single source of truth: equipment page, search, document viewer, and diagnostics all read from this dataset.
+- The five fictional models (GOO-ACX850, GOO-GASC45, RHE-ACS520, LEN-AHB83, CAR-TSB44) are tagged `verificationStatus: "demo-unverified"` and their cards show the "Demo Equipment — Specifications Not Verified" badge.
 
-## Phase 2 — Data Model & Seed Updates
+## 3. Equipment list + category detail pages
 
-- Extend `Customer` with `preferredLanguage`, `preferredContact`, `pets`, `accessNotes`.
-- Extend `Job` with `equipmentStatus`: `known | unknown | to_identify | customer_unsure`.
-- Seed 6–8 jobs without an `equipmentId` covering each unknown state.
-- Seed deterministic jobs spread across **today, this week, this month, future** so the date filters return visibly different counts. Counts will be exposed on the filter chips.
-- Seed Knowledge Base cases with full structured fields (see Phase 4).
-- Seed `previousWork` derived from completed jobs (no separate array — query by property/equipment).
+Improve equipment cards to surface manufacturer, model, serial, type, property, system nickname, install date, verification status, verified-spec count, last service date, current open issue, warranty status. Card actions: Open / Service History / Specifications / Documents / Start Job — all keyboard-reachable (stopPropagation on inner controls).
 
----
+Equipment Profile page gets clickable category rows (Capacity, Compressor, Fan, Refrigeration, Electrical, Physical, Certifications, Approved Error Codes, Bill of Materials) that open a detail drawer rendering every spec row with: field, value, unit, source classification, document, page, approval status, approved by, approval date, notes, conflicts, last reviewed.
 
-## Phase 3 — Jobs: Unknown Equipment, Cards, Previous Work, Filters
+Error-code and BOM cards become clickable with the detail fields listed in the brief. When no approved error codes exist, show the honest empty-state copy.
 
-- Job card component shows: customer, job #, address, complaint/type, assigned tech (prominent), scheduled date+time, status, equipment OR "Equipment not identified" chip.
-- Owner Jobs list: tech name column always visible when "All technicians" selected.
-- Technician card hides cost/margin fields.
-- **Unknown equipment flow**: JobDetail shows an "Identify Equipment" CTA → choose Scan nameplate / Pick from property / Create new. Symptom capture allowed before identification; equipment-specific specs gated until confirmed.
-- **Date filters** (Today/Week/Month/All Upcoming) on `JobsHome` and `Today` derive from `scheduledFor` against company "now". Active chip styled, counts shown, empty states translated.
-- **New section: Previous Work** (`/app/jobs/history`) — searchable across customer, property, equipment, model, serial, tech, date, complaint, diagnosis, part. Each row opens the full completed job.
-- On an active JobDetail: "Previous Work at This Property" panel (last 5), each row clickable to that job.
+Refrigeration detail intentionally omits pressure / superheat / subcooling targets. Refrigerant type omitted.
 
----
+## 4. Document library + viewer
 
-## Phase 4 — Detail Pages: Service History, Parts, Knowledge
+Add a `DocumentRecord` with: `id, title, type, date, fileUrl, fileKind ("pdf"|"image"|"external"), pages[], state ("available"|"processing"|"needs-review"|"approved"|"source-unavailable"|"preview-unavailable")`.
 
-**Service History detail** (`/app/equipment/:id/history`)
-- Triggered by clicking the existing Service History card.
-- Equipment identity, customer/property, install date, warranty, chronological expandable timeline with all required fields, filters (date, tech, type, completed work, recommendations, callbacks), report link, callback indicator.
-- Back button preserves scroll + filter state via URL query.
+Seed the Goodman SS-GSXN3 dealer spec sheet record (06/23, page 3 = Product Specifications) and link every Goodman spec to it via `sourceDocumentId` + `sourcePage`.
 
-**Parts detail** (`/app/parts/:id`)
-- Click any part card. Drawer on desktop, full page on mobile.
-- All fields per spec. Cost/customer price hidden unless `user.role` permits.
-- Lists jobs where the part was used, returns/failures, pending review requests, internal notes, audit history.
+DocumentViewer page:
 
-**Parts autocomplete combobox**
-- New `<PartPicker equipmentId=…>` used in PartsRequest and approval flows.
-- Ranking: manufacturer-verified for equipment → previously installed for model → similar-equipment success → company-approved alternates → truck stock → warehouse.
-- Each row shows compatibility label badge (Manufacturer Verified / Company Approved / Previously Used / Compatibility Review Required / Not Verified) — never falsely upgrading generics.
-- "Part not found" + "Request compatibility review" + "Part Needed — Not on Hand" actions with photo + voice/text notes.
+- Desktop: PDF on left, extracted structured specs on right.
+- Mobile: tabbed Document / Extracted Specifications.
+- Renders `<iframe>` for embeddable PDFs; falls back to an "Open Official Source" button when blocked or state is `preview-unavailable`; never blank placeholder when the doc record is `approved`.
+- Accepts a `?page=3&specId=...` deep link from "View Source" buttons; highlights the focused spec row.
 
-**Knowledge Base case detail** (`/app/knowledge/:id`)
-- Full structured case page with source-classification badges (Manufacturer / Company procedure / Prior-job evidence / Technician opinion).
-- Manager actions: Mark Outdated, Request Review (owner role only).
-- Technician feedback widget at bottom.
+## 5. Resumable diagnostics
 
----
+Persist diagnostic session state in the store across navigation/refresh (already serialized — verify and harden). Update the diagnostics entry point so the primary CTA reflects existing session: **Continue Diagnosis** / **Resume Current Step**. Secondary actions: Review Completed Steps, View Specifications, View Documents, Save and Exit. **Restart Diagnosis** is tucked into an overflow menu with confirm dialog.
 
-## Phase 5 — Owner Actions, Technician & Customer Detail
+Step UI uses expandable sections (Instructions, Why This Matters, Technical Details, Source, Alternative Results, Escalation) instead of a single text wall.
 
-**Dashboard Review vs View All**
-- "Review" → navigates to the specific job's detail with a banner explaining the reason (overdue, callback, low rating, etc.) + the relevant owner action surfaced (Approve, Reassign, Contact tech).
-- "View All" → opens `OwnerJobs` pre-filtered to that category.
+Inputs are tagged `required | recommended | optional | n/a`. Bypass flow:
 
-**Waiting for Approval**
-- Approval card shows: customer, job, tech, equipment, requested work, reason, parts list, labor, price impact, customer authorization status, photos, tech notes, time waiting.
-- Actions: Approve / Decline / Request More Info / Contact Tech / Open Full Job — each with confirmation dialog. Records reviewer, timestamp, decision, notes. Only the selected request mutates.
+- Optional/recommended: prompt for reason, log skip, reduce confidence, keep going.
+- Required: cannot silently skip; offer Retry / Save for later / Continue in info-only / Escalate / Unable to test. Info-only blocks definitive repair recommendations.
 
-**Technician performance page** (`/app/owner/team/:id`)
-- Clickable rows from leaderboard.
-- All metrics filtered by active dashboard date range and that tech only. Links into underlying jobs. Trend chart (Recharts).
+Edit-earlier-answer flow: dependent steps marked Needs Review (uses existing `reviseStep`), unaffected entries preserved, banner offers "Review Affected Steps".
 
-**Customer detail page** (`/app/owner/customers/:id`)
-- All fields per spec, with role-gated billing/internal notes.
-- Properties, equipment, jobs (current/previous), estimates, reports, maintenance plan status, recommendations, communications timeline, pets/access.
+Persistent **Specs** drawer accessible from any diagnostic step — opens specs/docs/measurements without resetting the session; records when a verified spec was copied into a diagnostic input.
 
----
+## Out of scope
 
-## Phase 6 — Technician More, Feedback, Field Test, QA/Readiness Removal
+- Live PDF.js bundle (using native iframe + fallback button).
+- Real manufacturer document uploads — viewer accepts URLs; bundled Goodman PDF is the existing seeded URL or external link.
+- Voice input, photo-first capture, AWS storage changes.
 
-**Technician More tab**
-- Remove "Owner Dashboard" link entirely. Guard owner routes against tech role (redirect to `/app/today` with toast).
-- Rename "Settings & Admin" → "Settings". Settings page rebuilt with the allowed items only (language, notifications, text size, contrast, units, voice, photo quality, sync, maps app, location permission, privacy, profile, password, help, send feedback, sign out). Forbidden items removed.
+## Acceptance check at the end
 
-**Send Feedback** (`/app/feedback`)
-- Dedicated page with all listed fields + categories.
-- Submit produces a reference number (`FB-YYMMDD-####`), stored in `state.feedback`. Submit button disabled while pending to prevent dupes.
-- "My feedback" list of prior submissions.
-
-**Field Test Mode**
-- After key workflow checkpoints (diagnose complete, approval submitted, report sent, dashboard reviewed) show a small contextual prompt with 2–3 of the listed questions plus 1–5 rating.
-- Supports open text, voice, screenshot, category, severity, anonymous, contact-permission toggles.
-- Auto-attached context (page, role, workflow, job id, device, language, app version, timestamp). Customer PII excluded unless explicitly approved.
-
-**Remove QA + Readiness**
-- Delete routes `/app/owner/qa` and `/app/owner/readiness`.
-- Remove nav entries, dashboard cards, and the files `OwnerReadiness.tsx`, `QACenter.tsx`, `src/lib/qa/*`, `src/pages/technician/FieldTest.tsx` (Field Test merged into contextual prompts).
-- Verify no lingering links.
-
----
-
-## Acceptance verification
-
-After Phase 6 I will walk through each of your acceptance bullets and confirm in the chat (with screenshots for the visual ones via Playwright). The store version bumps to `hvac-copilot-store-v7` so seeded data refreshes cleanly.
-
----
-
-## Technical notes (for reference)
-- New deps: `react-i18next`, `i18next`, `i18next-browser-languagedetector`.
-- New shared hook `useT()` thin wrapper around `useTranslation()`.
-- Role guard HOC for owner routes.
-- `state.company` becomes single source; `useCurrentUser()` augmented with role-based permission helpers (`canSeeCost`, `canApprove`, etc.).
-- All new pages reuse existing shadcn primitives — no new design system.
-
-Reply **"go"** to start Phase 1, or tell me which phases to reorder, defer, or expand.
+Walk the brief's acceptance list and tick each item against the running app before handing back.
