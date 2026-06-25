@@ -52,6 +52,7 @@ const initialState = (): StoreState => ({
   online: true,
   tourSeen: false,
   recentEquipmentIds: ["eq-1"],
+  aiFeedback: [],
 });
 
 interface Ctx {
