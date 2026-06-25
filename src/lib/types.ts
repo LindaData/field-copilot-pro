@@ -20,6 +20,37 @@ export interface Spec {
   source: Source;
 }
 
+export interface ErrorCode {
+  code: string;
+  meaning: string;
+  likelyCauses: string[];
+  safeChecks: string[];
+  source: Source;
+}
+
+export interface BomItem {
+  ref: string;          // e.g. "C1"
+  description: string;  // e.g. "Dual-run capacitor"
+  specHint?: string;    // e.g. "40/5 µF 440 V"
+  approvedPartIds?: string[];
+  source: Source;
+}
+
+export interface WiringDiagram {
+  id: string;
+  title: string;
+  url: string;
+  source: Source;
+}
+
+export interface Procedure {
+  id: string;
+  title: string;
+  summary: string;
+  steps: string[];
+  source: Source;
+}
+
 export interface Equipment {
   id: string;
   manufacturer: string;
@@ -31,6 +62,30 @@ export interface Equipment {
   location?: string;
   specs: Spec[];
   manualUrls: { label: string; url: string }[];
+  errorCodes?: ErrorCode[];
+  bom?: BomItem[];
+  approvedReplacementPartIds?: string[];
+  wiringDiagrams?: WiringDiagram[];
+  procedureIds?: string[];
+}
+
+export type AiFeedbackCategory =
+  | "helpful" | "incorrect" | "unsafe"
+  | "missing-info" | "wrong-source" | "better-next-step";
+
+export interface AiFeedback {
+  id: string;
+  ts: string;
+  userId: string;
+  jobId?: string;
+  equipmentId?: string;
+  question: string;
+  answerSummary: string;
+  confidence: string;
+  isSimulated: boolean;
+  category: AiFeedbackCategory;
+  comment?: string;
+  reviewed?: boolean;
 }
 
 export interface Customer { id: string; name: string; phone: string; email?: string; }

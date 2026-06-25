@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as seed from "./seed";
 import type {
-  ArrivalMethod, Authorization, Company, Customer, DiagnosticSession, DiagStepResult,
+  AiFeedback, ArrivalMethod, Authorization, Company, Customer, DiagnosticSession, DiagStepResult,
   DocItem, Equipment, Job, JobPart, JobStage, JobStatus, KnowledgeCase, Measurement,
   PartRequest, PartRequestStatus, Part, PauseRecord, PauseReason, Property,
   UserProfile,
@@ -30,6 +30,7 @@ export interface StoreState {
   online: boolean;
   tourSeen: boolean;
   recentEquipmentIds: string[];
+  aiFeedback: AiFeedback[];
 }
 
 const initialState = (): StoreState => ({
@@ -51,6 +52,7 @@ const initialState = (): StoreState => ({
   online: true,
   tourSeen: false,
   recentEquipmentIds: ["eq-1"],
+  aiFeedback: [],
 });
 
 interface Ctx {
@@ -85,6 +87,9 @@ interface Ctx {
   // part requests
   addPartRequest: (pr: PartRequest) => void;
   updatePartRequest: (id: string, patch: Partial<PartRequest>) => void;
+  // AI feedback
+  addAiFeedback: (fb: AiFeedback) => void;
+  markAiFeedbackReviewed: (id: string, reviewed: boolean) => void;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -218,6 +223,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...s,
       partRequests: s.partRequests.map((p) => p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p),
     })),
+    addAiFeedback: (fb) => setStateRaw((s) => ({ ...s, aiFeedback: [fb, ...(s.aiFeedback ?? [])] })),
+    markAiFeedbackReviewed: (id, reviewed) => setStateRaw((s) => ({ ...s, aiFeedback: (s.aiFeedback ?? []).map((f) => f.id === id ? { ...f, reviewed } : f) })),
   }), [state, setState]);
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;
