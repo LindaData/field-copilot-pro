@@ -138,6 +138,49 @@ export default function Diagnostics() {
                 </div>
               </SheetContent>
             </Sheet>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8 gap-1"><BookOpen className="h-4 w-4" /> Specs</Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-96 overflow-y-auto">
+                <SheetHeader><SheetTitle>{equipment ? `${equipment.manufacturer} ${equipment.model}` : "Specifications"}</SheetTitle></SheetHeader>
+                {equipment ? (
+                  <div className="mt-3 space-y-3 text-xs">
+                    {equipment.verificationStatus !== "Manufacturer Verified" && (
+                      <div className="rounded-md border border-warning bg-warning/10 p-2">
+                        Demo Equipment — Specifications Not Verified. No manufacturer specifications are displayed.
+                      </div>
+                    )}
+                    {(["Capacity","Compressor","Fan","Refrigeration","Electrical","Physical","Certifications"] as const).map((g) => {
+                      const items = equipment.specs.filter((s) => s.group === g);
+                      if (!items.length) return null;
+                      return (
+                        <div key={g} className="rounded-md border">
+                          <div className="border-b bg-muted/30 px-2 py-1 font-semibold">{g}</div>
+                          <ul className="divide-y">
+                            {items.map((s) => (
+                              <li key={s.key} className="flex items-baseline justify-between gap-2 px-2 py-1.5">
+                                <span className="text-muted-foreground">{s.label}</span>
+                                <span className="font-medium">{s.value}{s.unit ? ` ${s.unit}` : ""}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                    <div className="flex gap-2">
+                      <Button asChild variant="outline" size="sm" className="flex-1">
+                        <a href={`/app/equipment/${equipment.id}#specs`} target="_blank" rel="noreferrer"><FileText className="mr-1 h-3 w-3" /> Open full profile</a>
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Opening Specs does not reset the diagnostic session, lose entered data, or change the diagnosis.</p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-muted-foreground">No equipment is linked to this job.</p>
+                )}
+              </SheetContent>
+            </Sheet>
+
           </div>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
