@@ -1,19 +1,18 @@
 import { Link } from "react-router-dom";
 import { useStore } from "@/lib/store";
-import { Building2, FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare, ClipboardCheck } from "lucide-react";
+import { FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function More() {
   const { state, reset } = useStore();
-  const items: { to: string; label: string; icon: typeof Building2; sub?: string }[] = [
-    { to: "/app/field-test", label: "Field Test Mode", icon: ClipboardCheck, sub: "Log feedback while testing on a real call" },
+  const items: { to: string; label: string; icon: typeof FileText; sub?: string }[] = [
     { to: "/app/documents", label: "Documents", icon: FileText, sub: `${state.docs.length} on file` },
     { to: "/app/parts", label: "Parts & inventory", icon: Package, sub: `${state.parts.length} parts` },
     { to: "/app/knowledge", label: "Knowledge base", icon: Book, sub: `${state.knowledge.length} cases` },
     { to: "/app/training", label: "Training mode", icon: GraduationCap, sub: "Practice the no-cooling flow" },
-    { to: "/app/owner", label: "Owner dashboard", icon: Building2, sub: "Switch role" },
-    { to: "/app/settings", label: "Settings & admin", icon: Settings },
+    { to: "/app/feedback", label: "Send feedback", icon: MessageSquare, sub: "Help us improve the product" },
+    { to: "/app/settings", label: "Settings", icon: Settings },
   ];
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -43,7 +42,6 @@ export default function More() {
       <div className="grid grid-cols-2 gap-2">
         <Button variant="outline" className="touch-target" onClick={() => { toast.success("Tour reset"); window.location.href = "/"; }}><Play className="mr-1 h-4 w-4" /> Replay tour</Button>
         <Button variant="outline" className="touch-target" onClick={async () => { try { await navigator.clipboard.writeText(window.location.origin); toast.success("Demo URL copied"); } catch { /* */ } }}><Share2 className="mr-1 h-4 w-4" /> Share demo</Button>
-        <Button variant="outline" className="touch-target col-span-2" onClick={() => { toast("Feedback received", { description: "Thanks! (demo)" }); }}><MessageSquare className="mr-1 h-4 w-4" /> Send feedback</Button>
         <Button variant="destructive" className="touch-target col-span-2" onClick={() => { if (confirm("Reset all demo data?")) { reset(); window.location.href = "/"; } }}>Reset demo</Button>
       </div>
     </div>

@@ -1,104 +1,142 @@
-## Goal
 
-Polish what already exists so the demo is credible to an HVAC owner. No new product features; reorganization, truthful filters, transparency, and a few targeted screens.
+# Field Copilot — Interface, Navigation, Role & Workflow Upgrade
 
-## 1. Owner Dashboard reorganization (`src/pages/owner/OwnerDashboard.tsx`)
+This is a large change set. I will ship it in **six phases** so the app keeps working between steps and you can review after each. Confirm the plan and I will start with Phase 1.
 
-Replace the current single grid with three tabs:
+---
 
-- **Needs Attention** — actionable queue, one card per item type, each row opens the underlying record:
-  - Late / overdue scheduled jobs (scheduledFor in the past, not started)
-  - Jobs paused too long (active pause > 30 min)
-  - Waiting for Approval
-  - Waiting for Parts
-  - Possible callbacks (same customer + same complaint inside 30 days, `isCallback`)
-  - Diagnostics requiring review (sessions with `invalidatedStepIds.length > 0`)
-  - Missing service reports (completed jobs with no `ServiceReport`)
-  - Customer follow-ups (low-rating feedback, or open `Follow-Up` status)
-- **Today** — six cards only: En Route, On Site, Completed today, Active Labor (sum minutes), Paused Time, Revenue today.
-- **Performance** — six cards: First-Time Fix Rate, Callback Rate, Average Ticket, Avg Diagnostic Time, Technician Utilization, Gross Margin. Period-aware via the shared filter.
+## Phase 1 — Foundation: i18n, Company Profile, Header, Landing
 
-All three tabs read from one filtered dataset produced by `useJobFilters` + `applyJobFilters`.
+**Internationalization (EN / ES)**
+- Add `react-i18next` + a lightweight `src/i18n/` module with `en.json` and `es.json` namespaces: `common`, `nav`, `jobs`, `equipment`, `parts`, `diagnostics`, `feedback`, `owner`, `report`, `glossary`.
+- Persist selection in `localStorage` (`fc.lang`) and on the current user profile.
+- Add an HVAC glossary file so terms (superheat, subcool, TXV, capacitor, contactor, etc.) translate consistently.
+- Missing-key fallback → English; never throw.
+- Compact `EN / ES` selector with globe icon in both shells' headers, plus a full selector in Settings.
+- Reports gain a Language toggle (EN / ES / Both side-by-side).
+- Customer record gains `preferredLanguage`; customer-facing summary uses it.
+- Owner-only "Translation editor" placeholder page (edits stored locally in demo).
+- Never translated: model #s, serial #s, part #s, units, brand names.
 
-## 2. Truthful filters and drill-down
+**Shared company profile**
+- One `state.company` becomes the source for all screens (landing, headers, reports, signatures). Remove hardcoded "Carolina Comfort" strings.
+- Rename to **Caloosa Cooling** everywhere. Owner = **Luis Gomez**, short title "Owner", full title "Co-Owner & General Manager".
 
-- Extend `JobFilters` with `serviceClass` (Residential / Light Commercial) and `firstVisitOrCallback` (already partly modeled — wire it). System type already supported.
-- Update `FilterBar` to expose: Date range, Technician, Job status, System type, Residential/Commercial, First visit / Callback, Waiting for parts.
-- Every KPI card on every tab becomes a `<button>` that navigates to `/app/owner/jobs?preset=<key>` with that filter encoded; `OwnerJobs` reads the preset and applies it. Same for Needs Attention rows (open the matching `JobDetail` or filtered list).
-- Remove any KPI whose value can't be derived from the filtered dataset.
+**Mobile + Owner header cleanup**
+- Two-row layout, no overlap:
+  - Row 1: Logo · "Caloosa Cooling" · EN/ES · overflow menu (⋮)
+  - Row 2: "Luis Gomez" · role title · Synced pill · "Switch to Tech" (owner) / hidden (tech)
+- Reset Demo, Help, Sign out → overflow menu.
 
-## 3. Demo transparency
+**Landing page**
+- New tagline: "A mobile-friendly working prototype."
+- Remove "Share This Demo" section entirely.
+- Reads company + user info from shared profile.
 
-- New `<DemoBanner>` mounted in both `MobileShell` and `OwnerShell`. Persistent slim bar: "Demo data — simulated AI, GPS, OCR, communications, payments. Fictional customer information."
-- New `<SimulatedTag>` component used on the affected surfaces: Copilot footer (Simulated AI), arrival panel (Simulated GPS), Scan page (Simulated OCR), On-My-Way and report-send buttons (Simulated communications), Approval payment button (Simulated payments).
+---
 
-## 4. Technician core flow hardening
+## Phase 2 — Data Model & Seed Updates
 
-Audit and close gaps in: `Today → JobDetail → Diagnostics → Approval → Report`. Specifically:
+- Extend `Customer` with `preferredLanguage`, `preferredContact`, `pets`, `accessNotes`.
+- Extend `Job` with `equipmentStatus`: `known | unknown | to_identify | customer_unsure`.
+- Seed 6–8 jobs without an `equipmentId` covering each unknown state.
+- Seed deterministic jobs spread across **today, this week, this month, future** so the date filters return visibly different counts. Counts will be exposed on the filter chips.
+- Seed Knowledge Base cases with full structured fields (see Phase 4).
+- Seed `previousWork` derived from completed jobs (no separate array — query by property/equipment).
 
-- `JobDetail`: add primary CTA wired to `primaryAction.ts` for every status so there are no dead ends.
-- `Diagnostics`: confirm back / forward / pause / resume / measurement entry all persist via `store` (already do). Add an explicit "Verify operation" step before completion.
-- `Approval`: ensure the approve action sets `estimateApproved`, advances status to `Repairing`, and surfaces "Add part & labor" before approval.
-- `Report`: ensure "Complete job" sets `status = Completed`, writes a `ServiceReport`, and unblocks navigation back to Today.
-- Persistence already lives in `localStorage` via `store.tsx`; verify the flow survives refresh by reading from the store on mount everywhere (most pages already do; fix any that read derived state into local `useState` without sync).
+---
 
-## 5. AI trust metadata (`src/components/answers/AnswerCard.tsx` + `resolver`)
+## Phase 3 — Jobs: Unknown Equipment, Cards, Previous Work, Filters
 
-The answer envelope already carries source, confidence, isSimulated, nextSafeAction. Extend the card to also render:
+- Job card component shows: customer, job #, address, complaint/type, assigned tech (prominent), scheduled date+time, status, equipment OR "Equipment not identified" chip.
+- Owner Jobs list: tech name column always visible when "All technicians" selected.
+- Technician card hides cost/margin fields.
+- **Unknown equipment flow**: JobDetail shows an "Identify Equipment" CTA → choose Scan nameplate / Pick from property / Create new. Symptom capture allowed before identification; equipment-specific specs gated until confirmed.
+- **Date filters** (Today/Week/Month/All Upcoming) on `JobsHome` and `Today` derive from `scheduledFor` against company "now". Active chip styled, counts shown, empty states translated.
+- **New section: Previous Work** (`/app/jobs/history`) — searchable across customer, property, equipment, model, serial, tech, date, complaint, diagnosis, part. Each row opens the full completed job.
+- On an active JobDetail: "Previous Work at This Property" panel (last 5), each row clickable to that job.
 
-- Equipment context (manufacturer + model + verification status badge)
-- Document title + page/section (from `source.ref`)
-- Missing information block (when `producer === "abstain"` show "Not found in approved documentation" + what was searched)
-- Verification status pill (Manufacturer Verified / Fictional Demo Data / Verification Required)
-- Escalation conditions list (when `confidence === "Low"` or topic is safety-related)
+---
 
-`resolver.ts` already abstains when documentation is missing — surface that abstention prominently.
+## Phase 4 — Detail Pages: Service History, Parts, Knowledge
 
-## 6. Equipment history view (`src/pages/technician/EquipmentProfile.tsx`)
+**Service History detail** (`/app/equipment/:id/history`)
+- Triggered by clicking the existing Service History card.
+- Equipment identity, customer/property, install date, warranty, chronological expandable timeline with all required fields, filters (date, tech, type, completed work, recommendations, callbacks), report link, callback indicator.
+- Back button preserves scroll + filter state via URL query.
 
-Expand the existing page to a tabbed record:
+**Parts detail** (`/app/parts/:id`)
+- Click any part card. Drawer on desktop, full page on mobile.
+- All fields per spec. Cost/customer price hidden unless `user.role` permits.
+- Lists jobs where the part was used, returns/failures, pending review requests, internal notes, audit history.
 
-- Overview — verified specs, manuals, warranty
-- Components — sibling equipment in the same `systemId`
-- Photos — from `state.photos` filtered by `equipmentId`
-- Jobs — past jobs for this equipment, with date, complaint, outcome, rating
-- Measurements — flattened from all diagnostic sessions for this equipment
-- Parts installed — from `jobParts` joined to jobs on this equipment
-- Recurring failures — group past jobs by `serviceCategory`, flag any count ≥ 2
-- Open recommendations — pulled from `serviceReports.recommendations`
+**Parts autocomplete combobox**
+- New `<PartPicker equipmentId=…>` used in PartsRequest and approval flows.
+- Ranking: manufacturer-verified for equipment → previously installed for model → similar-equipment success → company-approved alternates → truck stock → warehouse.
+- Each row shows compatibility label badge (Manufacturer Verified / Company Approved / Previously Used / Compatibility Review Required / Not Verified) — never falsely upgrading generics.
+- "Part not found" + "Request compatibility review" + "Part Needed — Not on Hand" actions with photo + voice/text notes.
 
-## 7. Service report polish (`src/pages/technician/Report.tsx`)
+**Knowledge Base case detail** (`/app/knowledge/:id`)
+- Full structured case page with source-classification badges (Manufacturer / Company procedure / Prior-job evidence / Technician opinion).
+- Manager actions: Mark Outdated, Request Review (owner role only).
+- Technician feedback widget at bottom.
 
-Rebuild the print-friendly layout with company header (logo placeholder + name + phone + address from `state.company`), customer & property block, equipment block (verified specs only), complaint, findings narrative, measurements table with source citations, approved work list, parts & labor (price only — never cost), before/after photos from `state.photos`, verification checklist result, recommendations, and dual signature blocks. Add a `print:` CSS layer so "Save as PDF" looks clean. Strictly hide: `cost`, internal `notes`, AI confidence values, source-kind internals.
+---
 
-## 8. Commercial Readiness page (`src/pages/owner/Readiness.tsx`, new route `/app/owner/readiness`)
+## Phase 5 — Owner Actions, Technician & Customer Detail
 
-Owner-only checklist page:
+**Dashboard Review vs View All**
+- "Review" → navigates to the specific job's detail with a banner explaining the reason (overdue, callback, low rating, etc.) + the relevant owner action surfaced (Approve, Reassign, Contact tech).
+- "View All" → opens `OwnerJobs` pre-filtered to that category.
 
-- Authentication status — "Demo mode (no auth)"
-- Database status — pulls from `repository.ts` (Demo adapter active)
-- File storage status — same
-- Backup status — "Not configured"
-- Error monitoring — "Not configured"
-- Data export — button that downloads `localStorage` snapshot as JSON
-- Audit log — show last 20 store mutations (lightweight: add a small in-memory ring buffer in store)
-- Environment — "Demo / Sandbox"
-- Known limitations — bullet list (simulated integrations, no multi-tenant isolation, etc.)
-- Support contact — `mailto:` placeholder the owner can edit
-- Pilot feedback — `<textarea>` that posts to a `pilotFeedback` collection in the store
-- Release readiness — green/amber/red summary
+**Waiting for Approval**
+- Approval card shows: customer, job, tech, equipment, requested work, reason, parts list, labor, price impact, customer authorization status, photos, tech notes, time waiting.
+- Actions: Approve / Decline / Request More Info / Contact Tech / Open Full Job — each with confirmation dialog. Records reviewer, timestamp, decision, notes. Only the selected request mutates.
 
-Link from `OwnerMore` and `OwnerShell` nav.
+**Technician performance page** (`/app/owner/team/:id`)
+- Clickable rows from leaderboard.
+- All metrics filtered by active dashboard date range and that tech only. Links into underlying jobs. Trend chart (Recharts).
 
-## 9. Acceptance pass
+**Customer detail page** (`/app/owner/customers/:id`)
+- All fields per spec, with role-gated billing/internal notes.
+- Properties, equipment, jobs (current/previous), estimates, reports, maintenance plan status, recommendations, communications timeline, pets/access.
 
-Final sweep checking every requirement in §9: no dead buttons (each route's primary CTAs traced), no cosmetic filters (every filter wired through `applyJobFilters`), every dashboard metric clickable, no invented specs (resolver abstains), persistence verified via localStorage round-trip, reports reflect only approved work, demo labeling visible on every screen, mobile layouts checked at 390px.
+---
 
-## Files touched
+## Phase 6 — Technician More, Feedback, Field Test, QA/Readiness Removal
 
-- New: `src/components/DemoBanner.tsx`, `src/components/SimulatedTag.tsx`, `src/pages/owner/Readiness.tsx`
-- Edited: `OwnerDashboard.tsx`, `OwnerJobs.tsx`, `OwnerMore.tsx`, `FilterBar.tsx`, `filters.ts`, `useJobFilters.ts`, `metrics.ts`, `AnswerCard.tsx`, `EquipmentProfile.tsx`, `Report.tsx`, `Diagnostics.tsx`, `Approval.tsx`, `JobDetail.tsx`, `Shells.tsx`, `App.tsx`, `store.tsx` (audit log + pilot feedback collection)
+**Technician More tab**
+- Remove "Owner Dashboard" link entirely. Guard owner routes against tech role (redirect to `/app/today` with toast).
+- Rename "Settings & Admin" → "Settings". Settings page rebuilt with the allowed items only (language, notifications, text size, contrast, units, voice, photo quality, sync, maps app, location permission, privacy, profile, password, help, send feedback, sign out). Forbidden items removed.
 
-## Out of scope
+**Send Feedback** (`/app/feedback`)
+- Dedicated page with all listed fields + categories.
+- Submit produces a reference number (`FB-YYMMDD-####`), stored in `state.feedback`. Submit button disabled while pending to prevent dupes.
+- "My feedback" list of prior submissions.
 
-No new integrations, no auth, no real backend, no AI provider swap. Existing demo data and Goodman verified scenario are preserved as-is.
+**Field Test Mode**
+- After key workflow checkpoints (diagnose complete, approval submitted, report sent, dashboard reviewed) show a small contextual prompt with 2–3 of the listed questions plus 1–5 rating.
+- Supports open text, voice, screenshot, category, severity, anonymous, contact-permission toggles.
+- Auto-attached context (page, role, workflow, job id, device, language, app version, timestamp). Customer PII excluded unless explicitly approved.
+
+**Remove QA + Readiness**
+- Delete routes `/app/owner/qa` and `/app/owner/readiness`.
+- Remove nav entries, dashboard cards, and the files `OwnerReadiness.tsx`, `QACenter.tsx`, `src/lib/qa/*`, `src/pages/technician/FieldTest.tsx` (Field Test merged into contextual prompts).
+- Verify no lingering links.
+
+---
+
+## Acceptance verification
+
+After Phase 6 I will walk through each of your acceptance bullets and confirm in the chat (with screenshots for the visual ones via Playwright). The store version bumps to `hvac-copilot-store-v7` so seeded data refreshes cleanly.
+
+---
+
+## Technical notes (for reference)
+- New deps: `react-i18next`, `i18next`, `i18next-browser-languagedetector`.
+- New shared hook `useT()` thin wrapper around `useTranslation()`.
+- Role guard HOC for owner routes.
+- `state.company` becomes single source; `useCurrentUser()` augmented with role-based permission helpers (`canSeeCost`, `canApprove`, etc.).
+- All new pages reuse existing shadcn primitives — no new design system.
+
+Reply **"go"** to start Phase 1, or tell me which phases to reorder, defer, or expand.

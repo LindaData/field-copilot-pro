@@ -29,25 +29,25 @@ const fictionalSource = {
 };
 const companySopSource = {
   kind: "company_sop" as const,
-  title: "Carolina Comfort HVAC — internal SOP",
+  title: "Caloosa Cooling — internal SOP",
 };
 
 // =============================================================================
 // Company
 // =============================================================================
 export const COMPANY: Company = {
-  name: "Carolina Comfort HVAC",
-  phone: "(704) 555-0144",
-  address: "1820 Tryon St, Charlotte, NC 28202",
+  name: "Caloosa Cooling",
+  phone: "(239) 555-0144",
+  address: "1820 Cleveland Ave, Fort Myers, FL 33901",
   laborRate: 145,
-  tax: 6.75,
+  tax: 6.5,
 };
 
 // =============================================================================
 // Users (1 owner + 2 service managers + 8 technicians + 2 office = 13)
 // =============================================================================
 export const USERS: UserProfile[] = [
-  { id: "u-owner", name: "Mike Torres", role: "Owner", avatarColor: "bg-amber-500", active: true },
+  { id: "u-owner", name: "Luis Gomez", role: "Owner", fullTitle: "Co-Owner & General Manager", avatarColor: "bg-amber-500", active: true },
   { id: "u-sm1", name: "Dana Whitfield", role: "ServiceManager", avatarColor: "bg-fuchsia-600", active: true },
   { id: "u-sm2", name: "Priya Banerjee", role: "ServiceManager", avatarColor: "bg-purple-600", active: true },
   { id: "u-alex", name: "Alex Reed", role: "SeniorTech", avatarColor: "bg-blue-600", active: true },
@@ -78,7 +78,7 @@ const FIRST = ["Linda","Marcus","Priya","Tom","Janet","Aiden","Sofia","Eli","May
 const LAST = ["Hayes","Greene","Shah","Whitmore","Kim","Robinson","Patel","Nguyen","Cole","Reyes","Brown","Sanders","Jones","Carter","Foster","Walker","Bennett","Hughes","Reid","Hall","Wright","Russell","Sullivan","Cox","Murphy","Bell","Wood","Ross","Howard","Bailey"];
 const BUSINESS = [
   "Westview Apartments", "Rivertown Cafe", "Coastal Dental", "Banyan Bay HOA",
-  "Sunset Storage", "Queens Boulevard Diner", "Carolina Auto Care",
+  "Sunset Storage", "Cleveland Ave Diner", "Gulf Coast Auto Care",
   "Piedmont Pediatrics", "Charlotte Pet Lodge",
 ];
 
@@ -836,12 +836,12 @@ export const TECH_FEEDBACK: TechFeedback[] = (() => {
 export const DOCS: DocItem[] = [
   { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanProductSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
   { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanPdfSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
-  { id: "d-3", title: "Carolina Comfort HVAC — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
-  { id: "d-4", title: "Carolina Comfort HVAC — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
-  { id: "d-5", title: "Carolina Comfort HVAC — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },
-  { id: "d-6", title: "Carolina Comfort HVAC — Maintenance checklist (residential)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
-  { id: "d-7", title: "Carolina Comfort HVAC — Maintenance checklist (light commercial)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
-  { id: "d-8", title: "Carolina Comfort HVAC — Quoting & estimate template", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-26" },
+  { id: "d-3", title: "Caloosa Cooling — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
+  { id: "d-4", title: "Caloosa Cooling — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
+  { id: "d-5", title: "Caloosa Cooling — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },
+  { id: "d-6", title: "Caloosa Cooling — Maintenance checklist (residential)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
+  { id: "d-7", title: "Caloosa Cooling — Maintenance checklist (light commercial)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
+  { id: "d-8", title: "Caloosa Cooling — Quoting & estimate template", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-26" },
   { id: "d-9", title: "Furnace gas-section training overview (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-03-30" },
   { id: "d-10", title: "Mini-split installation training (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-04-01" },
   { id: "d-11", title: "Heat-pump defrost basics (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-04-03" },
@@ -852,8 +852,8 @@ export const DOCS: DocItem[] = [
   { id: "d-16", title: "Generic mini-split service manual (placeholder)", category: "service_manual", url: "#", status: "Uploaded", uploadedAt: "2026-06-22" },
   { id: "d-17", title: "Generic RTU service manual (placeholder)", category: "service_manual", url: "#", status: "Processing", uploadedAt: "2026-06-23" },
   { id: "d-18", title: "Wiring diagrams library (placeholder)", category: "wiring_diagram", url: "#", status: "Needs Review", uploadedAt: "2026-06-24" },
-  { id: "d-19", title: "Carolina Comfort HVAC — Refrigerant handling policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
-  { id: "d-20", title: "Carolina Comfort HVAC — Customer communication policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
+  { id: "d-19", title: "Caloosa Cooling — Refrigerant handling policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
+  { id: "d-20", title: "Caloosa Cooling — Customer communication policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
 ];
 
 // =============================================================================

@@ -29,10 +29,8 @@ import OwnerJobs from "./pages/owner/OwnerJobs";
 import OwnerCustomers from "./pages/owner/OwnerCustomers";
 import OwnerEquipment from "./pages/owner/OwnerEquipment";
 import OwnerMore from "./pages/owner/OwnerMore";
-import QACenter from "./pages/owner/QACenter";
 import AwsStorage from "./pages/owner/integrations/AwsStorage";
-import OwnerReadiness from "./pages/owner/OwnerReadiness";
-import FieldTest from "./pages/technician/FieldTest";
+import Feedback from "./pages/technician/Feedback";
 import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
 
@@ -69,7 +67,7 @@ const App = () => (
               <Route path="training" element={<Training />} />
               <Route path="settings" element={<Settings />} />
               <Route path="more" element={<More />} />
-              <Route path="field-test" element={<FieldTest />} />
+              <Route path="feedback" element={<Feedback />} />
             </Route>
 
             <Route path="/app/owner" element={<OwnerShell />}>
@@ -77,10 +75,9 @@ const App = () => (
               <Route path="jobs" element={<OwnerJobs />} />
               <Route path="customers" element={<OwnerCustomers />} />
               <Route path="equipment" element={<OwnerEquipment />} />
-              <Route path="qa" element={<QACenter />} />
-              <Route path="readiness" element={<OwnerReadiness />} />
               <Route path="integrations/aws" element={<AwsStorage />} />
               <Route path="more" element={<OwnerMore />} />
+              <Route path="feedback" element={<Feedback />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

@@ -2,16 +2,16 @@ import { Link } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Package, Book, Settings as SettingsIcon, ShieldCheck, Cloud } from "lucide-react";
+import { FileText, Package, Book, Settings as SettingsIcon, Cloud, MessageSquare } from "lucide-react";
 
 export default function OwnerMore() {
   const { state, reset } = useStore();
   const items = [
-    { to: "/app/owner/qa", label: "QA & Release Center", icon: ShieldCheck, sub: "Run tests, view release verdict" },
     { to: "/app/owner/integrations/aws", label: "AWS Storage", icon: Cloud, sub: "Connect S3, RDS, EC2 and Cognito" },
     { to: "/app/documents", label: "Documents", icon: FileText, sub: `${state.docs.length} on file` },
     { to: "/app/parts", label: "Parts & inventory", icon: Package, sub: `${state.parts.length} parts` },
     { to: "/app/knowledge", label: "Knowledge base", icon: Book, sub: `${state.knowledge.length} approved cases` },
+    { to: "/app/owner/feedback", label: "Send feedback", icon: MessageSquare, sub: "Help us improve the product" },
     { to: "/app/settings", label: "Settings", icon: SettingsIcon },
   ];
   return (

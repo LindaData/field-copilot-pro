@@ -1,0 +1,91 @@
+{
+  "app": {
+    "name": "Field Copilot",
+    "tagline": "A mobile-friendly working prototype.",
+    "demoBadge": "Demo Data"
+  },
+  "nav": {
+    "today": "Today",
+    "jobs": "Jobs",
+    "scan": "Scan",
+    "copilot": "Copilot",
+    "more": "More",
+    "dashboard": "Dashboard",
+    "customers": "Customers",
+    "equipment": "Equipment",
+    "settings": "Settings",
+    "help": "Help",
+    "resetDemo": "Reset demo",
+    "signOut": "Sign out",
+    "switchToTech": "Switch to Tech",
+    "switchToOwner": "Switch to Owner",
+    "sendFeedback": "Send feedback",
+    "language": "Language"
+  },
+  "status": {
+    "synced": "Synced",
+    "offline": "Offline",
+    "loading": "Loading…"
+  },
+  "landing": {
+    "title": "Find the right spec. Diagnose step by step.",
+    "titleAccent": "Finish the paperwork before leaving.",
+    "enterAsTech": "Enter Demo as Technician",
+    "enterAsOwner": "Enter Demo as Owner",
+    "signIn": "Sign In",
+    "tour": "90-sec tour",
+    "disclaimer": "For trained HVAC professionals. This tool assists — it does not replace licensing, manufacturer instructions, codes, lockout/tagout, PPE, or safe work practices. Business metrics, customer details, and prior cases are demo data.",
+    "fasterDiagnosis": "Faster diagnosis",
+    "fewerCallbacks": "Fewer callbacks",
+    "lessPaperwork": "Less paperwork",
+    "fasterDiagnosisV": "−32% avg time",
+    "fewerCallbacksV": "−18% rate",
+    "lessPaperworkV": "Reports in 60s"
+  },
+  "common": {
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All",
+    "none": "None",
+    "today": "Today",
+    "thisWeek": "This week",
+    "thisMonth": "This month",
+    "allUpcoming": "All upcoming",
+    "viewAll": "View all",
+    "review": "Review",
+    "approve": "Approve",
+    "decline": "Decline",
+    "open": "Open",
+    "close": "Close"
+  },
+  "jobs": {
+    "title": "Jobs",
+    "scheduledFor": "Scheduled",
+    "complaint": "Complaint",
+    "technician": "Technician",
+    "equipment": "Equipment",
+    "equipmentNotIdentified": "Equipment not identified",
+    "identifyEquipment": "Identify equipment",
+    "previousWork": "Previous work at this property",
+    "noJobsRange": "No jobs scheduled in {{range}}"
+  },
+  "feedback": {
+    "title": "Send feedback",
+    "submitted": "Feedback submitted",
+    "reference": "Reference",
+    "category": "Category",
+    "severity": "Severity",
+    "whatHappened": "What happened?",
+    "whatExpected": "What did you expect?",
+    "contactMe": "Contact me about this",
+    "screenshot": "Attach screenshot",
+    "voiceNote": "Voice note"
+  }
+}

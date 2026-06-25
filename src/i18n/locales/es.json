@@ -1,0 +1,91 @@
+{
+  "app": {
+    "name": "Field Copilot",
+    "tagline": "Un prototipo funcional optimizado para móvil.",
+    "demoBadge": "Datos de demostración"
+  },
+  "nav": {
+    "today": "Hoy",
+    "jobs": "Trabajos",
+    "scan": "Escanear",
+    "copilot": "Copiloto",
+    "more": "Más",
+    "dashboard": "Panel",
+    "customers": "Clientes",
+    "equipment": "Equipos",
+    "settings": "Ajustes",
+    "help": "Ayuda",
+    "resetDemo": "Reiniciar demo",
+    "signOut": "Cerrar sesión",
+    "switchToTech": "Cambiar a Técnico",
+    "switchToOwner": "Cambiar a Propietario",
+    "sendFeedback": "Enviar comentarios",
+    "language": "Idioma"
+  },
+  "status": {
+    "synced": "Sincronizado",
+    "offline": "Sin conexión",
+    "loading": "Cargando…"
+  },
+  "landing": {
+    "title": "Encuentra la especificación correcta. Diagnostica paso a paso.",
+    "titleAccent": "Termina el papeleo antes de irte.",
+    "enterAsTech": "Entrar como Técnico",
+    "enterAsOwner": "Entrar como Propietario",
+    "signIn": "Iniciar sesión",
+    "tour": "Tour de 90s",
+    "disclaimer": "Para profesionales de HVAC capacitados. Esta herramienta asiste — no reemplaza licencias, instrucciones del fabricante, códigos, bloqueo/etiquetado, EPP ni prácticas de trabajo seguras. Las métricas comerciales, datos de clientes y casos previos son datos de demostración.",
+    "fasterDiagnosis": "Diagnóstico más rápido",
+    "fewerCallbacks": "Menos retornos",
+    "lessPaperwork": "Menos papeleo",
+    "fasterDiagnosisV": "−32% tiempo prom.",
+    "fewerCallbacksV": "−18% tasa",
+    "lessPaperworkV": "Reportes en 60s"
+  },
+  "common": {
+    "back": "Atrás",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "submit": "Enviar",
+    "confirm": "Confirmar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "all": "Todos",
+    "none": "Ninguno",
+    "today": "Hoy",
+    "thisWeek": "Esta semana",
+    "thisMonth": "Este mes",
+    "allUpcoming": "Próximos",
+    "viewAll": "Ver todo",
+    "review": "Revisar",
+    "approve": "Aprobar",
+    "decline": "Rechazar",
+    "open": "Abrir",
+    "close": "Cerrar"
+  },
+  "jobs": {
+    "title": "Trabajos",
+    "scheduledFor": "Programado",
+    "complaint": "Reclamo",
+    "technician": "Técnico",
+    "equipment": "Equipo",
+    "equipmentNotIdentified": "Equipo no identificado",
+    "identifyEquipment": "Identificar equipo",
+    "previousWork": "Trabajos previos en esta propiedad",
+    "noJobsRange": "No hay trabajos programados en {{range}}"
+  },
+  "feedback": {
+    "title": "Enviar comentarios",
+    "submitted": "Comentario enviado",
+    "reference": "Referencia",
+    "category": "Categoría",
+    "severity": "Severidad",
+    "whatHappened": "¿Qué pasó?",
+    "whatExpected": "¿Qué esperabas?",
+    "contactMe": "Contáctenme sobre esto",
+    "screenshot": "Adjuntar captura",
+    "voiceNote": "Nota de voz"
+  }
+}
