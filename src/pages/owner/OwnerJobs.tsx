@@ -16,10 +16,15 @@ export default function OwnerJobs() {
 
   const techs = state.users.filter((u) => u.role !== "Owner");
   const brands = Array.from(new Set(state.equipment.map((e) => e.manufacturer))).sort();
+  const equipmentTypes = Array.from(new Set(state.equipment.map((e) => e.type).filter(Boolean) as string[])).sort();
+  const cities = Array.from(new Set([
+    ...state.customers.map((c) => c.city).filter(Boolean) as string[],
+    ...state.properties.map((p) => p.city).filter(Boolean) as string[],
+  ])).sort();
 
   const filteredJobs = useMemo(
-    () => applyJobFilters(state.jobs, filters, { equipment: state.equipment, properties: state.properties }),
-    [state.jobs, state.equipment, state.properties, filters],
+    () => applyJobFilters(state.jobs, filters, { equipment: state.equipment, properties: state.properties, customers: state.customers }),
+    [state.jobs, state.equipment, state.properties, state.customers, filters],
   );
 
   const rows = useMemo(() => {
@@ -27,16 +32,16 @@ export default function OwnerJobs() {
     const needle = q.toLowerCase();
     return filteredJobs.filter((j) => {
       const c = state.customers.find((c) => c.id === j.customerId);
-      return [c?.name, j.complaint, j.status, deriveJobType(j)].some((x) => x?.toLowerCase().includes(needle));
+      return [c?.name, j.complaint, j.status, deriveJobType(j), j.serviceCategory].some((x) => x?.toLowerCase().includes(needle));
     });
   }, [filteredJobs, q, state.customers]);
 
   const exportCsv = () => {
-    const header = ["id", "customer", "complaint", "type", "technician", "status", "scheduled"];
+    const header = ["id", "customer", "complaint", "type", "category", "billing", "technician", "status", "revenue", "scheduled"];
     const lines = [header.join(",")].concat(rows.map((j) => {
       const c = state.customers.find((x) => x.id === j.customerId);
       const u = state.users.find((x) => x.id === j.technicianId);
-      return [j.id, c?.name ?? "", j.complaint.replace(/,/g, ";"), deriveJobType(j), u?.name ?? "", j.status, j.scheduledFor].join(",");
+      return [j.id, c?.name ?? "", j.complaint.replace(/,/g, ";"), deriveJobType(j), j.serviceCategory ?? "", j.billingType ?? "", u?.name ?? "", j.status, j.revenue ?? 0, j.scheduledFor].join(",");
     }));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `jobs-${Date.now()}.csv`; a.click();
@@ -52,7 +57,13 @@ export default function OwnerJobs() {
         </div>
       </div>
 
-      <FilterBar filters={filters} patch={patch} reset={reset} techs={techs} brands={brands} onExport={exportCsv} />
+      <FilterBar
+        filters={filters} patch={patch} reset={reset}
+        techs={techs} brands={brands} cities={cities}
+        equipmentTypes={equipmentTypes} customers={state.customers}
+        onExport={exportCsv} matchedCount={rows.length}
+      />
+
 
       <Card className="overflow-hidden p-0">
         {rows.length === 0 ? (

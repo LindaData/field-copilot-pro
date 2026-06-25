@@ -1,26 +1,36 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { jobPausedMs, useStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp, TrendingDown, Wallet, Wrench, Users, Clock, Briefcase, AlertTriangle,
+  Star, PauseCircle, ArrowRight, Package, Minus,
 } from "lucide-react";
-import { applyJobFilters, deriveJobType } from "@/lib/filters";
+import {
+  applyJobFilters, deriveJobType, previousRangeBounds, rangeBounds,
+} from "@/lib/filters";
 import { useJobFilters } from "@/lib/useJobFilters";
+import { computeMetrics, trend, type Metrics, type Trend } from "@/lib/metrics";
 import FilterBar from "@/components/owner/FilterBar";
-import type { Job } from "@/lib/types";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, PieChart, Pie, Cell, Legend,
+} from "recharts";
 
-const KPI = ({
-  icon: Icon, label, value, sub, good, href,
+const COLORS = ["#2563eb", "#16a34a", "#dc2626", "#ca8a04", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
+
+function TrendBadge({ t }: { t: Trend }) {
+  if (t.insufficient) return <span className="text-[10px] text-muted-foreground">Not enough comparison data</span>;
+  const Icon = t.dir === "up" ? TrendingUp : t.dir === "down" ? TrendingDown : Minus;
+  const cls = t.dir === "up" ? "text-success" : t.dir === "down" ? "text-destructive" : "text-muted-foreground";
+  return <span className={`inline-flex items-center gap-1 text-[11px] ${cls}`}><Icon className="h-3 w-3" /> {t.label}</span>;
+}
+
+function KPI({
+  icon: Icon, label, value, sub, href, trend,
 }: {
-  icon: typeof Wallet;
-  label: string;
-  value: string;
-  sub?: string;
-  good?: boolean;
-  href?: string;
-}) => {
+  icon: typeof Wallet; label: string; value: string; sub?: string; href?: string; trend?: Trend;
+}) {
   const inner = (
     <Card className="p-4 transition hover:bg-muted/30">
       <div className="flex items-center justify-between">
@@ -28,15 +38,18 @@ const KPI = ({
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
-      {sub && (
-        <div className={`mt-1 inline-flex items-center gap-1 text-xs ${good ? "text-success" : "text-muted-foreground"}`}>
-          {good ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />} {sub}
-        </div>
-      )}
+      <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+        {sub && <span>{sub}</span>}
+        {trend && <TrendBadge t={trend} />}
+      </div>
     </Card>
   );
   return href ? <Link to={href}>{inner}</Link> : inner;
-};
+}
+
+function EmptyChart({ label }: { label: string }) {
+  return <div className="flex h-48 items-center justify-center text-xs text-muted-foreground">No data for {label}</div>;
+}
 
 export default function OwnerDashboard() {
   const { state } = useStore();
@@ -44,24 +57,42 @@ export default function OwnerDashboard() {
 
   const techs = state.users.filter((u) => u.role !== "Owner");
   const brands = Array.from(new Set(state.equipment.map((e) => e.manufacturer))).sort();
+  const equipmentTypes = Array.from(new Set(state.equipment.map((e) => e.type).filter(Boolean) as string[])).sort();
+  const cities = Array.from(new Set([
+    ...state.customers.map((c) => c.city).filter(Boolean) as string[],
+    ...state.properties.map((p) => p.city).filter(Boolean) as string[],
+  ])).sort();
 
-  const filteredJobs = useMemo(
-    () => applyJobFilters(state.jobs, filters, { equipment: state.equipment, properties: state.properties }),
-    [state.jobs, state.equipment, state.properties, filters],
+  const ctx = { equipment: state.equipment, properties: state.properties, customers: state.customers };
+
+  const filteredJobs = useMemo(() => applyJobFilters(state.jobs, filters, ctx), [state.jobs, filters, ctx]);
+
+  const prevBounds = useMemo(() => previousRangeBounds(rangeBounds(filters)), [filters]);
+  const prevJobs = useMemo(
+    () => state.jobs.filter((j) => {
+      const t = +new Date(j.scheduledFor);
+      return t >= +prevBounds.start && t <= +prevBounds.end;
+    }),
+    [state.jobs, prevBounds],
   );
 
-  const metrics = useMemo(() => computeMetrics(filteredJobs, state), [filteredJobs, state]);
+  const mctx = { jobParts: state.jobParts, parts: state.parts, equipment: state.equipment, customers: state.customers, users: state.users };
+  const m: Metrics = useMemo(() => computeMetrics(filteredJobs, mctx), [filteredJobs, mctx]);
+  const mPrev: Metrics = useMemo(() => computeMetrics(prevJobs, mctx), [prevJobs, mctx]);
 
   const exportFiltered = () => {
     const payload = {
       generatedAt: new Date().toISOString(),
-      filters,
-      metrics,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      filters, range: rangeBounds(filters),
+      matchedRecords: filteredJobs.length,
+      metrics: m,
       jobs: filteredJobs.map((j) => ({
         id: j.id, status: j.status,
         technician: techs.find((t) => t.id === j.technicianId)?.name,
         scheduledFor: j.scheduledFor,
-        jobType: deriveJobType(j),
+        jobType: deriveJobType(j), serviceCategory: j.serviceCategory,
+        billingType: j.billingType, revenue: j.revenue, isCallback: !!j.isCallback,
       })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -75,11 +106,17 @@ export default function OwnerDashboard() {
       <div>
         <h1 className="text-2xl font-bold">Operations overview</h1>
         <div className="text-xs text-muted-foreground">
-          All KPIs, lists, and exports below are computed from the same filtered set.
+          Every KPI, chart, table, and export below is computed from the same filtered set.
+          Comparisons use the immediately preceding period of equal length.
         </div>
       </div>
 
-      <FilterBar filters={filters} patch={patch} reset={reset} techs={techs} brands={brands} onExport={exportFiltered} />
+      <FilterBar
+        filters={filters} patch={patch} reset={reset}
+        techs={techs} brands={brands} cities={cities}
+        equipmentTypes={equipmentTypes} customers={state.customers}
+        onExport={exportFiltered} matchedCount={filteredJobs.length}
+      />
 
       {filteredJobs.length === 0 ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -88,28 +125,145 @@ export default function OwnerDashboard() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <KPI icon={Briefcase} label="Open jobs" value={String(metrics.open)} />
-            <KPI icon={Wrench} label="Completed jobs" value={String(metrics.completed)} />
-            <KPI icon={Wallet} label="Revenue" value={`$${metrics.revenue.toLocaleString()}`} sub={`${metrics.completed} closed`} good />
-            <KPI icon={Wallet} label="Gross margin" value={metrics.completed === 0 ? "—" : `${metrics.margin}%`} />
-            <KPI icon={Wrench} label="First-time fix" value={metrics.completed === 0 ? "—" : `${metrics.fixRate}%`} />
-            <KPI icon={AlertTriangle} label="Callback rate" value={metrics.completed === 0 ? "—" : `${metrics.callbackRate}%`} />
-            <KPI icon={Clock} label="Avg diag time" value={metrics.avgDiagMin ? `${metrics.avgDiagMin} min` : "—"} />
-            <KPI icon={Clock} label="Avg job duration" value={metrics.avgJobMin ? `${metrics.avgJobMin} min` : "—"} />
-            <KPI icon={Users} label="Technician utilization" value={`${metrics.utilization}%`} />
-            <KPI icon={Wallet} label="Parts cost" value={`$${metrics.partsCost.toLocaleString()}`} />
-            <KPI icon={AlertTriangle} label="Return trips (parts)" value={String(metrics.returnTripsForParts)} />
-            <KPI icon={Wallet} label="Est. savings vs paper" value={`$${metrics.savings.toLocaleString()}`} good />
+            <KPI icon={Briefcase} label="Open jobs" value={String(m.open)} href="/owner/jobs" />
+            <KPI icon={Wrench} label="Completed" value={String(m.completed)} trend={trend(m.completed, mPrev.completed, prevJobs.length)} href="/owner/jobs" />
+            <KPI icon={Briefcase} label="Scheduled" value={String(m.scheduled)} />
+            <KPI icon={Package} label="Waiting for parts" value={String(m.waitingParts)} href="/owner/jobs" />
+            <KPI icon={Wallet} label="Revenue" value={`$${m.revenue.toLocaleString()}`} trend={trend(m.revenue, mPrev.revenue, prevJobs.length)} />
+            <KPI icon={Wallet} label="Gross profit" value={`$${m.grossProfit.toLocaleString()}`} trend={trend(m.grossProfit, mPrev.grossProfit, prevJobs.length)} />
+            <KPI icon={Wallet} label="Gross margin" value={m.completed === 0 ? "—" : `${m.margin}%`} />
+            <KPI icon={Wallet} label="Avg ticket" value={m.avgTicket === 0 ? "—" : `$${m.avgTicket.toLocaleString()}`} />
+            <KPI icon={Wrench} label="First-time fix" value={m.completed === 0 ? "—" : `${m.fixRate}%`} trend={trend(m.fixRate, mPrev.fixRate, mPrev.completed)} />
+            <KPI icon={AlertTriangle} label="Callback rate" value={`${m.callbackRate}%`} trend={trend(m.callbackRate, mPrev.callbackRate, prevJobs.length)} />
+            <KPI icon={Wrench} label="Estimate approval" value={`${m.estimateApprovalRate}%`} />
+            <KPI icon={Star} label="Avg rating" value={m.avgRating === 0 ? "—" : `${m.avgRating} ★`} />
+            <KPI icon={Clock} label="Avg travel" value={m.avgTravelMin ? `${m.avgTravelMin} min` : "—"} />
+            <KPI icon={Clock} label="Avg diag" value={m.avgDiagMin ? `${m.avgDiagMin} min` : "—"} />
+            <KPI icon={Clock} label="Avg active labor" value={m.avgActiveLaborMin ? `${m.avgActiveLaborMin} min` : "—"} />
+            <KPI icon={Clock} label="Avg total" value={m.avgTotalMin ? `${m.avgTotalMin} min` : "—"} />
+            <KPI icon={PauseCircle} label="Paused time" value={`${Math.round(m.pausedMin)} min`} />
+            <KPI icon={Users} label="Utilization" value={`${m.utilization}%`} />
+            <KPI icon={AlertTriangle} label="Return trips (parts)" value={String(m.returnTripsForParts)} />
+            <KPI icon={Wallet} label="Est. savings vs paper" value={`$${m.savings.toLocaleString()}`} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Card className="p-4">
+              <div className="mb-2 text-sm font-semibold">Revenue over time</div>
+              {m.revenueByDay.length === 0 ? <EmptyChart label="this range" /> : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={m.revenueByDay}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-4">
+              <div className="mb-2 text-sm font-semibold">Jobs by status</div>
+              {m.jobsByStatus.length === 0 ? <EmptyChart label="this range" /> : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={m.jobsByStatus}>
+                    <XAxis dataKey="status" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#16a34a" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-4">
+              <div className="mb-2 text-sm font-semibold">Failure categories</div>
+              {m.failureCounts.length === 0 ? <EmptyChart label="this range" /> : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={m.failureCounts} dataKey="count" nameKey="category" cx="50%" cy="50%" outerRadius={70} label>
+                      {m.failureCounts.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip /><Legend wrapperStyle={{ fontSize: 10 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-4">
+              <div className="mb-2 text-sm font-semibold">Equipment brands serviced</div>
+              {m.brandCounts.length === 0 ? <EmptyChart label="this range" /> : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={m.brandCounts} layout="vertical">
+                    <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="brand" tick={{ fontSize: 10 }} width={80} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#7c3aed" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card className="p-4 md:col-span-2">
+              <div className="mb-2 text-sm font-semibold">Technician performance ({m.techStats.filter((t) => t.jobs > 0).length} active)</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-muted-foreground">
+                    <tr><th className="py-1">Tech</th><th>Jobs</th><th>Revenue</th><th>First-time fix</th><th>Rating</th></tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {m.techStats.map((t) => (
+                      <tr key={t.id}>
+                        <td className="py-1.5">{t.name}</td>
+                        <td>{t.jobs}</td>
+                        <td>${t.revenue.toLocaleString()}</td>
+                        <td>{t.jobs === 0 ? "—" : `${t.fixRate}%`}</td>
+                        <td>{t.rating ? `${t.rating} ★` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card className="p-4 md:col-span-2">
+              <div className="mb-2 text-sm font-semibold">Parts used</div>
+              {m.partsUsage.length === 0 ? <div className="text-xs text-muted-foreground">No parts used in this set.</div> : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-xs uppercase text-muted-foreground">
+                      <tr><th>Part</th><th>Qty</th><th>Revenue</th><th>Cost</th></tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {m.partsUsage.map((p) => (
+                        <tr key={p.id}>
+                          <td className="py-1.5">{p.name}</td>
+                          <td>{p.qty}</td>
+                          <td>${p.revenue.toLocaleString()}</td>
+                          <td>${p.cost.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
           </div>
 
           <Card className="p-4">
-            <div className="mb-3 text-sm font-semibold">Jobs in range ({filteredJobs.length})</div>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold">Matching jobs ({filteredJobs.length})</div>
+              <Link to="/owner/jobs" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                Open full list <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase text-muted-foreground">
                   <tr>
-                    <th className="py-2">Customer</th><th>Complaint</th><th>Type</th>
-                    <th>Technician</th><th>Status</th><th>Scheduled</th>
+                    <th className="py-2">Customer</th><th>Complaint</th><th>Category</th>
+                    <th>Tech</th><th>Status</th><th>Revenue</th><th>Scheduled</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -120,9 +274,10 @@ export default function OwnerDashboard() {
                       <tr key={j.id}>
                         <td className="py-2">{c?.name}</td>
                         <td className="text-muted-foreground">{j.complaint}</td>
-                        <td className="text-xs">{deriveJobType(j)}</td>
+                        <td className="text-xs">{j.serviceCategory ?? "—"}</td>
                         <td>{u?.name}</td>
                         <td><Badge variant="secondary">{j.status}</Badge></td>
+                        <td>${(j.revenue ?? 0).toLocaleString()}</td>
                         <td className="text-xs text-muted-foreground">
                           {new Date(j.scheduledFor).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                         </td>
@@ -142,40 +297,4 @@ export default function OwnerDashboard() {
       )}
     </div>
   );
-}
-
-function computeMetrics(jobs: Job[], state: ReturnType<typeof useStore>["state"]) {
-  const completed = jobs.filter((j) => j.status === "Completed");
-  const open = jobs.length - completed.length;
-  const waitingParts = jobs.filter((j) => j.status === "Waiting for Parts").length;
-  const followUps = jobs.filter((j) => j.status === "Follow-Up").length;
-  const returnTripsForParts = waitingParts;
-
-  const diagDurations = completed.map((j) => {
-    if (!j.diagnosisStartedAt || !j.completedAt) return null;
-    return (+new Date(j.completedAt) - +new Date(j.diagnosisStartedAt) - jobPausedMs(j)) / 60000;
-  }).filter((n): n is number => n !== null && n > 0);
-  const jobDurations = completed.map((j) => {
-    if (!j.arrivedAt || !j.completedAt) return null;
-    return (+new Date(j.completedAt) - +new Date(j.arrivedAt) - jobPausedMs(j)) / 60000;
-  }).filter((n): n is number => n !== null && n > 0);
-  const avg = (xs: number[]) => xs.length === 0 ? 0 : Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
-
-  const partsForRangeJobs = state.jobParts.filter((jp) => jobs.some((j) => j.id === jp.jobId));
-  const partsCost = Math.round(partsForRangeJobs.reduce((sum, jp) => {
-    const p = state.parts.find((x) => x.id === jp.partId);
-    return sum + jp.qty * (p?.price ?? 0);
-  }, 0));
-  const revenue = Math.round(completed.length * 280 + partsCost);
-  const fixRate = completed.length === 0 ? 0 : Math.round(((completed.length - followUps) / completed.length) * 100);
-  const callbackRate = jobs.length === 0 ? 0 : Math.round((followUps / jobs.length) * 100);
-  const utilization = Math.min(100, Math.round((completed.length / Math.max(1, jobs.length)) * 100));
-  const margin = revenue === 0 ? 0 : Math.max(0, Math.round(((revenue - partsCost) / revenue) * 100));
-  const savings = Math.round(completed.length * 35);
-
-  return {
-    open, completed: completed.length, revenue, margin, fixRate, callbackRate,
-    avgDiagMin: avg(diagDurations), avgJobMin: avg(jobDurations),
-    utilization, partsCost, returnTripsForParts, savings,
-  };
 }
