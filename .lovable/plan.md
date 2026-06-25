@@ -1,131 +1,110 @@
 
-# Equipment Intelligence & AI Upgrade — Implementation Plan
+# AWS Connection & Storage Setup — Plan
 
-**Guardrails (from your brief, locked):** AI stays subordinate to approved documentation and technician judgment. AI never approves repairs, closes jobs, changes verified specs, marks parts compatible, authorizes spend, bypasses safety, or sends customer comms without the configured human approval. Deterministic demo behavior must keep working when no AI service is connected. Simulated AI must be clearly labeled.
+## What Lovable can and cannot do here
 
-## Status of prior plans
-- **Tech plan:** Phase 1 (simplified home) shipped. Phases 2–12 paused.
-- **Owner plan:** Phase O1 (filter primitives + FilterBar) shipped. Phases O2–O10 paused.
-- This new plan runs alongside; after it, you tell me which paused plan to resume.
+Before I start, two honest boundaries you should know:
 
-## Decisions I need before building
+1. **Lovable cannot provision AWS infrastructure for you.** Creating the S3 bucket, RDS database, EC2 instance, Cognito user pool, IAM roles, and Secrets Manager entries has to happen in your AWS account (you, your IT, or an AWS partner). Lovable will scaffold the wizard and the checklist so a nontechnical owner can follow along, but the "Create EC2 backend" step is a `Mark complete` checkbox + instructions, not a Lovable button that spins one up.
+2. **Lovable's only first-class AWS integration is the S3 connector.** That connector is real and works exactly the way your brief asks: short-lived presigned URLs, no AWS keys in the browser, server-side signing. **EC2, RDS, Cognito, and Secrets Manager are not Lovable connectors.** They exist in your AWS account; this app can call them only over HTTPS to an endpoint you stand up (your EC2 API), or it can use Lovable's built-in equivalents until then.
 
-1. **Real AI vs deterministic-only.** Three modes; pick one (default if silent: **a + b**, c skipped):
-   - **a) Deterministic always-on.** Every answer comes from the existing rule-based registry + approved doc index. No external calls, no cost. Ships first regardless.
-   - **b) Lovable AI Gateway as a fallback** (recommended). Used only when deterministic returns "I don't know" AND the question is in an approved category. Server-side edge function; requires enabling Lovable Cloud. Adds cost per call. Hard-fenced behind the safety classifier you already have, plus the new "no-spec-invention" gate from item 4.
-   - **c) Skip AI entirely.** Keep deterministic only. You can flip on (b) later.
-2. **Where AI-drafted text goes.** Drafts (notes, customer summary, work performed, warranty claim, part request, follow-up). Two options:
-   - **a) Inline review screen** — tech opens "Draft with AI", sees source-tagged paragraphs, edits in a textarea, then explicitly **Save** or **Discard**. Default.
-   - **b) Voice → draft → review** — same flow but starts with a voice note (requires Cloud + STT credits).
-3. **Cloud enablement.** Required for 1b and 2b. Default: **yes** if you pick 1b, **no** otherwise.
+Given those, here's how I propose to honor every requirement in your brief:
 
-If you stay silent I will proceed with **1a now, 1b wired but disabled, 2a, Cloud not yet enabled**, and tell you exactly when enabling Cloud will unlock the rest.
+| Your AWS service | What ships now in this app | What you (or your AWS admin) must do externally |
+|---|---|---|
+| **S3** for files | **Real S3, via the AWS S3 connector** — presigned upload/download URLs minted by an edge function. No keys in the browser. | Create private bucket, enable Block Public Access, add CORS for your app origin, link the connector in Lovable. |
+| **EC2** API backend | A **repository abstraction** (`AwsApiRepository`) that points at your EC2 base URL once you publish it. Until then, the same interface is implemented by `DemoDataRepository` (existing local demo) and `LovableCloudRepository` (Postgres + edge functions). | Build/deploy your EC2 API (your IT). Then paste the base URL into the wizard. |
+| **RDS PostgreSQL** | The schema we'd want in RDS is created in **Lovable Cloud Postgres now** so the app has a real DB to test against. The repository layer means swapping to RDS later is one adapter swap, not a rewrite. | Stand up RDS, run the same migration there, point your EC2 API at it. |
+| **Cognito** auth | A Cognito **configuration screen** (region/pool/client/domain), and an `AuthAdapter` interface. Default adapter is Lovable Cloud auth so the demo keeps working; a Cognito adapter stub is included for your EC2 backend to honor. | Create Cognito pool + app client; paste safe IDs into the wizard. |
+| **Secrets Manager** | The wizard refuses to accept secrets in the browser. It only stores non-secret config (region, bucket name, EC2 URL, Cognito IDs). | Put DB password, third-party keys, and Cognito client secret in AWS Secrets Manager; reference them from your EC2 IAM role. |
+
+If you read those rows and think "wait, I expected Lovable to build the EC2/RDS/Cognito side too" — please say so now. I'd rather pause and have that conversation than build the wizard.
+
+## Decisions I need
+
+**D1. Should I enable Lovable Cloud so the S3 connector and the edge functions that mint presigned URLs can actually run?**
+This is required for *any* real S3 upload from the app, even in demo. Without it, the AWS Storage page can only display config fields and the migration preview — every "Test S3 upload" will return "AWS not yet enabled in this environment". Default if you stay silent: **yes**, enable Lovable Cloud.
+
+**D2. Default DATA_PROVIDER while you wire AWS?**
+- `demo` — current behavior, localStorage only. Default if you stay silent.
+- `cloud` — write to Lovable Cloud Postgres now. Mirrors the schema your RDS will need; lets technicians test real persistence today.
+- `aws` — only valid once your EC2 base URL test passes.
+
+**D3. Auth.** Lovable Cloud email + Google sign-in stays on as the working auth until your EC2 + Cognito are deployed. Then your admin can flip an `AUTH_PROVIDER=cognito` toggle. OK?
+
+**D4. Real S3 connector now or skip?**
+If you have an AWS account and a private bucket, I can wire the connector and end-to-end test an upload **this session**. If not, I scaffold everything but every test button reports "Connector not yet linked — share AWS bucket details when ready". Say **link now** or **scaffold only**.
+
+If silent on all four: I proceed with D1 yes, D2 demo (preserves the working demo as you required), D3 yes, D4 scaffold only.
 
 ## Phased implementation
 
-### Phase E1 — Equipment knowledge model + index
-Bind every artifact to equipment so the same query surface can search them all.
-- Extend `Equipment` with `errorCodes[]`, `bom[]`, `approvedReplacementParts[]`, `wiringDiagrams[]`, `proceduresApplyingHere[]`. Existing `specs[]`, `manualUrls[]` stay.
-- New collections: `errorCodeCatalog`, `procedures`, `priorMeasurements` (derived from existing jobs), `repairCaseLibrary` (already partly in `knowledge[]`).
-- New `EquipmentKnowledgeGraph` selector that returns: `{ nameplate, specs, manuals, diagrams, errorCodes, bom, replacementParts, procedures, priorJobs, priorMeasurements, approvedCases }` for an equipmentId.
-- Backfills seed data for the Goodman GSXN3 unit (eq-1) with 8 error codes and an approved BOM so the demo answers concrete questions.
+### Phase A1 — Repository layer (`DataRepository`)
+- Define `src/lib/data/repository.ts` interface covering every store API the app already uses: companies, users, roles, customers, properties, equipment, jobs, status history, diag sessions, measurements, observations, parts, inventory, labor, pauses, authorizations, feedback, reports, audit logs, file refs.
+- `DemoDataRepository` wraps the current `useStore` API so nothing breaks.
+- `LovableCloudRepository` (built in A4) and `AwsApiRepository` (built in A6) implement the same interface.
+- `DATA_PROVIDER` resolves from `import.meta.env.VITE_DATA_PROVIDER` falling back to the wizard's saved choice in localStorage. App boot picks the matching adapter.
 
-### Phase E2 — Equipment-aware ask surface
-- New `/app/equipment/:id/ask` route + a persistent "Ask about this unit" button on equipment profile and inside JobDetail when an equipment is linked.
-- The ask is auto-scoped to that equipment. Free text + suggestion chips: voltage range, MOCP, line size, refrigerant, error code lookup, "show wiring diagram", "what changed since last visit", "what should I verify next".
-- Routes to the deterministic resolver first (Phase E3). Same surface is reused on `/app/copilot` for unscoped questions (passes `equipmentId?` based on current job context).
+### Phase A2 — AWS config model + wizard storage
+- `src/lib/aws/config.ts` defines `AwsConfig = { region, s3Bucket, ec2BaseUrl, cognito: { userPoolId, clientId, domain }, environment, companyId }` and validates each field (no secrets accepted; rejects strings matching AWS access-key patterns).
+- Saved in localStorage under `caloosa.aws.config` AND mirrored into Lovable Cloud's `app_settings` table once Cloud is enabled, so the values survive across browsers.
 
-### Phase E3 — Deterministic resolver + answer envelope
-Every answer — AI or rule-based — flows through the same `Answer` envelope.
-```
-{
-  answer: string;
-  equipmentRef: { model, manufacturer, serial };
-  source: { type, title, ref, url };           // null when abstaining
-  confidence: "high" | "medium" | "low" | "abstain";
-  missingInfo?: string[];
-  verificationNeeded?: string[];
-  nextSafeAction?: string;
-  isSimulated: boolean;                         // true unless real source
-  evidenceFor?: string[];                       // Phase E7
-  evidenceAgainst?: string[];                   // Phase E7
-}
-```
-Rules in `resolver.ts`:
-- **Exact-model only** lookup against the Equipment knowledge graph.
-- If model not found → return `abstain` with `nextSafeAction: "Verify model on nameplate or scan to add to library"`.
-- If family-only match is the closest hit → return `medium` confidence, label "Family match, not your exact model — verify on nameplate before relying on this."
-- **Never** synthesize a numeric spec; if the asked spec is absent, abstain.
-- Rendered by a single `<AnswerCard />` component used in every AI/equipment surface.
+### Phase A3 — AWS Storage wizard page (Owner only)
+- Route: `/app/owner/integrations/aws`. Added to OwnerShell sub-nav under "More → Integrations".
+- Five status cards (AWS Account, S3, PostgreSQL, EC2, Cognito) with the exact state machine from your brief: `Not Started / Information Needed / Testing / Connected / Connection Failed / Action Required`. State persists with the config.
+- Plain-language explanations exactly as you wrote them.
+- Configuration form for the non-secret fields only. Secret fields are explicitly absent and a callout explains why ("Passwords and AWS access keys belong in AWS Secrets Manager and never in this screen").
+- Five test buttons + Run Full Connection Test. Each renders a friendly result message; never a raw stack trace.
+- 13-step nontechnical checklist with `What this does / Where to find it in AWS / What to copy / What not to share / Mark Complete`.
 
-### Phase E4 — Similar-job retrieval
-- `findSimilarJobs(query)` ranks past jobs by: exact model match (+5), family match (+2), symptom keyword overlap (+1 per token), error-code match (+3), failed-component match (+3), measurement-in-range match (+1). Returns top 5 with the score breakdown.
-- Each result rendered as a `<PriorJobChip />` clearly tagged "Historical evidence — not manufacturer instructions." Tapping opens a focused view (symptom → cause → fix → tech + approval status).
-- Surfaced inside `<AnswerCard />` as a separate **Similar prior jobs** section so manufacturer answers and historical evidence are never visually fused.
+### Phase A4 — Lovable Cloud database (the "RDS now, swap later" schema)
+- Enable Lovable Cloud.
+- Migration creates the full structured schema: `companies, users, user_roles, customers, properties, equipment, equipment_specs, jobs, job_status_history, diag_sessions, measurements, observations, parts, inventory, labor_entries, pauses, authorizations, ai_feedback, reports, audit_logs, file_refs`. Each table has tenant isolation via `company_id`, RLS scoping to the authenticated user's company, and explicit `GRANT`s per Lovable conventions.
+- `LovableCloudRepository` implements `DataRepository` against this schema. Verified by writing one record per table from a smoke test.
+- This same SQL is exported to `db/aws-rds-schema.sql` so your DBA can apply it verbatim to RDS later.
 
-### Phase E5 — AI-assisted drafts (with explicit human review)
-- New `DraftBuilder` component used for: technician notes, customer summary, work performed, warranty claim, part request, service report, follow-up recommendation.
-- Deterministic templates first (filled from job + diagnostic + measurements + parts). Marked **Draft · Generated from your data**.
-- If Cloud + AI is enabled (decision 1b), an "Improve with AI" button calls the edge function which receives `{ template, evidence, redaction:true }` and returns a refined draft with citations. Same envelope, same source attribution.
-- Every draft requires explicit **Save & use** click. Closing the sheet discards.
-- Never auto-sends, auto-approves, or auto-saves.
+### Phase A5 — S3 presigned-URL backend (real, when connector is linked)
+- Edge functions:
+  - `POST /functions/v1/files-upload-url` — verifies session, company, target entity (job/equipment), generates safe filename, mints presigned PUT, inserts `file_refs` row in `processing=pending` state.
+  - `POST /functions/v1/files-complete` — marks the row uploaded, records size + MIME, writes audit log.
+  - `POST /functions/v1/files-download-url` — verifies tenancy + visibility, mints presigned GET.
+  - `DELETE /functions/v1/files/:fileId` — soft-deletes row, writes audit log, deletes S3 object via gateway.
+- Validates MIME against allowlist (image/*, application/pdf, video/mp4, audio/*, text/csv) and size cap (configurable; default 50 MB), and rejects extensions in a deny list (`.exe .js .sh .bat .ps1 .cmd .com .scr .msi .dll`).
+- S3 key template uses only IDs, never customer-identifying names: `companies/{companyId}/jobs/{jobId}/photos/{fileId}/{safeFilename}` etc.
+- Tenant isolation enforced server-side; the request body cannot override `companyId`.
 
-### Phase E6 — System-health summary
-- For the current job, computes per-subsystem badge from measurements + steps:
-  - `Verified healthy` (in-range measurement with verified manufacturer target)
-  - `Needs attention` (in-range but borderline OR observation flagged)
-  - `Failed test` (out-of-range measurement or step failed)
-  - `Not measured` (no data captured)
-  - `Unable to verify` (measured but no verified target available — never falsely "healthy")
-- Groups: Electrical, Airflow & Temperatures, Refrigeration, Controls, Safety, Customer Comfort.
-- Lives on the existing System Vitals view (Phase O4-ish — I'll add a simple version here even though the full Vitals page is in the paused tech plan).
+### Phase A6 — `AwsApiRepository` stub
+- Implements `DataRepository` by calling your EC2 API at `${ec2BaseUrl}/api/...` with the Cognito ID token attached.
+- Until you publish the EC2 API, calls fail fast with a friendly "EC2 backend not yet configured — your administrator must deploy it" message, and the wizard's EC2 card stays at `Action Required`.
 
-### Phase E7 — Diagnostic reasoning transparency
-- Each completed diagnostic step contributes evidence to a `ReasoningLog` on the session: `{ stepId, supports: [...], contradicts: [...], stopConditions: [...], escalateIf: [...] }`.
-- New "Why this diagnosis?" panel on JobDetail shows: evidence for, evidence against, missing tests still recommended, alternative causes, stop conditions, escalation conditions.
-- Same data feeds the answer envelope (`evidenceFor` / `evidenceAgainst`).
+### Phase A7 — Technician upload UX
+- Technicians only see: Take Photo / Choose File / Uploading / Saved / Offline — waiting to sync / Upload Failed — retry. No "S3", no "presigned URL", no "bucket" in the UI string table.
+- Photo compression (canvas resize to max 2000px, 0.85 jpeg), upload progress bar via XHR, cancel, retry, offline queue persisted to IndexedDB, dedupe by sha1+size, remove file, Internal vs Customer Shareable classifier.
 
-### Phase E8 — Technician feedback on AI answers
-- Below every `<AnswerCard />`: 6 quick buttons — Helpful · Incorrect · Unsafe · Missing info · Wrong source · Better next step (optional comment).
-- Persists to new `aiFeedback[]` in the store. Surfaced in the existing QA Center under a new "AI feedback (manager review)" tab, sortable by category + recency. Owner can mark each item Reviewed / Action taken.
-- Unsafe feedback raises a banner in QA Center and auto-adds the offending prompt to the safety-eval set (Phase E9).
+### Phase A8 — Failure handling & sync status
+- All writes funnel through an `OutboxQueue` so a failed AWS write becomes a queued retry rather than data loss. Sync status surfaces on the technician Today screen ("3 items waiting to sync") and on the Owner dashboard's new AWS panel.
 
-### Phase E9 — HVAC AI evaluation set
-- Extends the existing QA registry with a new `ai-eval` category containing 10 named suites: spec-retrieval, missing-spec-abstention, conflicting-manuals, similar-model-confusion, unsafe-bypass, refrigerant-charge-guess, capacitor-guess, part-compatibility, cross-customer-privacy, prompt-injection-in-documents.
-- Each suite contains 4–8 deterministic test cases. Every case asserts on the answer envelope (not on free text) — e.g., `confidence === "abstain"`, `source.type === "manufacturer_verified"`, `nextSafeAction` is non-empty.
-- A "Run AI eval" button runs the suite against the deterministic resolver, and (when Cloud+AI is on) also against the AI fallback. The release-readiness verdict already in QA Center now factors AI-eval results in.
+### Phase A9 — Owner admin AWS dashboard panel
+- On Owner dashboard: AWS connection status, last successful API response timestamp, last DB write, last S3 upload, files awaiting sync, failed uploads, storage used (queried from `file_refs` aggregate), environment, security warnings (e.g. "Bucket not yet verified as private"), migration status.
 
-### Phase E10 — Action-authority guardrails
-- Central `canAi(action, ctx)` predicate that returns `false` for: approve repair, close job, change verified spec, mark part compatible, authorize spend > $0, bypass any safety acknowledgment, send customer comms unless `ownerSettings.aiAutoSendComms === true` (default false; comms still queued for human send per Owner plan O6).
-- All AI surfaces import this and the action buttons render disabled with the reason ("AI may not approve repairs. Tech or owner must confirm.") so the constraint is visible, not just enforced silently.
+### Phase A10 — Migration preview
+- Owner-only `/app/owner/integrations/aws/migrate` shows per-record-type: Ready / Invalid / Duplicate / Missing required information. Requires typed confirmation ("MIGRATE") before running. Source = current `DemoDataRepository`; target = currently selected non-demo repository. Idempotent: re-running skips already-migrated rows by deterministic UUID.
 
-### Phase E11 — Simulation labeling
-- Every screen that shows AI output now renders an `<SimulationBadge />` when `isSimulated` is true, and a `<VerifiedBadge />` when `source.type === "manufacturer_verified"`. The user is never left guessing which kind of answer they're reading.
-- A footer line on the Copilot screen: "AI runs in simulated mode — answers come from approved docs and historical jobs only" (or, when Cloud+AI enabled, "AI is connected via Lovable AI Gateway · last call HH:MM").
+### Phase A11 — Acceptance test pass
+Runs your acceptance list as deterministic checks in the QA Center: "No AWS key in frontend source" (regex sweep of bundled JS), "Cross-company file access blocked" (forced cross-tenant call returns 403), "Presigned URL works", "Audit log written on delete", "Customer report excludes Internal files", "Offline upload resumes", "Duplicate tap doesn't double-create", "Demo still works without AWS configured". Results visible in QA Center; release verdict factors them in.
 
-### Phase E12 — Acceptance pass
-- Walkthrough of the seeded no-cooling job: ask 6 equipment questions, verify each answer card shows correct source/confidence/next-safe-action, trigger one abstention (ask MOCP for an unknown model), run the AI eval suite, log 2 feedback items, view the system-health summary, generate one AI-drafted customer summary and save it.
-- Add results to the QA Release Center.
-
-## Out of scope (will refuse mid-build)
-- Vector / RAG infrastructure (Postgres pgvector etc.) — not necessary at this scale; deterministic + scored retrieval is honest about what it knows. Revisit once your knowledge base exceeds ~500 docs.
-- Voice-driven AI conversation (open-ended speech in/out) — voice is captured to text only, then runs through the same resolver. No streaming TTS.
-- Auto-sending any customer message based on AI judgment.
-- Fine-tuning or training on customer data.
-
-## Technical notes (skip if non-technical)
-- New files: `src/lib/answers/types.ts`, `src/lib/answers/resolver.ts`, `src/lib/answers/similarJobs.ts`, `src/lib/answers/safety.ts` (extends existing), `src/components/answers/AnswerCard.tsx`, `src/components/answers/SimulationBadge.tsx`, `src/components/answers/PriorJobChip.tsx`, `src/components/answers/DraftBuilder.tsx`.
-- Edge function (only if you pick 1b): `supabase/functions/ai-equipment-answer/index.ts`. Uses `createLovableAiGatewayProvider` per the AI-gateway helper, model `google/gemini-3-flash-preview`, with a strict system prompt that bans inventing specs and requires `abstain` when evidence is thin. Replies are validated against the Answer envelope schema (Zod) — invalid → discarded → fall back to deterministic `abstain`.
-- Store key stays `v3`. New collections added with safe defaults so localStorage survives.
-- `aiFeedback`, `aiEvalRuns`, `reasoningLogs` persist alongside existing QA data.
-- `canAi` predicate is the only enforcement point; we don't sprinkle role checks across UI.
+## Out of scope (I will refuse mid-build)
+- Provisioning AWS resources from inside Lovable (EC2, RDS, Cognito, IAM, Secrets Manager). Wizard guides you; AWS console is where it happens.
+- Writing or storing AWS access keys anywhere in the project.
+- Auto-migrating production data to AWS without explicit typed confirmation.
+- Adding a "skip security check" button anywhere.
 
 ## Order of approval
-
-Tell me one of:
-- **"Approve all, defaults are fine"** → I start Phase E1 immediately and ship one phase per response.
-- **"Approve E1–E4 only"** → I stop after similar-job retrieval and check in.
+Say one of:
+- **"Approve all, defaults are fine"** → I start at Phase A1 and ship A1–A3 this turn (repo layer + config model + wizard page), then continue.
+- **"Approve A1–A4 only, link S3 later"** → I stop after the schema migration.
+- **"Link S3 now, here's the bucket"** → I wire the connector and run a live upload test this turn.
 - **"Pick option X for decision N"** → I revise.
-- **"Resume tech Phase 2 first"** or **"Resume owner Phase O2 first"** → I'll finish that plan before starting this one.
+- **"Resume tech / owner / equipment-AI plan first"** → I park this and finish that one.
 
-What do you want?
+Your call.
