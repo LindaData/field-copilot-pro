@@ -1,18 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Download, Search } from "lucide-react";
+import { Download, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { applyJobFilters, deriveJobType } from "@/lib/filters";
 import { useJobFilters } from "@/lib/useJobFilters";
 import FilterBar from "@/components/owner/FilterBar";
+import { presetToFilterPatch, PRESET_LABELS } from "@/lib/attention";
 
 export default function OwnerJobs() {
   const { state } = useStore();
   const { filters, patch, reset } = useJobFilters("owner");
   const [q, setQ] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const preset = searchParams.get("preset") ?? undefined;
+  const focusId = searchParams.get("focus") ?? undefined;
+  const appliedPresetRef = useRef<string | null>(null);
+
+  // Auto-apply the preset patch the first time we land with this preset.
+  useEffect(() => {
+    if (preset && appliedPresetRef.current !== preset) {
+      appliedPresetRef.current = preset;
+      patch(presetToFilterPatch(preset));
+    }
+  }, [preset, patch]);
 
   const techs = state.users.filter((u) => u.role !== "Owner");
   const brands = Array.from(new Set(state.equipment.map((e) => e.manufacturer))).sort();
@@ -47,6 +63,12 @@ export default function OwnerJobs() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `jobs-${Date.now()}.csv`; a.click();
   };
 
+  const clearPreset = () => {
+    appliedPresetRef.current = null;
+    setSearchParams({});
+    reset();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -57,13 +79,22 @@ export default function OwnerJobs() {
         </div>
       </div>
 
+      {preset && PRESET_LABELS[preset] && (
+        <div className="flex items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs">
+          <span className="font-semibold uppercase tracking-wide">Drill-down</span>
+          <span>{PRESET_LABELS[preset]}</span>
+          <Button size="sm" variant="ghost" className="ml-auto h-7 gap-1 px-2" onClick={clearPreset}>
+            <X className="h-3 w-3" /> Clear
+          </Button>
+        </div>
+      )}
+
       <FilterBar
         filters={filters} patch={patch} reset={reset}
         techs={techs} brands={brands} cities={cities}
         equipmentTypes={equipmentTypes} customers={state.customers}
         onExport={exportCsv} matchedCount={rows.length}
       />
-
 
       <Card className="overflow-hidden p-0">
         {rows.length === 0 ? (
@@ -83,8 +114,13 @@ export default function OwnerJobs() {
               {rows.map((j) => {
                 const c = state.customers.find((x) => x.id === j.customerId);
                 const u = state.users.find((x) => x.id === j.technicianId);
+                const isFocus = j.id === focusId;
                 return (
-                  <tr key={j.id} className="hover:bg-muted/30">
+                  <tr
+                    key={j.id}
+                    className={`cursor-pointer hover:bg-muted/30 ${isFocus ? "bg-accent/20" : ""}`}
+                    onClick={() => navigate(`/app/owner/jobs/${j.id}`)}
+                  >
                     <td className="px-3 py-2 font-medium">{c?.name}</td>
                     <td className="text-muted-foreground">{j.complaint}</td>
                     <td className="text-xs">{deriveJobType(j)}</td>
