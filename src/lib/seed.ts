@@ -836,12 +836,12 @@ export const TECH_FEEDBACK: TechFeedback[] = (() => {
 export const DOCS: DocItem[] = [
   { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanProductSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
   { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanPdfSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
-  { id: "d-3", title: "Carolina Comfort HVAC — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
-  { id: "d-4", title: "Carolina Comfort HVAC — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
-  { id: "d-5", title: "Carolina Comfort HVAC — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },
-  { id: "d-6", title: "Carolina Comfort HVAC — Maintenance checklist (residential)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
-  { id: "d-7", title: "Carolina Comfort HVAC — Maintenance checklist (light commercial)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
-  { id: "d-8", title: "Carolina Comfort HVAC — Quoting & estimate template", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-26" },
+  { id: "d-3", title: "Caloosa Cooling — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
+  { id: "d-4", title: "Caloosa Cooling — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
+  { id: "d-5", title: "Caloosa Cooling — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },
+  { id: "d-6", title: "Caloosa Cooling — Maintenance checklist (residential)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
+  { id: "d-7", title: "Caloosa Cooling — Maintenance checklist (light commercial)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
+  { id: "d-8", title: "Caloosa Cooling — Quoting & estimate template", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-26" },
   { id: "d-9", title: "Furnace gas-section training overview (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-03-30" },
   { id: "d-10", title: "Mini-split installation training (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-04-01" },
   { id: "d-11", title: "Heat-pump defrost basics (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-04-03" },
@@ -852,8 +852,8 @@ export const DOCS: DocItem[] = [
   { id: "d-16", title: "Generic mini-split service manual (placeholder)", category: "service_manual", url: "#", status: "Uploaded", uploadedAt: "2026-06-22" },
   { id: "d-17", title: "Generic RTU service manual (placeholder)", category: "service_manual", url: "#", status: "Processing", uploadedAt: "2026-06-23" },
   { id: "d-18", title: "Wiring diagrams library (placeholder)", category: "wiring_diagram", url: "#", status: "Needs Review", uploadedAt: "2026-06-24" },
-  { id: "d-19", title: "Carolina Comfort HVAC — Refrigerant handling policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
-  { id: "d-20", title: "Carolina Comfort HVAC — Customer communication policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
+  { id: "d-19", title: "Caloosa Cooling — Refrigerant handling policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
+  { id: "d-20", title: "Caloosa Cooling — Customer communication policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
 ];
 
 // =============================================================================

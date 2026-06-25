@@ -7,7 +7,7 @@ import type {
   SystemRecord, UserProfile,
 } from "./types";
 
-const KEY = "hvac-copilot-store-v6";
+const KEY = "hvac-copilot-store-v7";
 
 type Role = "guest-tech" | "guest-owner" | "user";
 
