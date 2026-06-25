@@ -659,7 +659,7 @@ function buildJobs(): { jobs: Job[]; jobParts: JobPart[] } {
     for (let i = 0; i < b.count; i++) {
       const days = b.range[0] + Math.floor((i / Math.max(1, b.count)) * (b.range[1] - b.range[0]));
       const type = rng.pick(["Repair","Repair","Repair","Maintenance","Maintenance","Install","Inspection"] as const);
-      const cat: typeof SVC[number] = type === "Maintenance" ? "Tune-Up" : type === "Install" ? "Install" : rng.pick(SVC);
+      const cat: JobSeed["serviceCategory"] = type === "Maintenance" ? "Tune-Up" : type === "Install" ? "Install" : rng.pick(SVC);
       const billing = rng.pick(["Billable","Billable","Billable","Maintenance Plan"] as const);
       const partsCost = rng.pick([0, 0, 18, 65, 78, 95, 110, 240]);
       const labor = 145 + rng.pick([0, 73, 145, 218]);
