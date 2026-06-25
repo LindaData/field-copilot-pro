@@ -29,18 +29,18 @@ const fictionalSource = {
 };
 const companySopSource = {
   kind: "company_sop" as const,
-  title: "Carolina Comfort HVAC — internal SOP",
+  title: "Caloosa Cooling — internal SOP",
 };
 
 // =============================================================================
 // Company
 // =============================================================================
 export const COMPANY: Company = {
-  name: "Carolina Comfort HVAC",
-  phone: "(704) 555-0144",
-  address: "1820 Tryon St, Charlotte, NC 28202",
+  name: "Caloosa Cooling",
+  phone: "(239) 555-0144",
+  address: "1820 Cleveland Ave, Fort Myers, FL 33901",
   laborRate: 145,
-  tax: 6.75,
+  tax: 6.5,
 };
 
 // =============================================================================
