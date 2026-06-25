@@ -3,7 +3,18 @@ export type SourceKind =
   | "company_sop"
   | "prior_job"
   | "technician_observation"
-  | "demo_inference";
+  | "demo_inference"
+  | "fictional_demo"
+  | "verification_required";
+
+export type VerificationStatus =
+  | "Manufacturer Verified"
+  | "Approved Company SOP"
+  | "Technician Observation"
+  | "Prior Demo Job"
+  | "Fictional Demo Data"
+  | "Verification Required";
+
 
 export interface Source {
   kind: SourceKind;
@@ -58,6 +69,13 @@ export interface Equipment {
   serial: string;
   family: string;
   type: string;
+  systemId?: string;
+  parentEquipmentId?: string;
+  role?: import("./systems").EquipmentRole;
+  category?: import("./systems").EquipmentCategory;
+  fuelType?: import("./systems").FuelType;
+  verificationStatus?: VerificationStatus;
+  nameplatePhotoId?: string;
   installDate?: string;
   location?: string;
   specs: Spec[];
@@ -68,6 +86,22 @@ export interface Equipment {
   wiringDiagrams?: WiringDiagram[];
   procedureIds?: string[];
 }
+
+export interface SystemRecord {
+  id: string;
+  customerId: string;
+  propertyId: string;
+  nickname: string;
+  configuration: import("./systems").SystemConfiguration;
+  serviceClass: import("./systems").ServiceClass;
+  fuelType: import("./systems").FuelType;
+  equipmentIds: string[];
+  accessoryIds: string[];
+  installDate?: string;
+  warrantyActive?: boolean;
+  notes?: string;
+}
+
 
 export type AiFeedbackCategory =
   | "helpful" | "incorrect" | "unsafe"
@@ -88,20 +122,36 @@ export interface AiFeedback {
   reviewed?: boolean;
 }
 
+export type PropertyType =
+  | "Single-family" | "Townhome" | "Condo" | "Retail" | "Office"
+  | "Restaurant" | "Warehouse" | "Multi-unit";
+
 export interface Customer {
   id: string; name: string; phone: string; email?: string;
   city?: string;
   maintenancePlan?: boolean;
+  commPreference?: "Phone" | "Text" | "Email";
+  isDemo?: boolean;
 }
 export interface Property {
   id: string; customerId: string; address: string; accessNotes?: string;
   city?: string;
+  propertyType?: PropertyType;
+  serviceClass?: import("./systems").ServiceClass;
+  parkingNotes?: string;
+  pets?: string;
+  warrantyActive?: boolean;
+  /** Role-gated in UI — do not render to technicians without dispatch context. */
+  gateCode?: string;
   lat?: number; lng?: number; geofenceRadiusFt?: number;
 }
 
 export type JobStatus =
-  | "Scheduled" | "En Route" | "On Site" | "Diagnosing"
-  | "Waiting for Approval" | "Waiting for Parts" | "Completed" | "Follow-Up";
+  | "Unassigned" | "Scheduled" | "En Route" | "Near Destination"
+  | "On Site" | "Diagnosing" | "Paused" | "Waiting for Customer"
+  | "Waiting for Approval" | "Waiting for Parts" | "Repairing"
+  | "Verifying" | "Documentation" | "Completed" | "Follow-Up" | "Cancelled";
+
 
 export type ArrivalMethod = "gps-detected" | "tech-confirmed" | "manual" | "office-adjusted";
 
@@ -133,12 +183,14 @@ export interface Job {
   customerId: string;
   propertyId: string;
   equipmentId?: string;
+  systemId?: string;
   technicianId: string;
   complaint: string;
   status: JobStatus;
   scheduledFor: string; // ISO
   priority: "Low" | "Normal" | "High";
   notes?: string;
+
   travelStartedAt?: string;
   arrivedAt?: string;
   arrivalMethod?: ArrivalMethod;
@@ -289,3 +341,58 @@ export interface UserProfile {
 }
 
 export interface Company { name: string; phone: string; address: string; laborRate: number; tax: number; }
+
+export interface Photo {
+  id: string;
+  jobId?: string;
+  equipmentId?: string;
+  customerId?: string;
+  kind: "Nameplate" | "Before" | "After" | "Issue" | "Other";
+  caption?: string;
+  /** Tailwind class used as a placeholder swatch (no binary in the demo). */
+  swatchClass?: string;
+  capturedAt: string;
+  capturedBy: string;
+}
+
+export interface CustomerFeedback {
+  id: string;
+  jobId: string;
+  customerId: string;
+  technicianId: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  communication?: 1 | 2 | 3 | 4 | 5;
+  timeliness?: 1 | 2 | 3 | 4 | 5;
+  explanationClarity?: 1 | 2 | 3 | 4 | 5;
+  cleanliness?: 1 | 2 | 3 | 4 | 5;
+  overall?: 1 | 2 | 3 | 4 | 5;
+  comment?: string;
+  testimonialOk?: boolean;
+  submittedAt: string;
+}
+
+export interface TechFeedback {
+  id: string;
+  jobId?: string;
+  technicianId: string;
+  diagnosticStepId?: string;
+  helpful?: boolean;
+  confusing?: boolean;
+  incorrect?: boolean;
+  unsafe?: boolean;
+  missingSource?: boolean;
+  suggestedImprovement?: string;
+  voiceNotePlaceholder?: string;
+  submittedAt: string;
+}
+
+export interface ServiceReport {
+  id: string;
+  jobId: string;
+  customerId: string;
+  technicianId: string;
+  summary: string;
+  recommendations?: string[];
+  generatedAt: string;
+}
+

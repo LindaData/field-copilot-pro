@@ -1,67 +1,215 @@
 import type {
-  Company, Customer, DocItem, Equipment, Job, JobPart, KnowledgeCase, Part,
-  Property, Source, Spec, UserProfile, Authorization, DiagnosticSession,
-  JobStatus, JobType, ServiceCategory, BillingType,
+  Authorization, Company, Customer, CustomerFeedback, DiagnosticSession, DocItem,
+  Equipment, Job, JobPart, JobStatus, KnowledgeCase, Part, PartRequest, Photo,
+  Property, ServiceReport, Spec, SystemRecord, TechFeedback, UserProfile,
 } from "./types";
+import { makeRng } from "./prng";
+import { SYSTEM_TEMPLATES, ACCESSORY_OPTIONS } from "./systems";
+import type {
+  EquipmentCategory, EquipmentRole, FuelType, ServiceClass, SystemTemplate,
+} from "./systems";
 
-const goodmanPdfSource: Source = {
-  kind: "manufacturer_verified",
+// =============================================================================
+// Sources (the verified Goodman GSXN3 example, plus the company SOP source)
+// =============================================================================
+export const goodmanPdfSource = {
+  kind: "manufacturer_verified" as const,
   title: "Goodman SS-GSXN3, Product Specifications",
   ref: "p.3",
   url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf",
 };
-const goodmanProductSource: Source = {
-  kind: "manufacturer_verified",
+export const goodmanProductSource = {
+  kind: "manufacturer_verified" as const,
   title: "Goodman GSXN3 product page",
   url: "https://www.goodmanmfg.com/products/air-conditioners/gsxn3",
 };
-
-const mfg = (label: string, value: string, group: Spec["group"], key: string): Spec => ({
-  key, label, value, group, source: goodmanPdfSource,
-});
-
-export const COMPANY: Company = {
-  name: "Caloosa Cooling",
-  phone: "(239) 555-0144",
-  address: "1820 SE 47th Ter, Cape Coral, FL 33904",
-  laborRate: 145,
-  tax: 7.0,
+const fictionalSource = {
+  kind: "fictional_demo" as const,
+  title: "Fictional demo data — not a verified manufacturer source",
+};
+const companySopSource = {
+  kind: "company_sop" as const,
+  title: "Carolina Comfort HVAC — internal SOP",
 };
 
+// =============================================================================
+// Company
+// =============================================================================
+export const COMPANY: Company = {
+  name: "Carolina Comfort HVAC",
+  phone: "(704) 555-0144",
+  address: "1820 Tryon St, Charlotte, NC 28202",
+  laborRate: 145,
+  tax: 6.75,
+};
+
+// =============================================================================
+// Users (1 owner + 2 service managers + 8 technicians + 2 office = 13)
+// =============================================================================
 export const USERS: UserProfile[] = [
   { id: "u-owner", name: "Mike Torres", role: "Owner", avatarColor: "bg-amber-500", active: true },
+  { id: "u-sm1", name: "Dana Whitfield", role: "ServiceManager", avatarColor: "bg-fuchsia-600", active: true },
+  { id: "u-sm2", name: "Priya Banerjee", role: "ServiceManager", avatarColor: "bg-purple-600", active: true },
   { id: "u-alex", name: "Alex Reed", role: "SeniorTech", avatarColor: "bg-blue-600", active: true },
   { id: "u-jordan", name: "Jordan Lee", role: "Technician", avatarColor: "bg-emerald-600", active: true },
   { id: "u-sam", name: "Sam Patel", role: "Technician", avatarColor: "bg-rose-600", active: true },
-  { id: "u-pat", name: "Pat Lowry", role: "Technician", avatarColor: "bg-slate-500", active: false },
+  { id: "u-marcus", name: "Marcus Green", role: "Technician", avatarColor: "bg-orange-600", active: true },
+  { id: "u-elena", name: "Elena Rodriguez", role: "Technician", avatarColor: "bg-cyan-600", active: true },
+  { id: "u-chris", name: "Chris Walker", role: "Technician", avatarColor: "bg-lime-600", active: true },
+  { id: "u-taylor", name: "Taylor Brooks", role: "Technician", avatarColor: "bg-slate-500", active: true },
+  { id: "u-devon", name: "Devon Price", role: "Technician", avatarColor: "bg-indigo-600", active: true },
+  { id: "u-office1", name: "Robin Hayes", role: "Office", avatarColor: "bg-teal-600", active: true },
+  { id: "u-office2", name: "Casey Long", role: "Office", avatarColor: "bg-pink-600", active: true },
+];
+const TECH_IDS = ["u-alex","u-jordan","u-sam","u-marcus","u-elena","u-chris","u-taylor","u-devon"];
+
+// =============================================================================
+// Geographic / catalog tables (deterministic)
+// =============================================================================
+const CITIES = ["Charlotte", "Matthews", "Pineville", "Huntersville", "Concord", "Gastonia", "Belmont", "Indian Trail"];
+const STREETS = [
+  "Tryon St", "Providence Rd", "Park Rd", "Independence Blvd", "Sharon Ln",
+  "Queens Rd", "Sardis Rd", "Carmel Rd", "Rea Rd", "Idlewild Rd",
+  "South Blvd", "Monroe Rd", "Eastway Dr", "Albemarle Rd", "Central Ave",
+  "Mallard Creek Rd", "WT Harris Blvd", "Brookshire Blvd", "Beatties Ford Rd",
+  "Old Statesville Rd", "Concord Mills Blvd", "Wilkinson Blvd", "Freedom Dr",
+];
+const FIRST = ["Linda","Marcus","Priya","Tom","Janet","Aiden","Sofia","Eli","Maya","Owen","Naomi","Jack","Emma","Noah","Ava","Liam","Zoe","Henry","Ruby","Leo","Mia","Asher","Iris","Caleb","Stella","Felix","Grace","Theo","Hazel","Nora","Cole","Wren"];
+const LAST = ["Hayes","Greene","Shah","Whitmore","Kim","Robinson","Patel","Nguyen","Cole","Reyes","Brown","Sanders","Jones","Carter","Foster","Walker","Bennett","Hughes","Reid","Hall","Wright","Russell","Sullivan","Cox","Murphy","Bell","Wood","Ross","Howard","Bailey"];
+const BUSINESS = [
+  "Westview Apartments", "Rivertown Cafe", "Coastal Dental", "Banyan Bay HOA",
+  "Sunset Storage", "Queens Boulevard Diner", "Carolina Auto Care",
+  "Piedmont Pediatrics", "Charlotte Pet Lodge",
 ];
 
-export const CUSTOMERS: Customer[] = [
-  { id: "c-1", name: "Linda Hayes", phone: "(239) 555-0188", email: "linda@example.com", city: "Cape Coral", maintenancePlan: true },
-  { id: "c-2", name: "Marcus Greene", phone: "(239) 555-0121", city: "Fort Myers" },
-  { id: "c-3", name: "Priya Shah", phone: "(239) 555-0133", email: "priya@example.com", city: "Naples" },
-  { id: "c-4", name: "Westview Apartments", phone: "(239) 555-0145", city: "Bonita Springs", maintenancePlan: true },
-  { id: "c-5", name: "Rivertown Cafe", phone: "(239) 555-0167", city: "Fort Myers" },
-  { id: "c-6", name: "Coastal Dental", phone: "(239) 555-0172", email: "ops@coastaldental.example", city: "Cape Coral" },
-  { id: "c-7", name: "Banyan Bay HOA", phone: "(239) 555-0190", city: "Naples", maintenancePlan: true },
-  { id: "c-8", name: "Tom Whitmore", phone: "(239) 555-0211", city: "Bonita Springs" },
-  { id: "c-9", name: "Sunset Storage", phone: "(239) 555-0234", city: "Fort Myers" },
-  { id: "c-10", name: "Janet Kim", phone: "(239) 555-0256", email: "janet@example.com", city: "Cape Coral" },
-];
+const BRANDS = ["Goodman","Amana","Carrier","Bryant","Trane","American Standard","Rheem","Ruud","Lennox","York","Coleman","Daikin","Mitsubishi Electric","Fujitsu","Bosch"];
 
-export const PROPERTIES: Property[] = [
-  { id: "p-1", customerId: "c-1", address: "412 SE 16th St, Cape Coral, FL", city: "Cape Coral", accessNotes: "Gate code 2244. Dog in back yard.", lat: 26.5629, lng: -81.9495, geofenceRadiusFt: 200 },
-  { id: "p-2", customerId: "c-2", address: "88 Edison Ave, Fort Myers, FL", city: "Fort Myers", lat: 26.6406, lng: -81.8723, geofenceRadiusFt: 200 },
-  { id: "p-3", customerId: "c-3", address: "1900 Gulf Shore Blvd Apt 12B, Naples, FL", city: "Naples", accessNotes: "Buzz #12B", lat: 26.1420, lng: -81.8060, geofenceRadiusFt: 200 },
-  { id: "p-4", customerId: "c-4", address: "300 Westview Cir, Bonita Springs, FL", city: "Bonita Springs", accessNotes: "Office key at leasing.", lat: 26.3398, lng: -81.7787, geofenceRadiusFt: 250 },
-  { id: "p-5", customerId: "c-5", address: "55 First St, Fort Myers, FL", city: "Fort Myers", lat: 26.6428, lng: -81.8721, geofenceRadiusFt: 200 },
-  { id: "p-6", customerId: "c-6", address: "2210 Del Prado Blvd, Cape Coral, FL", city: "Cape Coral", lat: 26.5750, lng: -81.9410, geofenceRadiusFt: 200 },
-  { id: "p-7", customerId: "c-7", address: "750 Banyan Bay Dr, Naples, FL", city: "Naples", lat: 26.1500, lng: -81.7900, geofenceRadiusFt: 250 },
-  { id: "p-8", customerId: "c-8", address: "144 Bayshore Dr, Bonita Springs, FL", city: "Bonita Springs", lat: 26.3422, lng: -81.7777, geofenceRadiusFt: 200 },
-  { id: "p-9", customerId: "c-9", address: "1200 Colonial Blvd, Fort Myers, FL", city: "Fort Myers", lat: 26.5990, lng: -81.8721, geofenceRadiusFt: 200 },
-  { id: "p-10", customerId: "c-10", address: "780 SW 22nd Ln, Cape Coral, FL", city: "Cape Coral", lat: 26.5599, lng: -81.9610, geofenceRadiusFt: 200 },
-];
+const PROP_TYPES: ("Single-family"|"Townhome"|"Condo"|"Retail"|"Office"|"Restaurant"|"Warehouse"|"Multi-unit")[] =
+  ["Single-family","Single-family","Single-family","Single-family","Townhome","Condo","Retail","Office","Restaurant","Warehouse","Multi-unit"];
 
+// =============================================================================
+// Anchor date — deterministic, locked to today at local midnight
+// =============================================================================
+function makeAnchor() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+const ANCHOR = makeAnchor();
+function dayOffsetISO(days: number, h = 10, m = 0): string {
+  const d = new Date(ANCHOR); d.setDate(d.getDate() + days); d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+function isoMinutesAfter(iso: string, minutes: number): string {
+  return new Date(+new Date(iso) + minutes * 60000).toISOString();
+}
+
+// =============================================================================
+// Customers (40)
+// =============================================================================
+function buildCustomers(): Customer[] {
+  const rng = makeRng(0xC0FFEE);
+  const list: Customer[] = [];
+  // Keep c-1 stable for the verified Goodman demo scenario
+  list.push({ id: "c-1", name: "Linda Hayes", phone: "(704) 555-0188", email: "linda.demo@example.com", city: "Charlotte", maintenancePlan: true, commPreference: "Text", isDemo: true });
+  for (let i = 2; i <= 31; i++) {
+    const first = FIRST[rng.int(0, FIRST.length - 1)];
+    const last = LAST[rng.int(0, LAST.length - 1)];
+    const city = CITIES[rng.int(0, CITIES.length - 1)];
+    list.push({
+      id: `c-${i}`,
+      name: `${first} ${last}`,
+      phone: `(704) 555-${String(2000 + i * 7).padStart(4,"0")}`,
+      email: rng.chance(0.7) ? `${first.toLowerCase()}.demo${i}@example.com` : undefined,
+      city,
+      maintenancePlan: rng.chance(0.45),
+      commPreference: rng.pick(["Phone","Text","Email"] as const),
+      isDemo: true,
+    });
+  }
+  // Commercial accounts
+  for (let i = 0; i < BUSINESS.length; i++) {
+    const id = `c-${32 + i}`;
+    list.push({
+      id, name: BUSINESS[i],
+      phone: `(704) 555-${String(8100 + i * 11).padStart(4,"0")}`,
+      email: `ops.demo@${BUSINESS[i].toLowerCase().replace(/[^a-z]/g, "")}.example`,
+      city: CITIES[rng.int(0, CITIES.length - 1)],
+      maintenancePlan: rng.chance(0.7),
+      commPreference: "Email",
+      isDemo: true,
+    });
+  }
+  // Ensure exactly 20 with maintenance plan
+  let plans = list.filter((c) => c.maintenancePlan).length;
+  if (plans !== 20) {
+    if (plans < 20) {
+      for (const c of list) { if (plans >= 20) break; if (!c.maintenancePlan) { c.maintenancePlan = true; plans++; } }
+    } else {
+      for (let i = list.length - 1; i >= 0 && plans > 20; i--) { if (list[i].maintenancePlan) { list[i].maintenancePlan = false; plans--; } }
+    }
+  }
+  return list;
+}
+export const CUSTOMERS: Customer[] = buildCustomers();
+
+// =============================================================================
+// Properties (48) — c-1's primary property is p-1
+// =============================================================================
+function buildProperties(): Property[] {
+  const rng = makeRng(0xBADBEEF);
+  const list: Property[] = [];
+  // Stable: p-1 for the Goodman scenario
+  list.push({
+    id: "p-1", customerId: "c-1", address: "412 Sharon Ln, Charlotte, NC 28211",
+    city: "Charlotte", propertyType: "Single-family", serviceClass: "Residential",
+    accessNotes: "Gate code on file at dispatch. Dog in back yard.",
+    parkingNotes: "Driveway pad on right side.",
+    pets: "Friendly retriever",
+    warrantyActive: true, gateCode: "2244",
+    lat: 35.1700, lng: -80.8120, geofenceRadiusFt: 200,
+  });
+  // One primary property per remaining customer
+  for (let i = 2; i <= CUSTOMERS.length; i++) {
+    const c = CUSTOMERS[i - 1];
+    const street = STREETS[rng.int(0, STREETS.length - 1)];
+    const houseNum = rng.int(100, 9800);
+    const propType: Property["propertyType"] =
+      i >= 32 ? rng.pick(["Retail","Office","Restaurant","Warehouse","Multi-unit"] as const)
+              : rng.pick(PROP_TYPES);
+    const serviceClass: ServiceClass =
+      ["Retail","Office","Restaurant","Warehouse","Multi-unit"].includes(propType ?? "") ? "Light Commercial" : "Residential";
+    list.push({
+      id: `p-${i}`, customerId: c.id,
+      address: `${houseNum} ${street}, ${c.city ?? "Charlotte"}, NC`,
+      city: c.city, propertyType: propType, serviceClass,
+      accessNotes: rng.chance(0.4) ? rng.pick(["Side gate unlocked","Call on arrival","Use service door","Office key at front"]) : undefined,
+      parkingNotes: rng.chance(0.3) ? rng.pick(["Driveway","Visitor lot","Street parking only","Loading dock"]) : undefined,
+      pets: rng.chance(0.25) ? rng.pick(["Small dog inside","Cat indoors","Two dogs in yard"]) : undefined,
+      warrantyActive: rng.chance(0.3),
+      gateCode: rng.chance(0.15) ? String(1000 + rng.int(0, 8999)) : undefined,
+      lat: 35.10 + rng.next() * 0.4, lng: -80.95 + rng.next() * 0.4,
+      geofenceRadiusFt: 200,
+    });
+  }
+  // Add 8 secondary properties for commercial accounts to get to 48
+  const baseCount = list.length;
+  for (let i = 0; i < 48 - baseCount; i++) {
+    const parent = CUSTOMERS[31 + (i % BUSINESS.length)];
+    list.push({
+      id: `p-${baseCount + i + 1}`, customerId: parent.id,
+      address: `${rng.int(100, 9800)} ${STREETS[rng.int(0, STREETS.length - 1)]}, ${parent.city}, NC (Bldg ${String.fromCharCode(66 + i)})`,
+      city: parent.city, propertyType: "Multi-unit", serviceClass: "Light Commercial",
+      warrantyActive: false,
+      lat: 35.10 + rng.next() * 0.4, lng: -80.95 + rng.next() * 0.4, geofenceRadiusFt: 250,
+    });
+  }
+  return list;
+}
+export const PROPERTIES: Property[] = buildProperties();
+
+// =============================================================================
+// Verified Goodman GSXN3 specs (the ONLY manufacturer-verified equipment)
+// =============================================================================
+const mfg = (label: string, value: string, group: Spec["group"], key: string): Spec => ({
+  key, label, value, group, source: goodmanPdfSource,
+});
 const goodmanGSXN3Specs: Spec[] = [
   mfg("Product family", "Goodman GSXN3", "Capacity", "family"),
   mfg("Type", "Split-system air conditioner", "Capacity", "type"),
@@ -77,46 +225,72 @@ const goodmanGSXN3Specs: Spec[] = [
   mfg("Fan motor FLA", "0.70 A", "Fan", "fan-fla"),
   mfg("Liquid line size", "3/8 in. O.D.", "Refrigeration", "liq-line"),
   mfg("Suction line size", "3/4 in. O.D.", "Refrigeration", "suc-line"),
-  mfg("Liquid valve size", "3/8 in. O.D.", "Refrigeration", "liq-valve"),
-  mfg("Suction valve size", "3/4 in. O.D.", "Refrigeration", "suc-valve"),
   mfg("Refrigerant factory charge", "71 oz (per 15 ft of 3/8\" liquid line; adjust per install instructions)", "Refrigeration", "charge"),
-  { key: "drier", label: "Factory-installed filter drier", value: "Yes", group: "Refrigeration", source: goodmanPdfSource },
   mfg("Electrical", "208/230 V • 1 phase • 60 Hz", "Electrical", "elec"),
   mfg("Minimum circuit ampacity (MCA)", "11.2 A", "Electrical", "mca"),
   mfg("Maximum overcurrent protection (MOP)", "15 A", "Electrical", "mop"),
   mfg("Min / Max voltage", "197 V / 253 V", "Electrical", "vrange"),
-  { key: "contactor", label: "Contactor connection", value: "Lug connection", group: "Electrical", source: goodmanPdfSource },
   mfg("Equipment weight", "125 lb", "Physical", "weight"),
-  mfg("Shipping weight", "138 lb", "Physical", "ship-weight"),
   mfg("Published sound value", "73 dBA", "Physical", "sound"),
   { key: "ahri", label: "AHRI certified", value: "Yes", group: "Certifications", source: goodmanPdfSource },
-  { key: "etl", label: "ETL listed", value: "Yes", group: "Certifications", source: goodmanPdfSource },
-  { key: "valves", label: "Service valves", value: "Sweat connections with accessible gauge ports", group: "Certifications", source: goodmanPdfSource },
 ];
-
 const goodmanErrorCodes = [
-  { code: "1F", meaning: "High pressure switch open", likelyCauses: ["Dirty/blocked condenser coil", "Failed condenser fan motor", "Overcharge", "Restricted liquid line"], safeChecks: ["Wash coil with power off", "Confirm fan rotation and amps vs FLA", "Measure liquid and suction pressures against manufacturer chart"], source: goodmanPdfSource },
-  { code: "2F", meaning: "Low pressure switch open", likelyCauses: ["Refrigerant loss", "Restricted metering device", "Iced indoor coil"], safeChecks: ["Inspect for oil residue at fittings", "Verify airflow across indoor coil", "Compare superheat to target"], source: goodmanPdfSource },
-  { code: "3F", meaning: "Compressor overload trip", likelyCauses: ["Locked rotor", "Weak run capacitor", "Low line voltage"], safeChecks: ["Confirm line voltage within 197 V – 253 V", "Bench-test capacitor against printed µF rating", "Measure LRA only with manufacturer-approved procedure"], source: goodmanPdfSource },
-  { code: "4F", meaning: "Outdoor fan motor fault", likelyCauses: ["Failed condenser fan motor", "Failed fan capacitor section", "Wiring fault"], safeChecks: ["Confirm 24 V at contactor coil", "Measure fan motor amps vs 0.70 A FLA", "Inspect wiring per diagram"], source: goodmanPdfSource },
+  { code: "1F", meaning: "High pressure switch open", likelyCauses: ["Dirty/blocked condenser coil","Failed condenser fan motor","Overcharge","Restricted liquid line"], safeChecks: ["Wash coil with power off","Confirm fan rotation and amps vs FLA","Compare pressures to manufacturer chart"], source: goodmanPdfSource },
+  { code: "2F", meaning: "Low pressure switch open", likelyCauses: ["Refrigerant loss","Restricted metering device","Iced indoor coil"], safeChecks: ["Inspect for oil at fittings","Verify airflow across indoor coil","Compare superheat to target"], source: goodmanPdfSource },
+  { code: "3F", meaning: "Compressor overload trip", likelyCauses: ["Locked rotor","Weak run capacitor","Low line voltage"], safeChecks: ["Confirm line voltage within 197 V – 253 V","Bench-test capacitor against printed µF","Measure LRA only per manufacturer-approved procedure"], source: goodmanPdfSource },
+  { code: "4F", meaning: "Outdoor fan motor fault", likelyCauses: ["Failed condenser fan motor","Failed fan capacitor section","Wiring fault"], safeChecks: ["Confirm 24 V at contactor coil","Measure fan motor amps vs 0.70 A FLA","Inspect wiring per diagram"], source: goodmanPdfSource },
 ];
-
 const goodmanBom = [
-  { ref: "C1", description: "Dual-run capacitor", specHint: "Verify printed µF / voltage on installed component", approvedPartIds: ["pt-1"], source: goodmanPdfSource },
+  { ref: "C1", description: "Dual-run capacitor", specHint: "Verify printed µF / voltage on the installed component", approvedPartIds: ["pt-1"], source: goodmanPdfSource },
   { ref: "K1", description: "Compressor contactor", specHint: "30 A 2-pole, 24 V coil", approvedPartIds: ["pt-2"], source: goodmanPdfSource },
   { ref: "FD", description: "Liquid line filter drier (factory)", specHint: "3/8 in. O.D.", approvedPartIds: ["pt-3"], source: goodmanPdfSource },
   { ref: "M2", description: "Condenser fan motor", specHint: "1/8 HP PSC, 0.70 A FLA", approvedPartIds: ["pt-4"], source: goodmanPdfSource },
 ];
-
 const goodmanDiagrams = [
   { id: "wd-1", title: "GSXN3 line voltage wiring", url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf#page=5", source: goodmanPdfSource },
   { id: "wd-2", title: "GSXN3 low voltage / 24 V controls", url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf#page=6", source: goodmanPdfSource },
 ];
 
-export const EQUIPMENT: Equipment[] = [
-  {
-    id: "eq-1", manufacturer: "Goodman", model: "GSXN3N2410A*", serial: "2403A12345",
-    family: "GSXN3", type: "Heat Pump", installDate: "2024-05-12", location: "Side yard, north pad",
+// =============================================================================
+// Systems + Equipment
+// =============================================================================
+const SERIAL = (rng: ReturnType<typeof makeRng>) => `D${rng.int(10,99)}${rng.int(10000,99999)}`;
+const MODEL = (brand: string, role: EquipmentRole, rng: ReturnType<typeof makeRng>) => {
+  const suffix = `${["A","B","C","H","S","X"][rng.int(0,5)]}${rng.int(10,99)}${role === "Outdoor" ? "0" : ""}`;
+  const stem =
+    role === "Furnace" ? "GAS" :
+    role === "Air Handler" ? "AH" :
+    role === "Mini-Split Outdoor" ? "MUZ" :
+    role === "Mini-Split Indoor" ? "MSZ" :
+    role === "Packaged" ? "PKG" :
+    role === "Coil" ? "CL" :
+    role === "Thermostat" ? "TS" : "AC";
+  return `${brand.split(/\s+/)[0].toUpperCase().slice(0,3)}-${stem}${suffix}`;
+};
+const friendlyCategoryName = (cat: EquipmentCategory) => cat;
+
+function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equipment[] } {
+  const rng = makeRng(0xABCDE12);
+  const systems: SystemRecord[] = [];
+  const equipment: Equipment[] = [];
+
+  // =============== sys-1 / eq-1: VERIFIED Goodman GSXN3 ==============
+  systems.push({
+    id: "sys-1", customerId: "c-1", propertyId: "p-1",
+    nickname: "Main Floor System",
+    configuration: "Straight-Cool Split + Air Handler",
+    serviceClass: "Residential", fuelType: "Electric",
+    equipmentIds: ["eq-1"], accessoryIds: [],
+    installDate: "2024-05-12", warrantyActive: true,
+    notes: "Source-verified demo system. Specs cited from Goodman SS-GSXN3.",
+  });
+  equipment.push({
+    id: "eq-1",
+    manufacturer: "Goodman", model: "GSXN3N2410A*", serial: "2403A12345",
+    family: "GSXN3", type: "Air Conditioner",
+    systemId: "sys-1", role: "Outdoor", category: "Air Conditioner", fuelType: "Electric",
+    verificationStatus: "Manufacturer Verified",
+    installDate: "2024-05-12", location: "Side yard, north pad",
     specs: goodmanGSXN3Specs,
     manualUrls: [
       { label: "Goodman GSXN3 product page", url: goodmanProductSource.url! },
@@ -124,200 +298,624 @@ export const EQUIPMENT: Equipment[] = [
     ],
     errorCodes: goodmanErrorCodes,
     bom: goodmanBom,
-    approvedReplacementPartIds: ["pt-1", "pt-2", "pt-3", "pt-4"],
+    approvedReplacementPartIds: ["pt-1","pt-2","pt-3","pt-4"],
     wiringDiagrams: goodmanDiagrams,
-  },
-  { id: "eq-2", manufacturer: "Carrier", model: "24ACC636A003", serial: "CR8821X", family: "Comfort 16", type: "Split AC", specs: [], manualUrls: [] },
-  { id: "eq-3", manufacturer: "Trane", model: "XR14 4TTR4036L", serial: "TR55001", family: "XR14", type: "Heat Pump", specs: [], manualUrls: [] },
-  { id: "eq-4", manufacturer: "Lennox", model: "ML14XC1-024", serial: "LX2299A", family: "Merit", type: "Split AC", specs: [], manualUrls: [] },
-  { id: "eq-5", manufacturer: "Rheem", model: "RA1424AJ1NA", serial: "RH71200", family: "Classic", type: "Split AC", specs: [], manualUrls: [] },
-  { id: "eq-6", manufacturer: "Goodman", model: "GSXN404210", serial: "GD11045", family: "GSXN4", type: "Split AC", specs: [], manualUrls: [] },
-  { id: "eq-7", manufacturer: "Mitsubishi", model: "MUZ-FH12NA", serial: "MT88231", family: "FH", type: "Mini-split", specs: [], manualUrls: [] },
-  { id: "eq-8", manufacturer: "Carrier", model: "59TN6A100", serial: "CR9912F", family: "Infinity", type: "Furnace", specs: [], manualUrls: [] },
-  { id: "eq-9", manufacturer: "Trane", model: "S9V2-VS", serial: "TR77821", family: "S9V2", type: "Furnace", specs: [], manualUrls: [] },
-  { id: "eq-10", manufacturer: "Lennox", model: "XC25-048", serial: "LX5544", family: "Signature", type: "Heat Pump", specs: [], manualUrls: [] },
-];
+  });
 
-// ---------- Deterministic anchor for relative dates ----------
-function makeAnchor() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-const ANCHOR = makeAnchor();
+  // =============== sys-2..sys-65: fictional demo systems ==============
+  const FUEL_BRAND_BIAS: Record<string, string[]> = {
+    "Gas Furnace": ["Carrier","Bryant","Trane","Lennox","Goodman","Rheem","York"],
+    "Heat Pump": ["Trane","American Standard","Carrier","Goodman","Rheem","Bosch","Daikin"],
+    "Air Conditioner": ["Goodman","Amana","Carrier","Bryant","Lennox","Rheem"],
+    "Air Handler": ["Goodman","Carrier","Trane","Lennox","Rheem"],
+    "Evaporator Coil": ["Goodman","Carrier","Trane","Lennox"],
+    "Mini-Split Outdoor": ["Mitsubishi Electric","Fujitsu","Daikin","Bosch","LG"],
+    "Mini-Split Indoor": ["Mitsubishi Electric","Fujitsu","Daikin","Bosch","LG"],
+    "Package Gas/Electric": ["Carrier","Trane","York","Lennox","Goodman"],
+    "Package Heat Pump": ["Carrier","Trane","York","Goodman","Rheem"],
+    "RTU": ["Carrier","Trane","York","Lennox","Daikin"],
+    "Thermostat": ["Honeywell","Ecobee","Nest","Carrier","Trane"],
+  };
 
-function dayOffset(days: number, h = 10, m = 0): string {
-  const d = new Date(ANCHOR);
-  d.setDate(d.getDate() + days);
-  d.setHours(h, m, 0, 0);
-  return d.toISOString();
-}
-function isoMinutesAfter(iso: string, minutes: number): string {
-  return new Date(+new Date(iso) + minutes * 60000).toISOString();
-}
+  for (let sysIdx = 2; sysIdx <= 65; sysIdx++) {
+    const template: SystemTemplate = SYSTEM_TEMPLATES[(sysIdx - 2) % SYSTEM_TEMPLATES.length];
+    // Map system to property roughly across all properties (skip p-1, that's sys-1)
+    const propIdx = 2 + ((sysIdx - 2) % (PROPERTIES.length - 1));
+    const prop = PROPERTIES[propIdx - 1];
+    const cust = CUSTOMERS.find((c) => c.id === prop.customerId)!;
+    const systemId = `sys-${sysIdx}`;
+    const nickname = (() => {
+      if (template.serviceClass === "Light Commercial") {
+        return template.configuration === "Light-Commercial RTU"
+          ? rng.pick(["Retail Sales Floor RTU","Office RTU","Restaurant Dining RTU","Warehouse Office RTU"])
+          : rng.pick(["Main Cabinet","Lobby System","Kitchen Package Unit"]);
+      }
+      return rng.pick([
+        "Main Floor System","Upstairs System","Primary Bedroom Mini-Split",
+        "Bonus Room System","Garage Apartment","Basement System","Whole-Home System",
+      ]);
+    })();
+    const installYearAgo = rng.int(1, 14);
+    const installDate = new Date(ANCHOR);
+    installDate.setFullYear(installDate.getFullYear() - installYearAgo);
+    const warrantyActive = installYearAgo < 8 && rng.chance(0.5);
 
-// ---------- Job spec table (deterministic) ----------
-// Each historical job declares its end-to-end timing in minutes so charts
-// have real durations. Today's jobs use status-driven fields only.
+    // Members
+    const equipmentIds: string[] = [];
+    let parentId: string | undefined;
+    for (const member of template.members) {
+      // Skip emitting a separate Thermostat/Coil record for ~50% of systems to keep total component count near target
+      if ((member.role === "Thermostat" || member.role === "Coil") && rng.chance(0.55)) continue;
+
+      const brandPool = FUEL_BRAND_BIAS[member.category] ?? BRANDS;
+      const brand = brandPool[rng.int(0, brandPool.length - 1)];
+      const id = `eq-${equipment.length + 1}`;
+      const eqRecord: Equipment = {
+        id, manufacturer: brand,
+        model: MODEL(brand, member.role, rng),
+        serial: SERIAL(rng),
+        family: brand.split(/\s+/)[0],
+        type: member.category,
+        systemId, parentEquipmentId: member.role !== "Outdoor" && member.role !== "Packaged" && member.role !== "Mini-Split Outdoor" ? parentId : undefined,
+        role: member.role, category: member.category, fuelType: template.fuelType,
+        verificationStatus: "Fictional Demo Data",
+        installDate: installDate.toISOString().slice(0, 10),
+        location: rng.pick(["Side yard","Backyard pad","Attic","Mechanical closet","Garage","Roof"]),
+        specs: [],
+        manualUrls: [],
+      };
+      equipment.push(eqRecord);
+      equipmentIds.push(id);
+      if (member.role === "Outdoor" || member.role === "Packaged" || member.role === "Mini-Split Outdoor") parentId = id;
+    }
+
+    // Accessories on ~22% of systems
+    const accessoryIds: string[] = [];
+    if (rng.chance(0.22)) {
+      const acc = ACCESSORY_OPTIONS[rng.int(0, ACCESSORY_OPTIONS.length - 1)];
+      const accId = `eq-${equipment.length + 1}`;
+      equipment.push({
+        id: accId, manufacturer: rng.pick(["Aprilaire","Honeywell","Carrier","Lennox","Generic"]),
+        model: `${acc.category.slice(0,3).toUpperCase()}-${rng.int(100,999)}`,
+        serial: SERIAL(rng), family: acc.category, type: acc.category,
+        systemId, parentEquipmentId: parentId,
+        role: "Accessory", category: acc.category, fuelType: "Electric",
+        verificationStatus: "Fictional Demo Data",
+        installDate: installDate.toISOString().slice(0, 10),
+        location: "Mechanical closet",
+        specs: [], manualUrls: [],
+      });
+      accessoryIds.push(accId);
+    }
+
+    systems.push({
+      id: systemId, customerId: cust.id, propertyId: prop.id,
+      nickname, configuration: template.configuration,
+      serviceClass: template.serviceClass, fuelType: template.fuelType,
+      equipmentIds, accessoryIds,
+      installDate: installDate.toISOString().slice(0, 10),
+      warrantyActive,
+      notes: "Fictional demo system — specs require verification before service.",
+    });
+  }
+  return { systems, equipment };
+}
+const { systems: SYS_BUILD, equipment: EQ_BUILD } = buildSystemsAndEquipment();
+export const SYSTEMS: SystemRecord[] = SYS_BUILD;
+export const EQUIPMENT: Equipment[] = EQ_BUILD;
+
+// =============================================================================
+// Parts (35)
+// =============================================================================
+export const PARTS: Part[] = (() => {
+  const p: Part[] = [
+    { id: "pt-1", sku: "CAP-40-5-440", name: "Dual-run capacitor 40/5 µF 440 V", brand: "Generic", cost: 14.5, price: 65, truckStock: 4, reorderPoint: 2, leadTimeDays: 1, compatibilityNote: "Compatibility must be verified against installed component and unit documentation." },
+    { id: "pt-2", sku: "CON-30-2P", name: "Contactor 30A 2-pole 24V coil", brand: "Generic", cost: 18, price: 78, truckStock: 3, reorderPoint: 2, leadTimeDays: 1 },
+    { id: "pt-3", sku: "DRI-038", name: "Liquid line filter drier 3/8\"", brand: "Generic", cost: 22, price: 95, truckStock: 5, reorderPoint: 2, leadTimeDays: 2 },
+    { id: "pt-4", sku: "FAN-MOT-18", name: "Condenser fan motor 1/8 HP PSC", brand: "Generic", cost: 88, price: 240, truckStock: 1, reorderPoint: 1, leadTimeDays: 3 },
+    { id: "pt-5", sku: "TXV-2T", name: "Thermostatic expansion valve 2-ton", brand: "Generic", cost: 110, price: 290, truckStock: 0, reorderPoint: 1, leadTimeDays: 4 },
+    { id: "pt-6", sku: "FIL-2025", name: "Air filter 20x25x1 MERV 8", brand: "Generic", cost: 4, price: 18, truckStock: 24, reorderPoint: 6, leadTimeDays: 1 },
+  ];
+  const generic: Omit<Part,"id">[] = [
+    { sku: "CAP-45-5-370", name: "Dual-run capacitor 45/5 µF 370 V", brand: "Generic", cost: 16, price: 68, truckStock: 3, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "CAP-55-5-440", name: "Dual-run capacitor 55/5 µF 440 V", brand: "Generic", cost: 18, price: 72, truckStock: 3, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "CAP-RUN-10-370", name: "Run capacitor 10 µF 370 V", brand: "Generic", cost: 9, price: 38, truckStock: 6, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "CON-40-2P", name: "Contactor 40A 2-pole 24V coil", brand: "Generic", cost: 22, price: 85, truckStock: 2, reorderPoint: 1, leadTimeDays: 1 },
+    { sku: "TFM-40VA", name: "Transformer 40 VA 24 V", brand: "Generic", cost: 28, price: 95, truckStock: 4, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "REL-DPDT", name: "Relay DPDT 24 V", brand: "Generic", cost: 12, price: 45, truckStock: 6, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "FUS-30A", name: "Pullout fuse 30 A pair", brand: "Generic", cost: 5, price: 22, truckStock: 10, reorderPoint: 4, leadTimeDays: 1 },
+    { sku: "FIL-1625", name: "Air filter 16x25x1 MERV 8", brand: "Generic", cost: 4, price: 18, truckStock: 18, reorderPoint: 6, leadTimeDays: 1 },
+    { sku: "FIL-2020", name: "Air filter 20x20x1 MERV 8", brand: "Generic", cost: 4, price: 18, truckStock: 12, reorderPoint: 6, leadTimeDays: 1 },
+    { sku: "FIL-MEDIA", name: "Media cabinet filter 20x25x5", brand: "Generic", cost: 24, price: 75, truckStock: 5, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "BLT-A38", name: "V-belt A38", brand: "Generic", cost: 9, price: 35, truckStock: 4, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "BLT-A42", name: "V-belt A42", brand: "Generic", cost: 9, price: 35, truckStock: 4, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "CP-CONDENSATE", name: "Condensate pump 120 V", brand: "Generic", cost: 38, price: 140, truckStock: 3, reorderPoint: 1, leadTimeDays: 2 },
+    { sku: "TAB-DRAIN", name: "Drain pan condensate tablets (bag of 100)", brand: "Generic", cost: 12, price: 38, truckStock: 12, reorderPoint: 4, leadTimeDays: 1 },
+    { sku: "TST-WIFI", name: "Smart Wi-Fi thermostat", brand: "Generic", cost: 95, price: 285, truckStock: 4, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "TST-7DAY", name: "Programmable thermostat 7-day", brand: "Generic", cost: 32, price: 110, truckStock: 6, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "SNS-FLAME", name: "Flame sensor rod", brand: "Generic", cost: 11, price: 45, truckStock: 6, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "IGN-HSI", name: "Hot surface igniter", brand: "Generic", cost: 26, price: 95, truckStock: 4, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "SNS-PRESSURE", name: "Pressure switch", brand: "Generic", cost: 24, price: 88, truckStock: 3, reorderPoint: 1, leadTimeDays: 2 },
+    { sku: "MOT-BLOWER-12", name: "Blower motor 1/2 HP PSC", brand: "Generic", cost: 145, price: 380, truckStock: 1, reorderPoint: 1, leadTimeDays: 3 },
+    { sku: "MOT-BLOWER-ECM", name: "ECM blower module", brand: "Generic", cost: 220, price: 525, truckStock: 0, reorderPoint: 1, leadTimeDays: 5 },
+    { sku: "DSC-60A", name: "Disconnect 60 A non-fused", brand: "Generic", cost: 22, price: 85, truckStock: 5, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "WIR-18-5", name: "Low-voltage thermostat wire 18/5 (per ft)", brand: "Generic", cost: 0.4, price: 1.5, truckStock: 250, reorderPoint: 50, leadTimeDays: 1 },
+    { sku: "REF-SVC-NITRO", name: "Refrigerant service materials (nitrogen, tools)", brand: "Generic", cost: 35, price: 95, truckStock: 8, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "MOT-COND-14", name: "Condenser fan motor 1/4 HP PSC", brand: "Generic", cost: 110, price: 285, truckStock: 1, reorderPoint: 1, leadTimeDays: 3 },
+    { sku: "BRD-CTRL", name: "Furnace control board", brand: "Generic", cost: 145, price: 360, truckStock: 1, reorderPoint: 1, leadTimeDays: 4 },
+    { sku: "SNS-LIMIT", name: "High-limit switch", brand: "Generic", cost: 18, price: 65, truckStock: 4, reorderPoint: 2, leadTimeDays: 2 },
+    { sku: "BLT-COIL-CLEAN", name: "Coil cleaner (gallon)", brand: "Generic", cost: 18, price: 55, truckStock: 6, reorderPoint: 2, leadTimeDays: 1 },
+    { sku: "UV-LAMP", name: "Replacement UV lamp", brand: "Generic", cost: 38, price: 110, truckStock: 3, reorderPoint: 1, leadTimeDays: 2 },
+  ];
+  generic.forEach((g, i) => p.push({ id: `pt-${p.length + 1}`, ...g }));
+  return p;
+})();
+
+// =============================================================================
+// Jobs — deterministic distribution across statuses, dates, techs
+// =============================================================================
 interface JobSeed {
   id: string;
   customerId: string;
   propertyId: string;
+  systemId?: string;
   equipmentId?: string;
   technicianId: string;
   complaint: string;
   status: JobStatus;
   daysAgo: number;
-  hour?: number;
+  hour: number;
   priority?: "Low" | "Normal" | "High";
-  jobType: JobType;
-  serviceCategory: ServiceCategory;
-  billingType: BillingType;
+  jobType: "Repair"|"Maintenance"|"Install"|"Inspection"|"Warranty";
+  serviceCategory: "No Cooling"|"No Heat"|"Leak"|"Noise"|"Tune-Up"|"Install"|"Thermostat"|"Other";
+  billingType: "Billable"|"Warranty"|"Maintenance Plan";
   isCallback?: boolean;
   originalJobId?: string;
   firstTimeFix?: boolean;
   estimateApproved?: boolean;
-  rating?: 1 | 2 | 3 | 4 | 5;
-  revenue?: number;
-  partsCost?: number;
-  laborCost?: number;
-  travelMin?: number;
-  diagnosticMin?: number;
-  activeLaborMin?: number;
-  pausedMin?: number;
+  rating?: 1|2|3|4|5;
+  revenue?: number; partsCost?: number; laborCost?: number;
+  travelMin?: number; diagMin?: number; activeMin?: number; pausedMin?: number;
   parts?: { partId: string; qty: number }[];
 }
 
-const TODAY_JOBS: JobSeed[] = [
-  { id: "j-1", customerId: "c-1", propertyId: "p-1", equipmentId: "eq-1", technicianId: "u-alex", complaint: "No cooling. System runs but blowing warm.", status: "On Site", daysAgo: 0, hour: 10, priority: "High", jobType: "Repair", serviceCategory: "No Cooling", billingType: "Maintenance Plan" },
-  { id: "j-2", customerId: "c-2", propertyId: "p-2", equipmentId: "eq-2", technicianId: "u-alex", complaint: "Annual maintenance and filter change.", status: "Scheduled", daysAgo: 0, hour: 13, jobType: "Maintenance", serviceCategory: "Tune-Up", billingType: "Billable" },
-  { id: "j-3", customerId: "c-3", propertyId: "p-3", equipmentId: "eq-3", technicianId: "u-alex", complaint: "Thermostat shows offline intermittently.", status: "Scheduled", daysAgo: 0, hour: 15, jobType: "Repair", serviceCategory: "Thermostat", billingType: "Billable" },
-  { id: "j-4", customerId: "c-4", propertyId: "p-4", equipmentId: "eq-4", technicianId: "u-jordan", complaint: "Unit 4B warm. Tenants complaining.", status: "En Route", daysAgo: 0, hour: 11, priority: "High", jobType: "Repair", serviceCategory: "No Cooling", billingType: "Maintenance Plan" },
-  { id: "j-5", customerId: "c-5", propertyId: "p-5", equipmentId: "eq-5", technicianId: "u-sam", complaint: "Walk-in cooler temp rising.", status: "Diagnosing", daysAgo: 0, hour: 9, priority: "High", jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable" },
-  { id: "j-6", customerId: "c-2", propertyId: "p-2", equipmentId: "eq-6", technicianId: "u-jordan", complaint: "Replace capacitor (parts on order).", status: "Waiting for Parts", daysAgo: 0, hour: 16, jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable" },
-  { id: "j-7", customerId: "c-6", propertyId: "p-6", equipmentId: "eq-7", technicianId: "u-sam", complaint: "Mini-split not heating bedroom.", status: "Waiting for Approval", daysAgo: 0, hour: 8, jobType: "Repair", serviceCategory: "No Heat", billingType: "Billable" },
-  { id: "j-8", customerId: "c-3", propertyId: "p-3", technicianId: "u-alex", complaint: "Quote new system replacement.", status: "Follow-Up", daysAgo: 0, hour: 17, priority: "Low", jobType: "Install", serviceCategory: "Install", billingType: "Billable" },
-];
+function buildJobs(): { jobs: Job[]; jobParts: JobPart[] } {
+  const rng = makeRng(0xDEADBEE5);
+  const seeds: JobSeed[] = [];
 
-const HISTORY_JOBS: JobSeed[] = [
-  // Past 7 days
-  { id: "j-h1", customerId: "c-1", propertyId: "p-1", equipmentId: "eq-1", technicianId: "u-alex", complaint: "Cap replacement after 1F code.", status: "Completed", daysAgo: 1, jobType: "Repair", serviceCategory: "No Cooling", billingType: "Maintenance Plan", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 385, partsCost: 65, laborCost: 145, travelMin: 22, diagnosticMin: 18, activeLaborMin: 35, pausedMin: 0, parts: [{ partId: "pt-1", qty: 1 }] },
-  { id: "j-h2", customerId: "c-7", propertyId: "p-7", equipmentId: "eq-10", technicianId: "u-jordan", complaint: "Seasonal tune-up Bldg A.", status: "Completed", daysAgo: 2, jobType: "Maintenance", serviceCategory: "Tune-Up", billingType: "Maintenance Plan", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 180, partsCost: 18, laborCost: 145, travelMin: 35, diagnosticMin: 0, activeLaborMin: 55, pausedMin: 10, parts: [{ partId: "pt-6", qty: 1 }] },
-  { id: "j-h3", customerId: "c-8", propertyId: "p-8", equipmentId: "eq-4", technicianId: "u-sam", complaint: "Compressor not engaging.", status: "Completed", daysAgo: 3, priority: "High", jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 462, partsCost: 78, laborCost: 218, travelMin: 28, diagnosticMin: 42, activeLaborMin: 60, pausedMin: 15, parts: [{ partId: "pt-2", qty: 1 }] },
-  { id: "j-h4", customerId: "c-9", propertyId: "p-9", equipmentId: "eq-5", technicianId: "u-alex", complaint: "Refrigerant leak suspected.", status: "Completed", daysAgo: 4, jobType: "Repair", serviceCategory: "Leak", billingType: "Billable", firstTimeFix: false, estimateApproved: true, rating: 4, revenue: 540, partsCost: 95, laborCost: 290, travelMin: 18, diagnosticMin: 75, activeLaborMin: 110, pausedMin: 25, parts: [{ partId: "pt-3", qty: 1 }] },
-  { id: "j-h5", customerId: "c-10", propertyId: "p-10", equipmentId: "eq-6", technicianId: "u-jordan", complaint: "Fan motor noise.", status: "Completed", daysAgo: 5, jobType: "Repair", serviceCategory: "Noise", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 612, partsCost: 240, laborCost: 290, travelMin: 25, diagnosticMin: 30, activeLaborMin: 95, pausedMin: 10, parts: [{ partId: "pt-4", qty: 1 }] },
-  { id: "j-h6", customerId: "c-4", propertyId: "p-4", equipmentId: "eq-4", technicianId: "u-sam", complaint: "Unit 2A warranty compressor fault.", status: "Completed", daysAgo: 6, priority: "High", jobType: "Warranty", serviceCategory: "No Cooling", billingType: "Warranty", firstTimeFix: false, estimateApproved: true, rating: 3, revenue: 0, partsCost: 0, laborCost: 145, travelMin: 30, diagnosticMin: 60, activeLaborMin: 120, pausedMin: 30 },
+  const SVC = ["No Cooling","No Heat","Leak","Noise","Tune-Up","Thermostat","Other"] as const;
+  const COMPLAINTS = [
+    "No cooling. System runs but blowing warm.",
+    "No heat — thermostat calling, no warm air.",
+    "Weak cooling, room not reaching set point.",
+    "Frozen evaporator coil observed at indoor unit.",
+    "Water leak at indoor unit.",
+    "Drain blockage causing overflow.",
+    "Poor airflow across the home.",
+    "Blower not running on heat call.",
+    "Outdoor unit not running.",
+    "Compressor humming, not starting.",
+    "Short cycling every few minutes.",
+    "Unusual noise from outdoor unit.",
+    "Thermostat shows offline intermittently.",
+    "Electrical issue — breaker tripped.",
+    "Furnace ignition failure.",
+    "Flame-sensing intermittent fault.",
+    "Pressure switch trip on heating call.",
+    "Heat-pump defrost concern, ice buildup.",
+    "Auxiliary heat staying on, high bill.",
+    "Mini-split communication error displayed.",
+    "One ductless zone not operating.",
+    "IAQ accessory service request.",
+    "Preventive maintenance — seasonal.",
+    "Installation inspection following replacement.",
+    "System commissioning checklist.",
+    "Warranty visit — compressor concern.",
+    "Callback — same complaint as prior visit.",
+    "Second visit to install ordered part.",
+  ];
 
-  // Past 30 days
-  { id: "j-h7", customerId: "c-2", propertyId: "p-2", equipmentId: "eq-2", technicianId: "u-alex", complaint: "Callback: same no-cooling, parts issue.", status: "Completed", daysAgo: 9, jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable", isCallback: true, originalJobId: "j-h3", firstTimeFix: false, estimateApproved: true, rating: 2, revenue: 290, partsCost: 65, laborCost: 145, travelMin: 22, diagnosticMin: 35, activeLaborMin: 50, pausedMin: 0, parts: [{ partId: "pt-1", qty: 1 }] },
-  { id: "j-h8", customerId: "c-1", propertyId: "p-1", equipmentId: "eq-1", technicianId: "u-jordan", complaint: "Filter change + inspect drain.", status: "Completed", daysAgo: 11, jobType: "Maintenance", serviceCategory: "Tune-Up", billingType: "Maintenance Plan", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 165, partsCost: 18, laborCost: 145, travelMin: 18, diagnosticMin: 0, activeLaborMin: 45, pausedMin: 0, parts: [{ partId: "pt-6", qty: 1 }] },
-  { id: "j-h9", customerId: "c-6", propertyId: "p-6", equipmentId: "eq-7", technicianId: "u-sam", complaint: "New thermostat install.", status: "Completed", daysAgo: 13, jobType: "Install", serviceCategory: "Thermostat", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 425, partsCost: 110, laborCost: 218, travelMin: 20, diagnosticMin: 0, activeLaborMin: 80, pausedMin: 5 },
-  { id: "j-h10", customerId: "c-5", propertyId: "p-5", equipmentId: "eq-5", technicianId: "u-alex", complaint: "Walk-in temp swings investigation.", status: "Completed", daysAgo: 16, jobType: "Inspection", serviceCategory: "Other", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 240, partsCost: 0, laborCost: 218, travelMin: 28, diagnosticMin: 55, activeLaborMin: 60, pausedMin: 15 },
-  { id: "j-h11", customerId: "c-3", propertyId: "p-3", equipmentId: "eq-3", technicianId: "u-jordan", complaint: "Iced indoor coil.", status: "Completed", daysAgo: 18, jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 520, partsCost: 110, laborCost: 290, travelMin: 35, diagnosticMin: 50, activeLaborMin: 95, pausedMin: 20, parts: [{ partId: "pt-5", qty: 1 }] },
-  { id: "j-h12", customerId: "c-7", propertyId: "p-7", equipmentId: "eq-10", technicianId: "u-sam", complaint: "Bldg B tune-up.", status: "Completed", daysAgo: 21, jobType: "Maintenance", serviceCategory: "Tune-Up", billingType: "Maintenance Plan", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 195, partsCost: 18, laborCost: 145, travelMin: 32, diagnosticMin: 0, activeLaborMin: 50, pausedMin: 5, parts: [{ partId: "pt-6", qty: 1 }] },
-  { id: "j-h13", customerId: "c-8", propertyId: "p-8", equipmentId: "eq-4", technicianId: "u-alex", complaint: "Estimate not approved — declined.", status: "Completed", daysAgo: 23, jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable", firstTimeFix: false, estimateApproved: false, rating: 3, revenue: 145, partsCost: 0, laborCost: 145, travelMin: 25, diagnosticMin: 40, activeLaborMin: 20, pausedMin: 0 },
-  { id: "j-h14", customerId: "c-9", propertyId: "p-9", equipmentId: "eq-8", technicianId: "u-jordan", complaint: "Furnace short cycling.", status: "Completed", daysAgo: 25, jobType: "Repair", serviceCategory: "No Heat", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 410, partsCost: 78, laborCost: 218, travelMin: 22, diagnosticMin: 45, activeLaborMin: 65, pausedMin: 10, parts: [{ partId: "pt-2", qty: 1 }] },
-  { id: "j-h15", customerId: "c-10", propertyId: "p-10", equipmentId: "eq-6", technicianId: "u-sam", complaint: "Capacitor weak after storm.", status: "Completed", daysAgo: 27, jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 380, partsCost: 65, laborCost: 145, travelMin: 30, diagnosticMin: 20, activeLaborMin: 40, pausedMin: 0, parts: [{ partId: "pt-1", qty: 1 }] },
-
-  // Past 60 days
-  { id: "j-h16", customerId: "c-4", propertyId: "p-4", equipmentId: "eq-4", technicianId: "u-pat", complaint: "Historical Pat job — unit 1A leak repair.", status: "Completed", daysAgo: 34, jobType: "Repair", serviceCategory: "Leak", billingType: "Maintenance Plan", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 495, partsCost: 95, laborCost: 290, travelMin: 28, diagnosticMin: 60, activeLaborMin: 100, pausedMin: 20, parts: [{ partId: "pt-3", qty: 1 }] },
-  { id: "j-h17", customerId: "c-2", propertyId: "p-2", equipmentId: "eq-2", technicianId: "u-pat", complaint: "Historical Pat job — tune-up.", status: "Completed", daysAgo: 41, jobType: "Maintenance", serviceCategory: "Tune-Up", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 175, partsCost: 18, laborCost: 145, travelMin: 25, diagnosticMin: 0, activeLaborMin: 50, pausedMin: 5, parts: [{ partId: "pt-6", qty: 1 }] },
-  { id: "j-h18", customerId: "c-1", propertyId: "p-1", equipmentId: "eq-1", technicianId: "u-alex", complaint: "Callback: parts-related return for fan motor.", status: "Completed", daysAgo: 45, jobType: "Repair", serviceCategory: "Noise", billingType: "Billable", isCallback: true, originalJobId: "j-h5", firstTimeFix: false, estimateApproved: true, rating: 3, revenue: 320, partsCost: 240, laborCost: 145, travelMin: 22, diagnosticMin: 25, activeLaborMin: 60, pausedMin: 10, parts: [{ partId: "pt-4", qty: 1 }] },
-  { id: "j-h19", customerId: "c-6", propertyId: "p-6", equipmentId: "eq-7", technicianId: "u-jordan", complaint: "Mini-split mode swap.", status: "Completed", daysAgo: 50, jobType: "Maintenance", serviceCategory: "Tune-Up", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 210, partsCost: 0, laborCost: 145, travelMin: 18, diagnosticMin: 0, activeLaborMin: 60, pausedMin: 0 },
-  { id: "j-h20", customerId: "c-5", propertyId: "p-5", equipmentId: "eq-5", technicianId: "u-sam", complaint: "Walk-in pressure switch trip.", status: "Completed", daysAgo: 55, priority: "High", jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 480, partsCost: 78, laborCost: 290, travelMin: 32, diagnosticMin: 65, activeLaborMin: 90, pausedMin: 30, parts: [{ partId: "pt-2", qty: 1 }] },
-
-  // Past 90 days
-  { id: "j-h21", customerId: "c-3", propertyId: "p-3", equipmentId: "eq-3", technicianId: "u-alex", complaint: "Quarterly inspection.", status: "Completed", daysAgo: 65, jobType: "Inspection", serviceCategory: "Other", billingType: "Maintenance Plan", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 150, partsCost: 0, laborCost: 145, travelMin: 35, diagnosticMin: 0, activeLaborMin: 45, pausedMin: 0 },
-  { id: "j-h22", customerId: "c-7", propertyId: "p-7", equipmentId: "eq-10", technicianId: "u-jordan", complaint: "HOA furnace warranty motor.", status: "Completed", daysAgo: 72, jobType: "Warranty", serviceCategory: "No Heat", billingType: "Warranty", firstTimeFix: true, estimateApproved: true, rating: 4, revenue: 0, partsCost: 0, laborCost: 145, travelMin: 30, diagnosticMin: 50, activeLaborMin: 75, pausedMin: 15 },
-  { id: "j-h23", customerId: "c-8", propertyId: "p-8", equipmentId: "eq-9", technicianId: "u-sam", complaint: "Furnace install completion.", status: "Completed", daysAgo: 82, jobType: "Install", serviceCategory: "Install", billingType: "Billable", firstTimeFix: true, estimateApproved: true, rating: 5, revenue: 4250, partsCost: 1800, laborCost: 1450, travelMin: 40, diagnosticMin: 0, activeLaborMin: 380, pausedMin: 45 },
-];
-
-const ALL_JOB_SEEDS = [...TODAY_JOBS, ...HISTORY_JOBS];
-
-function buildJob(s: JobSeed): Job {
-  const scheduledFor = dayOffset(-s.daysAgo, s.hour ?? 10, 0);
-  const base: Job = {
-    id: s.id,
-    customerId: s.customerId,
-    propertyId: s.propertyId,
-    equipmentId: s.equipmentId,
-    technicianId: s.technicianId,
-    complaint: s.complaint,
-    status: s.status,
-    scheduledFor,
-    priority: s.priority ?? "Normal",
-    jobType: s.jobType,
-    serviceCategory: s.serviceCategory,
-    billingType: s.billingType,
-    isCallback: s.isCallback ?? false,
-    originalJobId: s.originalJobId,
-    firstTimeFix: s.firstTimeFix,
-    estimateApproved: s.estimateApproved,
-    rating: s.rating,
-    revenue: s.revenue,
-    partsCost: s.partsCost,
-    laborCost: s.laborCost,
-    travelMinutes: s.travelMin,
-    diagnosticMinutes: s.diagnosticMin,
-    activeLaborMinutes: s.activeLaborMin,
-    pausedMinutes: s.pausedMin,
-    totalDurationMinutes:
-      (s.travelMin ?? 0) + (s.diagnosticMin ?? 0) + (s.activeLaborMin ?? 0) + (s.pausedMin ?? 0) || undefined,
+  const techCounts = new Map<string, number>(TECH_IDS.map((id) => [id, 0]));
+  const pickTech = (i: number) => {
+    // weighted: alex/jordan/sam get more jobs, taylor (apprentice) fewer
+    const weights = [22, 20, 18, 16, 14, 12, 6, 12]; // sum=120
+    let r = (i * 7) % 120;
+    for (let j = 0; j < TECH_IDS.length; j++) {
+      r -= weights[j];
+      if (r < 0) { techCounts.set(TECH_IDS[j], (techCounts.get(TECH_IDS[j]) ?? 0) + 1); return TECH_IDS[j]; }
+    }
+    return TECH_IDS[0];
   };
-  if (s.status === "Completed") {
-    const travelStart = scheduledFor;
-    const arrivedAt = isoMinutesAfter(travelStart, s.travelMin ?? 20);
-    const diagStartedAt = isoMinutesAfter(arrivedAt, 2);
-    const completedAt = isoMinutesAfter(diagStartedAt, (s.diagnosticMin ?? 0) + (s.activeLaborMin ?? 0) + (s.pausedMin ?? 0));
-    Object.assign(base, {
-      travelStartedAt: travelStart,
-      arrivedAt,
-      arrivalMethod: "gps-detected" as const,
-      diagnosisStartedAt: diagStartedAt,
-      completedAt,
+
+  const pickProp = (i: number) => PROPERTIES[(i * 11) % PROPERTIES.length];
+
+  // ── j-1: stable Goodman scenario job ──────────────────────────────
+  seeds.push({
+    id: "j-1", customerId: "c-1", propertyId: "p-1", systemId: "sys-1", equipmentId: "eq-1",
+    technicianId: "u-alex", complaint: "No cooling. System runs but blowing warm.",
+    status: "On Site", daysAgo: 0, hour: 10, priority: "High",
+    jobType: "Repair", serviceCategory: "No Cooling", billingType: "Maintenance Plan",
+  });
+
+  // Helper to build a job from a system + status pattern
+  let nextId = 2;
+  const makeJob = (overrides: Partial<JobSeed> & Pick<JobSeed,"status"|"daysAgo"|"hour"|"jobType"|"serviceCategory"|"billingType"|"complaint">): JobSeed => {
+    const i = nextId++;
+    const sys = SYSTEMS[(i * 3) % SYSTEMS.length];
+    const cust = CUSTOMERS.find((c) => c.id === sys.customerId)!;
+    const prop = PROPERTIES.find((p) => p.id === sys.propertyId)!;
+    return {
+      id: `j-${i}`,
+      customerId: cust.id, propertyId: prop.id,
+      systemId: sys.id, equipmentId: sys.equipmentIds[0],
+      technicianId: pickTech(i),
+      priority: overrides.priority ?? "Normal",
+      ...overrides,
+    } as JobSeed;
+  };
+
+  // ── Today's open mix (8): scheduled + active statuses ────────────
+  const todayMix: { status: JobStatus; hour: number; cat: typeof SVC[number]; type: JobSeed["jobType"]; bill: JobSeed["billingType"] }[] = [
+    { status: "Scheduled", hour: 11, cat: "Tune-Up", type: "Maintenance", bill: "Maintenance Plan" },
+    { status: "Scheduled", hour: 13, cat: "Thermostat", type: "Repair", bill: "Billable" },
+    { status: "Scheduled", hour: 15, cat: "No Cooling", type: "Repair", bill: "Billable" },
+    { status: "En Route", hour: 9, cat: "No Cooling", type: "Repair", bill: "Billable" },
+    { status: "Near Destination", hour: 12, cat: "No Heat", type: "Repair", bill: "Billable" },
+    { status: "Diagnosing", hour: 8, cat: "Leak", type: "Repair", bill: "Billable" },
+    { status: "Waiting for Approval", hour: 9, cat: "No Cooling", type: "Repair", bill: "Billable" },
+    { status: "Waiting for Customer", hour: 14, cat: "Thermostat", type: "Repair", bill: "Billable" },
+  ];
+  for (const t of todayMix) {
+    seeds.push(makeJob({
+      status: t.status, daysAgo: 0, hour: t.hour, priority: "Normal",
+      jobType: t.type, serviceCategory: t.cat, billingType: t.bill,
+      complaint: COMPLAINTS[(nextId * 5) % COMPLAINTS.length],
+    }));
+  }
+
+  // ── Future scheduled (12) ────────────────────────────────────────
+  for (let d = 1; d <= 12; d++) {
+    seeds.push(makeJob({
+      status: "Scheduled", daysAgo: -d, hour: 9 + (d % 7),
+      jobType: d % 3 === 0 ? "Maintenance" : "Repair",
+      serviceCategory: d % 3 === 0 ? "Tune-Up" : (d % 2 === 0 ? "No Cooling" : "No Heat"),
+      billingType: d % 4 === 0 ? "Maintenance Plan" : "Billable",
+      complaint: COMPLAINTS[(d * 3) % COMPLAINTS.length],
+    }));
+  }
+
+  // ── Waiting for Parts (8) — interspersed historical ──────────────
+  for (let i = 0; i < 8; i++) {
+    seeds.push(makeJob({
+      status: "Waiting for Parts", daysAgo: 1 + i, hour: 10 + (i % 6),
+      jobType: "Repair",
+      serviceCategory: i % 2 === 0 ? "No Cooling" : "No Heat",
+      billingType: "Billable",
+      complaint: "Part needed — not on hand. Awaiting delivery.",
+      partsCost: 0, laborCost: 145, revenue: 145, firstTimeFix: false, estimateApproved: true,
+      travelMin: 25, diagMin: 30, activeMin: 20, pausedMin: 0,
+    }));
+  }
+
+  // ── Waiting for Approval (5) ─────────────────────────────────────
+  for (let i = 0; i < 5; i++) {
+    seeds.push(makeJob({
+      status: "Waiting for Approval", daysAgo: 1 + i, hour: 11 + (i % 4),
+      jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable",
+      complaint: "Estimate sent, waiting for customer decision.",
+      travelMin: 22, diagMin: 35, activeMin: 0, pausedMin: 0,
+    }));
+  }
+
+  // ── Cancelled (5) ────────────────────────────────────────────────
+  for (let i = 0; i < 5; i++) {
+    seeds.push(makeJob({
+      status: "Cancelled", daysAgo: 3 + i * 2, hour: 14,
+      jobType: "Repair", serviceCategory: "Other", billingType: "Billable",
+      complaint: "Customer cancelled — issue resolved itself.",
+      revenue: 0, partsCost: 0, laborCost: 0,
+    }));
+  }
+
+  // ── Callbacks (8) — historical, marked isCallback=true ───────────
+  for (let i = 0; i < 8; i++) {
+    seeds.push(makeJob({
+      status: "Completed", daysAgo: 5 + i * 4, hour: 10 + (i % 6),
+      jobType: "Repair", serviceCategory: "No Cooling", billingType: "Billable",
+      complaint: "Callback — same complaint as prior visit.",
+      isCallback: true, firstTimeFix: false, estimateApproved: true,
+      revenue: 280 + i * 25, partsCost: 65, laborCost: 145, rating: rng.int(2,4) as 2|3|4,
+      travelMin: 22 + (i % 4) * 3, diagMin: 30, activeMin: 45, pausedMin: 10,
+      parts: [{ partId: "pt-1", qty: 1 }],
+    }));
+  }
+
+  // ── Warranty visits (12) ─────────────────────────────────────────
+  for (let i = 0; i < 12; i++) {
+    seeds.push(makeJob({
+      status: "Completed", daysAgo: 4 + i * 5, hour: 9 + (i % 7),
+      jobType: "Warranty", serviceCategory: i % 2 === 0 ? "No Cooling" : "No Heat", billingType: "Warranty",
+      complaint: "Warranty service visit.",
+      firstTimeFix: rng.chance(0.7), estimateApproved: true,
+      revenue: 0, partsCost: 0, laborCost: 145, rating: rng.int(3,5) as 3|4|5,
+      travelMin: 25, diagMin: 45, activeMin: 75, pausedMin: 15,
+    }));
+  }
+
+  // ── 100 completed jobs distributed across date buckets ───────────
+  // The 8 callbacks and 12 warranty above contribute 20. Add 80 more.
+  const buckets: { range: [number, number]; count: number }[] = [
+    { range: [1, 1], count: 5 },     // yesterday
+    { range: [2, 6], count: 12 },    // this week
+    { range: [7, 13], count: 12 },   // last week
+    { range: [14, 30], count: 18 },  // this month earlier / 30d
+    { range: [31, 60], count: 14 },  // last month
+    { range: [61, 90], count: 8 },   // this quarter earlier
+    { range: [91, 180], count: 6 },  // last quarter
+    { range: [181, 365], count: 4 }, // earlier this year / last year
+    { range: [366, 500], count: 1 }, // last year boundary
+  ];
+  for (const b of buckets) {
+    for (let i = 0; i < b.count; i++) {
+      const days = b.range[0] + Math.floor((i / Math.max(1, b.count)) * (b.range[1] - b.range[0]));
+      const type = rng.pick(["Repair","Repair","Repair","Maintenance","Maintenance","Install","Inspection"] as const);
+      const cat: JobSeed["serviceCategory"] = type === "Maintenance" ? "Tune-Up" : type === "Install" ? "Install" : rng.pick(SVC);
+      const billing = rng.pick(["Billable","Billable","Billable","Maintenance Plan"] as const);
+      const partsCost = rng.pick([0, 0, 18, 65, 78, 95, 110, 240]);
+      const labor = 145 + rng.pick([0, 73, 145, 218]);
+      const revenue = type === "Install" ? 4250 + rng.int(0, 1500) : Math.round(labor + partsCost * 2.1 + rng.int(0, 80));
+      seeds.push(makeJob({
+        status: "Completed", daysAgo: days, hour: 8 + (i % 9),
+        jobType: type, serviceCategory: cat, billingType: billing,
+        complaint: COMPLAINTS[(days + i) % COMPLAINTS.length],
+        firstTimeFix: rng.chance(0.82),
+        estimateApproved: rng.chance(0.92),
+        rating: rng.int(3, 5) as 3|4|5,
+        revenue, partsCost, laborCost: labor,
+        travelMin: rng.int(15, 38), diagMin: rng.int(15, 70),
+        activeMin: type === "Install" ? rng.int(180, 360) : rng.int(35, 120),
+        pausedMin: rng.chance(0.4) ? rng.int(10, 35) : 0,
+        parts: partsCost === 65 ? [{ partId: "pt-1", qty: 1 }]
+              : partsCost === 78 ? [{ partId: "pt-2", qty: 1 }]
+              : partsCost === 95 ? [{ partId: "pt-3", qty: 1 }]
+              : partsCost === 240 ? [{ partId: "pt-4", qty: 1 }]
+              : partsCost === 18 ? [{ partId: "pt-6", qty: 1 }]
+              : partsCost === 110 ? [{ partId: "pt-5", qty: 1 }]
+              : undefined,
+      }));
+    }
+  }
+
+  // ── Build final Job[] ─────────────────────────────────────────────
+  const jobs: Job[] = [];
+  const jobParts: JobPart[] = [];
+  for (const s of seeds) {
+    const scheduledFor = dayOffsetISO(-s.daysAgo, s.hour, 0);
+    const job: Job = {
+      id: s.id, customerId: s.customerId, propertyId: s.propertyId,
+      systemId: s.systemId, equipmentId: s.equipmentId,
+      technicianId: s.technicianId, complaint: s.complaint, status: s.status,
+      scheduledFor, priority: s.priority ?? "Normal",
+      jobType: s.jobType, serviceCategory: s.serviceCategory, billingType: s.billingType,
+      isCallback: s.isCallback ?? false, originalJobId: s.originalJobId,
+      firstTimeFix: s.firstTimeFix, estimateApproved: s.estimateApproved, rating: s.rating,
+      revenue: s.revenue, partsCost: s.partsCost, laborCost: s.laborCost,
+      travelMinutes: s.travelMin, diagnosticMinutes: s.diagMin,
+      activeLaborMinutes: s.activeMin, pausedMinutes: s.pausedMin,
+      totalDurationMinutes: (s.travelMin ?? 0) + (s.diagMin ?? 0) + (s.activeMin ?? 0) + (s.pausedMin ?? 0) || undefined,
+    };
+    if (s.status === "Completed") {
+      const travelStart = scheduledFor;
+      const arrivedAt = isoMinutesAfter(travelStart, s.travelMin ?? 20);
+      const diagStartedAt = isoMinutesAfter(arrivedAt, 2);
+      const completedAt = isoMinutesAfter(diagStartedAt, (s.diagMin ?? 0) + (s.activeMin ?? 0) + (s.pausedMin ?? 0));
+      Object.assign(job, {
+        travelStartedAt: travelStart, arrivedAt,
+        arrivalMethod: "gps-detected" as const,
+        diagnosisStartedAt: diagStartedAt, completedAt,
+      });
+    }
+    jobs.push(job);
+    if (s.parts) for (const p of s.parts) jobParts.push({ jobId: s.id, partId: p.partId, qty: p.qty });
+  }
+  return { jobs, jobParts };
+}
+const { jobs: JOB_BUILD, jobParts: JP_BUILD } = buildJobs();
+export const JOBS: Job[] = JOB_BUILD;
+export const JOB_PARTS: JobPart[] = JP_BUILD;
+
+// =============================================================================
+// Part requests (25)
+// =============================================================================
+export const PART_REQUESTS: PartRequest[] = (() => {
+  const rng = makeRng(0xCAFEBABE);
+  const waiting = JOBS.filter((j) => j.status === "Waiting for Parts");
+  const others = JOBS.filter((j) => j.status === "Completed").slice(0, 17);
+  const all = [...waiting, ...others].slice(0, 25);
+  const statuses: PartRequest["status"][] = ["Identification Needed","Compatibility Review","Requested","Approved","Ordered","Available at Warehouse","Assigned to Technician","Installed","Cancelled"];
+  return all.map((j, i) => ({
+    id: `pr-${i + 1}`, jobId: j.id, customerId: j.customerId, equipmentId: j.equipmentId,
+    technicianId: j.technicianId,
+    name: rng.pick(["Dual-run capacitor","Compressor contactor","Condenser fan motor","ECM blower module","Pressure switch","Smart thermostat"]),
+    qty: 1, urgency: rng.pick(["Normal","Normal","High","Critical"] as const),
+    compatibility: rng.pick(["Unknown","Likely","Verified by qualified user"] as const),
+    status: j.status === "Waiting for Parts" ? rng.pick(["Requested","Approved","Ordered"] as const) : statuses[(i + 3) % statuses.length],
+    createdAt: new Date(+ANCHOR - (i + 1) * 86400000).toISOString(),
+    updatedAt: new Date(+ANCHOR - i * 86400000).toISOString(),
+  }));
+})();
+
+// =============================================================================
+// Authorizations (30)
+// =============================================================================
+export const AUTHORIZATIONS: Authorization[] = JOBS
+  .filter((j) => j.status === "Completed" && j.estimateApproved)
+  .slice(0, 30)
+  .map((j) => ({
+    jobId: j.id, signedBy: "Customer (demo signature)",
+    approvedAt: j.completedAt, total: j.revenue, decision: "approved",
+  }));
+
+// =============================================================================
+// Service reports (45)
+// =============================================================================
+export const SERVICE_REPORTS: ServiceReport[] = JOBS
+  .filter((j) => j.status === "Completed").slice(0, 45)
+  .map((j, i) => ({
+    id: `rpt-${i + 1}`, jobId: j.id, customerId: j.customerId, technicianId: j.technicianId,
+    summary: `${j.serviceCategory ?? "Service"} visit completed. ${j.firstTimeFix ? "Resolved on first visit." : "Follow-up recommended."}`,
+    recommendations: j.serviceCategory === "Tune-Up" ? ["Replace 1\" filter every 60 days"] : ["Monitor for recurrence"],
+    generatedAt: j.completedAt ?? new Date().toISOString(),
+  }));
+
+// =============================================================================
+// Photos (75) — placeholder swatches, no binary data
+// =============================================================================
+export const PHOTOS: Photo[] = (() => {
+  const out: Photo[] = [];
+  const swatches = ["bg-slate-300","bg-stone-300","bg-zinc-400","bg-amber-200","bg-blue-200","bg-emerald-200","bg-rose-200"];
+  const completed = JOBS.filter((j) => j.status === "Completed").slice(0, 38);
+  let i = 0;
+  for (const j of completed) {
+    out.push({ id: `ph-${++i}`, jobId: j.id, equipmentId: j.equipmentId, customerId: j.customerId, kind: "Before", caption: "Before service", swatchClass: swatches[i % swatches.length], capturedAt: j.arrivedAt ?? j.scheduledFor, capturedBy: j.technicianId });
+    out.push({ id: `ph-${++i}`, jobId: j.id, equipmentId: j.equipmentId, customerId: j.customerId, kind: "After", caption: "After service", swatchClass: swatches[(i + 2) % swatches.length], capturedAt: j.completedAt ?? j.scheduledFor, capturedBy: j.technicianId });
+    if (i >= 70) break;
+  }
+  // 5 nameplate photos
+  for (let k = 0; k < 5; k++) {
+    const e = EQUIPMENT[k * 7 % EQUIPMENT.length];
+    out.push({ id: `ph-${++i}`, equipmentId: e.id, kind: "Nameplate", caption: `${e.manufacturer} ${e.model} nameplate`, swatchClass: "bg-zinc-200", capturedAt: ANCHOR.toISOString(), capturedBy: "u-alex" });
+  }
+  return out.slice(0, 75);
+})();
+
+// =============================================================================
+// Customer feedback (40)
+// =============================================================================
+export const CUSTOMER_FEEDBACK: CustomerFeedback[] = (() => {
+  const rng = makeRng(0xFEED);
+  return JOBS.filter((j) => j.status === "Completed" && j.rating)
+    .slice(0, 40).map((j, i) => ({
+      id: `cf-${i + 1}`, jobId: j.id, customerId: j.customerId, technicianId: j.technicianId,
+      rating: (j.rating ?? 4) as 1|2|3|4|5,
+      communication: Math.min(5, Math.max(1, (j.rating ?? 4) + rng.int(-1, 1))) as 1|2|3|4|5,
+      timeliness: Math.min(5, Math.max(1, (j.rating ?? 4) + rng.int(-1, 1))) as 1|2|3|4|5,
+      explanationClarity: Math.min(5, Math.max(1, (j.rating ?? 4))) as 1|2|3|4|5,
+      cleanliness: Math.min(5, Math.max(1, (j.rating ?? 4))) as 1|2|3|4|5,
+      overall: (j.rating ?? 4) as 1|2|3|4|5,
+      comment: rng.pick(["On time and professional.","Explained everything clearly.","Quick fix, thank you.","Will request the same tech next time.","Friendly and efficient."]),
+      testimonialOk: rng.chance(0.5),
+      submittedAt: j.completedAt ?? new Date().toISOString(),
+    }));
+})();
+
+// =============================================================================
+// Technician feedback (25)
+// =============================================================================
+export const TECH_FEEDBACK: TechFeedback[] = (() => {
+  const rng = makeRng(0xACED);
+  const out: TechFeedback[] = [];
+  for (let i = 0; i < 25; i++) {
+    const j = JOBS[(i * 13) % JOBS.length];
+    out.push({
+      id: `tf-${i + 1}`, jobId: j.id, technicianId: j.technicianId,
+      diagnosticStepId: rng.pick(["A","B","C1","D","E","G"]),
+      helpful: rng.chance(0.6),
+      confusing: rng.chance(0.2),
+      missingSource: rng.chance(0.25),
+      suggestedImprovement: rng.pick(["Add a torque-spec reference.","Include a wiring photo overlay.","Surface prior callback for this property.","Voice-note placeholder works well."]),
+      submittedAt: new Date(+ANCHOR - i * 3 * 86400000).toISOString(),
     });
   }
-  return base;
-}
+  return out;
+})();
 
-export const JOBS: Job[] = ALL_JOB_SEEDS.map(buildJob);
-
-export const PARTS: Part[] = [
-  { id: "pt-1", sku: "CAP-40-5-440", name: "Dual-run capacitor 40/5 µF 440 V", brand: "Generic", cost: 14.5, price: 65, truckStock: 4, reorderPoint: 2, leadTimeDays: 1, compatibilityNote: "Compatibility must be verified against installed component and unit documentation." },
-  { id: "pt-2", sku: "CON-30-2P", name: "Contactor 30A 2-pole 24V coil", brand: "Generic", cost: 18, price: 78, truckStock: 3, reorderPoint: 2, leadTimeDays: 1 },
-  { id: "pt-3", sku: "DRI-038", name: "Liquid line filter drier 3/8\"", brand: "Generic", cost: 22, price: 95, truckStock: 5, reorderPoint: 2, leadTimeDays: 2 },
-  { id: "pt-4", sku: "FAN-MOT-18", name: "Condenser fan motor 1/8 HP PSC", brand: "Generic", cost: 88, price: 240, truckStock: 1, reorderPoint: 1, leadTimeDays: 3 },
-  { id: "pt-5", sku: "TXV-2T", name: "Thermostatic expansion valve 2-ton", brand: "Generic", cost: 110, price: 290, truckStock: 0, reorderPoint: 1, leadTimeDays: 4 },
-  { id: "pt-6", sku: "FIL-2025", name: "Air filter 20x25x1 MERV 8", brand: "Generic", cost: 4, price: 18, truckStock: 24, reorderPoint: 6, leadTimeDays: 1 },
-];
-
-export const JOB_PARTS: JobPart[] = ALL_JOB_SEEDS.flatMap((s) =>
-  (s.parts ?? []).map((p) => ({ jobId: s.id, partId: p.partId, qty: p.qty }))
-);
-
-export const AUTHORIZATIONS: Authorization[] = [];
-
+// =============================================================================
+// Documents (20)
+// =============================================================================
 export const DOCS: DocItem[] = [
-  { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: "https://www.goodmanmfg.com/products/air-conditioners/gsxn3", status: "Approved", uploadedAt: "2026-04-02" },
-  { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf", status: "Approved", uploadedAt: "2026-04-02" },
-  { id: "d-3", title: "Caloosa Cooling — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
-  { id: "d-4", title: "Goodman GSXN3 installation manual", manufacturer: "Goodman", model: "GSXN3", category: "installation_manual", url: "#", status: "Needs Review", uploadedAt: "2026-06-21" },
+  { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanProductSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
+  { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanPdfSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
+  { id: "d-3", title: "Carolina Comfort HVAC — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
+  { id: "d-4", title: "Carolina Comfort HVAC — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
+  { id: "d-5", title: "Carolina Comfort HVAC — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },
+  { id: "d-6", title: "Carolina Comfort HVAC — Maintenance checklist (residential)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
+  { id: "d-7", title: "Carolina Comfort HVAC — Maintenance checklist (light commercial)", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-25" },
+  { id: "d-8", title: "Carolina Comfort HVAC — Quoting & estimate template", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-26" },
+  { id: "d-9", title: "Furnace gas-section training overview (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-03-30" },
+  { id: "d-10", title: "Mini-split installation training (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-04-01" },
+  { id: "d-11", title: "Heat-pump defrost basics (internal)", category: "training_guide", url: "#", status: "Approved", uploadedAt: "2026-04-03" },
+  { id: "d-12", title: "Goodman GSXN3 installation manual", manufacturer: "Goodman", model: "GSXN3", category: "installation_manual", url: "#", status: "Needs Review", uploadedAt: "2026-06-21" },
+  { id: "d-13", title: "Service bulletin — generic capacitor tolerance reminders", category: "service_bulletin", url: "#", status: "Needs Review", uploadedAt: "2026-06-15" },
+  { id: "d-14", title: "Generic furnace service manual (placeholder)", category: "service_manual", url: "#", status: "Uploaded", uploadedAt: "2026-06-22" },
+  { id: "d-15", title: "Generic heat-pump service manual (placeholder)", category: "service_manual", url: "#", status: "Uploaded", uploadedAt: "2026-06-22" },
+  { id: "d-16", title: "Generic mini-split service manual (placeholder)", category: "service_manual", url: "#", status: "Uploaded", uploadedAt: "2026-06-22" },
+  { id: "d-17", title: "Generic RTU service manual (placeholder)", category: "service_manual", url: "#", status: "Processing", uploadedAt: "2026-06-23" },
+  { id: "d-18", title: "Wiring diagrams library (placeholder)", category: "wiring_diagram", url: "#", status: "Needs Review", uploadedAt: "2026-06-24" },
+  { id: "d-19", title: "Carolina Comfort HVAC — Refrigerant handling policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
+  { id: "d-20", title: "Carolina Comfort HVAC — Customer communication policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-04-05" },
 ];
 
+// =============================================================================
+// Knowledge base (15)
+// =============================================================================
 export const KNOWLEDGE: KnowledgeCase[] = [
   { id: "k-1", title: "GSXN3 2-ton no cooling — weak compressor side of dual-run cap", model: "Goodman GSXN3", symptom: "Outdoor fan runs, compressor hums then trips", cause: "Dual-run capacitor compressor section out of tolerance", fix: "Replace dual-run capacitor with matching rating", technician: "Alex Reed", approved: true },
   { id: "k-2", title: "Carrier Comfort 16 — contactor pitting causes intermittent no-call", model: "Carrier 24ACC6", symptom: "Intermittent no cooling, contactor chatter", cause: "Pitted contactor contacts", fix: "Replace 30A 2P contactor; check 24V at coil", technician: "Sam Patel", approved: true },
   { id: "k-3", title: "Trane XR14 — TXV bulb loose, low superheat swing", model: "Trane XR14", symptom: "Iced suction line; low superheat", cause: "TXV sensing bulb strap loose", fix: "Re-strap, re-insulate; verify superheat", technician: "Jordan Lee", approved: true },
+  { id: "k-4", title: "Mitsubishi MUZ — communication error E6 after surge", model: "Mitsubishi MUZ", symptom: "Indoor display flashes communication code", cause: "Loose comm wire at outdoor terminal", fix: "Re-land conductor; verify shield", technician: "Elena Rodriguez", approved: true },
+  { id: "k-5", title: "Lennox ML14 — frozen indoor coil due to airflow restriction", model: "Lennox ML14", symptom: "Frozen coil, low return air", cause: "Loaded filter and dirty blower wheel", fix: "Replace filter, clean wheel, verify static", technician: "Jordan Lee", approved: true },
+  { id: "k-6", title: "Rheem RA14 — pressure switch trip with dirty condenser", model: "Rheem RA14", symptom: "1F lockout in afternoon heat", cause: "Coil restriction, weak airflow", fix: "Wash coil, verify fan amps", technician: "Sam Patel", approved: true },
+  { id: "k-7", title: "Carrier 59TN6 furnace — flame sensor coated", model: "Carrier 59TN6", symptom: "Ignites, drops out after 5 seconds", cause: "Carbon on flame sensor", fix: "Clean rod with abrasive pad, verify microamps", technician: "Marcus Green", approved: true },
+  { id: "k-8", title: "Trane S9V2 — pressure switch tubing kink", model: "Trane S9V2", symptom: "Pressure switch will not close", cause: "Kinked silicone tubing at inducer", fix: "Replace tubing, verify drafts", technician: "Marcus Green", approved: true },
+  { id: "k-9", title: "Daikin mini-split — drain pan slope error", model: "Daikin Mini-Split", symptom: "Water leak from head", cause: "Indoor unit installed without slope", fix: "Re-mount with required slope; flush drain", technician: "Elena Rodriguez", approved: true },
+  { id: "k-10", title: "Goodman GSXN4 — capacitor compressor side low after storm", model: "Goodman GSXN4", symptom: "Hard start; trips after a few cycles", cause: "Capacitor degraded after surge", fix: "Replace dual-run capacitor", technician: "Alex Reed", approved: true },
+  { id: "k-11", title: "Carrier RTU — economizer stuck open in winter", model: "Carrier RTU", symptom: "Cold air supply on heating call", cause: "Economizer actuator failed open", fix: "Replace actuator; verify min position", technician: "Devon Price", approved: true },
+  { id: "k-12", title: "Heat-pump defrost board terminator", model: "Trane XR14", symptom: "No defrost cycle initiated", cause: "Defrost sensor disconnected", fix: "Re-seat sensor, confirm reading", technician: "Jordan Lee", approved: true },
+  { id: "k-13", title: "Dual-fuel changeover misconfigured", model: "Honeywell dual-fuel thermostat", symptom: "Furnace runs above changeover", cause: "Stat configured cool-only at compressor", fix: "Reconfigure changeover and outdoor sensor", technician: "Marcus Green", approved: true },
+  { id: "k-14", title: "Smart thermostat C-wire missing", model: "Generic smart thermostat", symptom: "Stat reboots intermittently", cause: "No common wire — power stealing", fix: "Add C wire or PEK adapter", technician: "Taylor Brooks", approved: true },
+  { id: "k-15", title: "Package unit — belt tension and worn pulley", model: "Carrier package", symptom: "Squeal at start, poor airflow", cause: "Belt slip; pulley worn", fix: "Replace belt, inspect pulley; verify amps", technician: "Devon Price", approved: true },
 ];
 
+// =============================================================================
+// Initial diagnostic session for the verified Goodman scenario
+// =============================================================================
 export const DIAG_SESSION_ID = "ds-j1";
 export const INITIAL_DIAG: DiagnosticSession = {
-  id: DIAG_SESSION_ID,
-  jobId: "j-1",
-  templateId: "no-cooling-v1",
-  currentStepId: "A",
-  results: [],
-  measurements: [],
+  id: DIAG_SESSION_ID, jobId: "j-1", templateId: "no-cooling-v1",
+  currentStepId: "A", results: [], measurements: [],
+  visitedStepIds: ["A"], invalidatedStepIds: [],
 };
 
-export { goodmanPdfSource, goodmanProductSource };
+// =============================================================================
+// Scenario index — used by the technician Scenario selector
+// =============================================================================
+export interface ScenarioDef {
+  id: string;
+  title: string;
+  systemType: string;
+  complaint: string;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  estMinutes: number;
+  skills: string[];
+  jobId: string;
+  equipmentId?: string;
+  verified: boolean;
+}
+export const SCENARIOS: ScenarioDef[] = (() => {
+  // Pick deterministic seeded jobs for each scenario based on the system templates
+  const find = (configMatch: (s: SystemRecord) => boolean): { jobId: string; equipmentId?: string } => {
+    const sys = SYSTEMS.find(configMatch);
+    if (!sys) return { jobId: "j-1", equipmentId: "eq-1" };
+    const job = JOBS.find((j) => j.systemId === sys.id) ?? JOBS[1];
+    return { jobId: job.id, equipmentId: job.equipmentId };
+  };
+  return [
+    { id: "sc-1", title: "Split AC — No Cooling (verified Goodman)", systemType: "Straight-Cool Split + Air Handler", complaint: "No cooling. System runs but blowing warm.", difficulty: "Beginner", estMinutes: 12, skills: ["Equipment ID","Specification search","Capacitor tolerance","Customer approval"], jobId: "j-1", equipmentId: "eq-1", verified: true },
+    { id: "sc-2", title: "Gas Furnace — No Heat", systemType: "Central Split AC + Gas Furnace", complaint: "Furnace ignition failure.", difficulty: "Intermediate", estMinutes: 15, skills: ["Sequence of operation","Safety escalation","Documentation"], ...find((s) => s.configuration === "Central Split AC + Gas Furnace"), verified: false },
+    { id: "sc-3", title: "Heat Pump — Weak Heating", systemType: "Split Heat Pump + Air Handler", complaint: "Heating not keeping up; aux running constantly.", difficulty: "Intermediate", estMinutes: 14, skills: ["Outdoor/indoor relationship","Aux heat","Defrost observation"], ...find((s) => s.configuration === "Split Heat Pump + Air Handler"), verified: false },
+    { id: "sc-4", title: "Mini-Split — Water Leak", systemType: "Single-Zone Mini-Split", complaint: "Water dripping from indoor head.", difficulty: "Beginner", estMinutes: 10, skills: ["Photo documentation","Condensate path","Customer explanation"], ...find((s) => s.configuration === "Single-Zone Mini-Split"), verified: false },
+    { id: "sc-5", title: "Package Unit — No Cooling", systemType: "Packaged Gas/Electric", complaint: "Package unit not cooling; part needed not on truck.", difficulty: "Intermediate", estMinutes: 16, skills: ["Packaged ID","Pause for parts","Follow-up scheduling"], ...find((s) => s.configuration === "Packaged Gas/Electric"), verified: false },
+    { id: "sc-6", title: "Commercial RTU — Maintenance", systemType: "Light-Commercial RTU", complaint: "Quarterly preventive maintenance.", difficulty: "Advanced", estMinutes: 25, skills: ["Multi-section checklist","Before/after photos","Multiple units per property"], ...find((s) => s.configuration === "Light-Commercial RTU"), verified: false },
+  ];
+})();

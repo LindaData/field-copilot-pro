@@ -1,114 +1,89 @@
-# Make All Demo Filters Functional and Data-Driven
+## Goal
+Replace the current 10-customer Cape Coral demo with a deterministic Carolina Comfort HVAC dataset large enough to exercise every filter, dashboard, search, timeline, report, and equipment history — while preserving the existing UI, routes, and the source-verified Goodman GSXN3 example.
 
-Goal: every filter chip in the app must change the data shown — metrics, charts, tables, drill-downs, and exports — all driven from a single shared filtering + aggregation layer over deterministic seed data.
+## What changes
 
-## Approach
+### 1. Demo identity
+- Rename company to **Carolina Comfort HVAC** with Charlotte-area service area (Charlotte, Matthews, Pineville, Huntersville, Concord, Gastonia, Belmont, Indian Trail).
+- Add a small "Fictional demo data" banner badge to customer / property / equipment cards so it is clear these are demo records.
 
-One **shared filter object** (`JobFilters`) → one **aggregator** (`computeMetrics(filteredJobs, ctx)`) → every card, chart, table, and export reads from the same result. Pages do not compute their own totals.
+### 2. Data model additions (`src/lib/types.ts`)
+- `System` (new) — groups equipment into one HVAC system per property:
+  - `id, propertyId, customerId, nickname, configuration` (one of the 10 system types), `serviceClass: "Residential" | "Light Commercial"`, `fuelType`, `equipmentIds[]`, `accessoryIds[]`, `notes`.
+- `Equipment` gains: `systemId`, `parentEquipmentId`, `role` ("Outdoor" | "Indoor" | "Furnace" | "Air Handler" | "Coil" | "Thermostat" | "Accessory" | "Packaged"), `category` ("AC" | "Heat Pump" | "Gas Furnace" | "Air Handler" | "Mini-Split Indoor" | "Mini-Split Outdoor" | "Package Gas/Electric" | "Package Heat Pump" | "RTU" | "Thermostat" | "Dehumidifier" | …), `fuelType`, `verificationStatus` ("Manufacturer Verified" | "Fictional Demo Data" | "Verification Required"), `nameplatePhotoId?`.
+- `Property` gains: `propertyType` ("Single-family" | "Townhome" | "Condo" | "Retail" | "Office" | "Restaurant" | "Warehouse" | "Multi-unit"), `serviceClass`, `parkingNotes`, `pets`, `commPreference`, `warrantyActive`, `gateCode` (role-gated in UI).
+- `Job` gains: `systemId?`, derived `isCommercial`, plus new statuses (`Unassigned`, `Near Destination`, `Repairing`, `Verifying`, `Documentation`, `Cancelled`).
+- New `Photo`, `CustomerFeedback`, `TechFeedback`, `ServiceReport` collections (small fields, no binary data — photo entries reference colored placeholder swatches).
+- `Spec.source.kind` extended with the required source classifications. Verified specs **only** allowed when `verificationStatus === "Manufacturer Verified"`. The existing Goodman GSXN3 is the only `Manufacturer Verified` record; everything else is `Fictional Demo Data` with `"Specification not yet verified"` shown instead of fabricated numeric values.
 
-## Phase F1 — Seed data expansion (deterministic)
+### 3. Deterministic seed generator (`src/lib/seed.ts`)
+- Rewrite as a pure, deterministic generator (seeded PRNG with fixed seed) producing the target volumes:
+  - 8 techs, 2 service managers, 2 office users.
+  - 40 customers / 48 properties / 65 systems / ~100 equipment components / ~140 jobs (100 completed, 12 scheduled, 8 waiting-for-parts, 5 waiting-for-approval, 8 callbacks, 5 cancelled, 12 warranty, 20 maintenance-plan customers).
+  - 35 parts, 25 part requests, 45 reports, 30 authorizations, 75 photos, 40 customer feedback, ~25 tech feedback, 15 knowledge cases, 20 documents.
+- Dates are computed relative to "today" using a deterministic offset table covering today, yesterday, this/last week, this/last month, this/last quarter, this/last year, future scheduled — including records that straddle month/quarter/year boundaries.
+- Every job carries the seeded financial + timing fields the metrics layer already reads (`revenue, partsCost, laborCost, travelMin, diagnosticMin, activeLaborMin, pausedMin, firstTimeFix, isCallback, rating`).
+- Tech-level distributions are intentionally varied so the technician filter changes counts, revenue, FTF, and callback rate.
 
-Expand `src/lib/seed.ts` so filters produce visibly different results. Keep IDs stable for Reset Demo determinism.
+### 4. Common system templates
+Each of the 10 system types from the brief has a template that places the correct child equipment under one `System` record (e.g., dual-fuel = heat pump outdoor + gas furnace + indoor coil + thermostat; multi-zone ductless = 1 outdoor + 2–4 heads). Accessory equipment (dehumidifier, UV, ERV, smart thermostat, zoning panel, condensate pump, …) attaches to the parent system, not as standalone systems.
 
-- **3 technicians**: Alex Reed, Jordan Park, Sam Diaz (+ 1 inactive: Pat Lowry with historical jobs only).
-- **~30 jobs across ~90 days**, spread across statuses (Scheduled, En Route, On Site, Diagnosing, Waiting for Approval, Waiting for Parts, Completed, Follow-Up).
-- New `Job` fields: `jobType` ("Repair" | "Maintenance" | "Install" | "Inspection" | "Warranty"), `serviceCategory` ("No Cooling" | "No Heat" | "Leak" | "Noise" | "Tune-Up" | "Install"), `billingType` ("Billable" | "Warranty" | "Maintenance Plan"), `isCallback: boolean`, `originalJobId?`, `revenue`, `partsCost`, `laborCost`, `travelMinutes`, `diagnosticMinutes`, `activeLaborMinutes`, `pausedMinutes`, `totalDurationMinutes`, `rating?` (1-5), `estimateApproved?: boolean`, `firstTimeFix: boolean`.
-- **~10 customers** across **4 cities** (Cape Coral, Fort Myers, Naples, Bonita Springs), some flagged `maintenancePlan: true`.
-- **Equipment**: 4 brands (Goodman, Trane, Carrier, Lennox), 3 types (Heat Pump, AC, Furnace).
-- **Parts usage** records distributed across jobs (capacitor, contactor, TXV, blower motor) including 2 "parts-related return visits".
-- All numbers chosen so totals are non-trivial and filterable subsets are still non-empty.
+### 5. Verified-vs-fictional rendering (`src/pages/technician/EquipmentProfile.tsx`, owner equipment views, `src/components/answers/AnswerCard.tsx`)
+- Add a `<VerificationBadge>` chip that renders the source classification.
+- For non-verified equipment: spec rows render `"Specification not yet verified"` and a "Request verification" button instead of fabricated values; the resolver already abstains, but UI copy and chips will make the distinction obvious.
 
-## Phase F2 — Filter model expansion
+### 6. Filter expansion (`src/lib/filters.ts`, `src/components/owner/FilterBar.tsx`)
+- Add filter fields: `systemConfigurations[]`, `equipmentCategories[]`, `fuelTypes[]`, `serviceClass` (Residential / Light Commercial), `warrantyOnly`, `firstVisitOnly` (i.e., not callback).
+- Wire each into `applyJobFilters` (AND logic with the existing filters).
+- Add chips and "Clear all".
 
-Extend `src/lib/filters.ts`:
+### 7. Metrics + drilldown (`src/lib/metrics.ts`, `OwnerDashboard.tsx`, `OwnerJobs.tsx`, `OwnerEquipment.tsx`, `OwnerCustomers.tsx`)
+- Already aggregates from filtered jobs; extend with `avgEquipmentAge`, residential vs. commercial split, and brand failure summary so the new filters visibly move charts.
+- Each KPI card links to `/owner/jobs` with the matching filter applied (drilldown counts == card counts).
 
-- Add to `JobFilters`: `serviceCategories[]`, `equipmentTypes[]`, `cities[]`, `billingTypes[]`, `callbackOnly?: "first-visit"|"callback"|null`, `maintenancePlanOnly?: boolean`, `revenueMin?`, `revenueMax?`.
-- Add `"last-quarter"` and `"last-year"` to `RangeKey`; implement bounds.
-- Extend `applyJobFilters` to honor every new field (AND semantics).
-- Add `previousPeriodBounds(filters)` for trend comparisons; return `null` when prior period has < N matching jobs → "Not enough comparison data."
-- Add `activeFilterCount` + `summarize` updates.
+### 8. Scenario selector (`src/pages/technician/Scenarios.tsx`, new route under technician shell)
+- Large cards for the 6 required scenarios. Each card shows system type, complaint, difficulty, est. time, primary skills, and a "Start scenario" button that:
+  - Opens the seeded job and equipment for that scenario.
+  - Resets the diagnostic session for that job to step A so the demo always starts clean.
+- Scenarios 2–6 use fictional demo equipment with `verificationStatus = "Fictional Demo Data"`; the prompts and AnswerCard already refuse to fabricate specs.
+- Add link from technician More.
 
-## Phase F3 — Shared metrics aggregator
+### 9. Search (`src/pages/technician/EquipmentSearch.tsx` if present, otherwise extend equipment list page)
+- Index by customer name, address, property nickname, manufacturer, model, serial, system nickname, category, job number, technician, seeded error codes, installed parts. Results derive from real records only.
 
-New `src/lib/metrics.ts`:
+### 10. Reset demo
+- `Reset Demo` already calls `setStateRaw(initialState())`. Add a confirmation dialog and explicit checklist of what's restored (records, diagnostic sessions, metrics, filters, inventory, statuses, approvals, feedback, reports). Filters are reset via the `useJobFilters` hook by clearing `sessionStorage` keys with `filters:` prefix.
 
-```ts
-computeMetrics(jobs: Job[], ctx): {
-  openJobs, completed, scheduled,
-  revenue, grossProfit, grossMargin, avgTicket,
-  firstTimeFixRate, callbackRate,
-  avgTravelMin, avgDiagnosticMin, avgActiveLaborMin, avgTotalDurationMin, pausedMin,
-  techUtilization,        // active / (active+paused+travel)
-  estimateApprovalRate,
-  partsUsage: { partId, name, count, jobIds }[],
-  partsReturnVisits,
-  failureTypes: { category, count }[],
-  brandsServiced: { brand, count }[],
-  ratings: { avg, count, dist },
-  estimatedSavings,
-  byTech: Record<techId, {...subset}>,
-  byDay: { date, revenue, jobs }[],   // for charts
-  byStatus: Record<JobStatus, number>,
-}
-```
+### 11. Performance
+- Keep `useMemo` aggregation already in place.
+- Add list pagination (50 per page) on `OwnerJobs`, `OwnerEquipment`, `OwnerCustomers`.
+- Lazy-mount the Recharts panels behind the same filter memo.
+- Search input debounced 200 ms.
 
-Plus `computeTrend(current, previous)` returning `{ delta, pct, hasComparison }`.
+### 12. Self-test (`src/lib/qa/registry.ts`)
+- Add deterministic filter validation tests:
+  - Each tech returns ≠ counts.
+  - Each date preset changes ≥ 1 KPI.
+  - Every represented brand returns ≥ 1 equipment.
+  - Every system configuration returns ≥ 1 equipment.
+  - "Waiting for Parts" returns exactly the seeded part-delay jobs.
+  - "Callback only" returns only `isCallback === true`.
+  - Residential vs Commercial returns disjoint totals.
+  - Future date range returns scheduled jobs and zero revenue.
+- These run inside the existing QA Center "Run all" button.
 
-## Phase F4 — Owner Dashboard rewrite
-
-`src/pages/owner/OwnerDashboard.tsx`:
-
-- One `useMemo` runs `applyJobFilters` → `computeMetrics`. Every card, chart, list reads from that result.
-- Cards: Open / Completed / Scheduled, Revenue, Gross Profit, Gross Margin, Avg Ticket, First-Time Fix %, Callback %, Avg Travel/Diagnostic/Active Labor/Total Duration, Paused time, Tech Utilization, Estimate Approval %, Parts Return Visits, Avg Rating.
-- Charts (recharts already in deps): Revenue over time (byDay), Jobs by status (bar), Jobs by technician (bar), Failure categories (bar), Brand mix (bar), Rating distribution.
-- Each card/chart bar is a `<Link>` to `/app/owner/jobs?from=metric&...` carrying filters + optional sub-filter (status=Completed, techId=..., partId=...) so drill-down counts match.
-- Trend deltas via `computeTrend`; show "Not enough comparison data" when null.
-- Empty states ("No jobs match these filters") instead of stale numbers.
-
-## Phase F5 — FilterBar upgrades
-
-`src/components/owner/FilterBar.tsx` + new sub-pieces:
-
-- Add MultiCheck instances for Service Category, Equipment Type, City, Billing Type.
-- Add toggles: First-visit/Callback, Maintenance plan only, Open/Completed quick toggles, Waiting-for-parts quick toggle.
-- Add Revenue range inputs (min/max).
-- Active-filter **chips with X to remove each**, plus Clear all + filter count badge.
-- Date range: enforce end ≥ start, show selected range label; include `last-quarter`, `last-year`.
-- **Saved views** (seeded): "My team this week", "Completed this month", "Callbacks last 30 days", "Waiting for parts", "Warranty work". Stored in `localStorage` under `filter-views:owner`.
-- Export button writes CSV including: range, active filters, timestamp, timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`), row count.
-
-## Phase F6 — Wire every other filtered surface
-
-All use the same `useJobFilters` + shared aggregator/filter pipeline; no page does ad-hoc filtering.
-
-- `OwnerJobs.tsx` — FilterBar + filtered table; search runs inside filtered set; sortable columns.
-- `OwnerCustomers.tsx` — customer list filtered by city / maintenance plan / activity in date range.
-- `OwnerEquipment.tsx` — filter by brand / type / city / has-jobs-in-range.
-- `QACenter.tsx` — filter test results by suite/category/status; totals reflect filter.
-- `FieldTest.tsx` — filter feedback by tech, step, rating, date.
-- Technician `Parts.tsx`, `Documents.tsx`, `Knowledge.tsx`, `JobsHome.tsx` — search + category filters update list and counts.
-
-## Phase F7 — State, loading, error, performance
-
-- Filters persist via existing `useJobFilters` (sessionStorage) — confirmed working; extend scopes per page.
-- Drill-down preserves filters via URL search params; back-nav restores them.
-- Add tiny `useDeferredValue` on filter changes so the metrics recompute feels instant but ignores stale closures.
-- Empty + error states standardized in `<EmptyState />` and `<FilterErrorState onRetry />`.
-
-## Phase F8 — Acceptance tests
-
-Add `src/test/filters.test.ts` covering the 25 listed scenarios via the pure `applyJobFilters` + `computeMetrics` functions (no DOM): all/one/multi technician, every date preset, custom ranges crossing month/year, invalid range, status/type/brand/city, combined AND, empty result, callback only, warranty only, etc. Each assertion verifies metric totals, byTech subset sums, and drill-down job-id lists are consistent.
+## Out of scope (kept as-is)
+- Visual design, navigation shell, color tokens.
+- The existing source-verified Goodman GSXN3 entry, its spec sheet links, error codes, BOM, and wiring diagrams.
+- AWS storage wizard, AI guardrails, primary-action engine, signature/approval flows.
 
 ## Technical notes
+- Storage key bumps to `hvac-copilot-store-v5` so existing browsers pull the new seed automatically; old data is discarded.
+- All seeded financials/times are integers picked from a deterministic table (no `Math.random()` at runtime).
+- All identities, addresses, phones, and emails are fictional and clearly marked.
+- No verified manufacturer specifications are generated for any equipment other than the existing Goodman GSXN3.
 
-- Types added/changed in `src/lib/types.ts`: new `Job` fields above; new `Customer.maintenancePlan`, `Customer.city`; `Equipment.type`.
-- All new fields populated in `seed.ts` deterministically (no `Math.random`, no `Date.now`).
-- Store version bumped to `hvac-copilot-store-v4` so existing localStorage clears.
-- No backend changes; all in-memory.
-- Reset Demo (existing in `OwnerMore`) reseeds + clears `filter-views:*` and `filters:*` keys.
-
-## Out of scope
-
-- AWS integration (existing scaffolding untouched).
-- AI/Copilot changes.
-- Visual redesign of dashboard cards beyond what's needed to surface new metrics.
+## Approximate file impact
+- New: `src/lib/systems.ts` (templates), `src/lib/prng.ts` (seeded RNG), `src/pages/technician/Scenarios.tsx`, `src/components/equipment/VerificationBadge.tsx`.
+- Heavily edited: `src/lib/seed.ts`, `src/lib/types.ts`, `src/lib/filters.ts`, `src/components/owner/FilterBar.tsx`, `src/lib/metrics.ts`, `src/pages/owner/*`, `src/pages/technician/EquipmentProfile.tsx`, `src/pages/owner/OwnerMore.tsx`, `src/lib/qa/registry.ts`, `src/lib/store.tsx`.
+- Untouched: shells, routing, AWS wizard, signature pad, approval/report flows, AI guardrail registry.

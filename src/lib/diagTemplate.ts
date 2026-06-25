@@ -79,7 +79,7 @@ export const NO_COOLING: DiagStep[] = [
     risk: "High",
     type: "ack-electrical",
     hypothesis: "Compressor not energizing",
-    sources: [{ kind: "company_sop", title: "Caloosa Cooling — Electrical Safety SOP", ref: "§2.1" }],
+    sources: [{ kind: "company_sop", title: "Carolina Comfort HVAC — Electrical Safety SOP", ref: "§2.1" }],
   },
   {
     id: "E",
@@ -185,7 +185,7 @@ export const NO_COOLING: DiagStep[] = [
     risk: "Medium",
     type: "choice",
     hypothesis: "Replace dual-run capacitor",
-    sources: [{ kind: "company_sop", title: "Caloosa Cooling — Capacitor Replacement SOP" }],
+    sources: [{ kind: "company_sop", title: "Carolina Comfort HVAC — Capacitor Replacement SOP" }],
     choices: [
       { id: "approval", label: "Open customer approval", nextStepId: "APPROVAL" },
       { id: "skip", label: "Skip approval — continue to verification", nextStepId: "M" },
