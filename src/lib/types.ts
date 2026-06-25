@@ -51,6 +51,12 @@ export interface Job {
   scheduledFor: string; // ISO
   priority: "Low" | "Normal" | "High";
   notes?: string;
+  travelStartedAt?: string;
+  arrivedAt?: string;
+  diagnosisStartedAt?: string;
+  pausedAt?: string;
+  pausedMs?: number;
+  completedAt?: string;
 }
 
 export interface Measurement {
