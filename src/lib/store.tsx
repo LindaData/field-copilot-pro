@@ -138,6 +138,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })),
     toggleOnline: () => setStateRaw((s) => ({ ...s, online: !s.online })),
     markTourSeen: () => setStateRaw((s) => ({ ...s, tourSeen: true })),
+    touchEquipment: (id) => setStateRaw((s) => ({ ...s, recentEquipmentIds: [id, ...(s.recentEquipmentIds ?? []).filter((x) => x !== id)].slice(0, 6) })),
+    removeJobPart: (jobId, partId) => setStateRaw((s) => ({ ...s, jobParts: s.jobParts.filter((x) => !(x.jobId === jobId && x.partId === partId)) })),
   }), [state, setState]);
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;
