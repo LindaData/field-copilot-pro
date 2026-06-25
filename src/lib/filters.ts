@@ -128,7 +128,8 @@ export function applyJobFilters(jobs: Job[], f: JobFilters, ctx: FilterContext):
     if (f.statuses.length && !f.statuses.includes(j.status)) return false;
     if (f.openOnly && !OPEN_STATUSES.includes(j.status)) return false;
     if (f.waitingPartsOnly && j.status !== "Waiting for Parts") return false;
-    if (f.callbackOnly && !j.isCallback) return false;
+    if ((f.visitType === "callback" || f.callbackOnly) && !j.isCallback) return false;
+    if (f.visitType === "first" && j.isCallback) return false;
     const eq = ctx.equipment.find((e) => e.id === j.equipmentId);
     if (f.brands.length && (!eq || !f.brands.includes(eq.manufacturer))) return false;
     if (f.equipmentTypes.length && (!eq?.type || !f.equipmentTypes.includes(eq.type))) return false;
@@ -139,6 +140,10 @@ export function applyJobFilters(jobs: Job[], f: JobFilters, ctx: FilterContext):
     const prop = ctx.properties.find((p) => p.id === j.propertyId);
     const city = cust?.city ?? prop?.city;
     if (f.cities.length && (!city || !f.cities.includes(city))) return false;
+    if (f.serviceClasses.length) {
+      const sc = prop?.serviceClass ?? "Residential";
+      if (!f.serviceClasses.includes(sc as ServiceClassFilter)) return false;
+    }
     if (f.customerIds.length && !f.customerIds.includes(j.customerId)) return false;
     if (f.propertyIds.length && !f.propertyIds.includes(j.propertyId)) return false;
     if (f.maintenancePlanOnly && !cust?.maintenancePlan) return false;
