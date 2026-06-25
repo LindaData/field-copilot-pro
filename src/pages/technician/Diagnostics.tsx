@@ -305,9 +305,23 @@ export default function Diagnostics() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={confirmRestart} onOpenChange={setConfirmRestart}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Restart diagnosis?</DialogTitle></DialogHeader>
+          <div className="text-sm">
+            This will return to step A and clear the current hypothesis. Entered measurements and notes will remain in the job record but the active session pointer will reset. This action cannot be undone.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmRestart(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => { goToStep(job.id, "A"); setConfirmRestart(false); toast("Returned to start"); }}>Restart diagnosis</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function nextStepIdOrSame(s: DiagStep) {
   if (s.choices && s.choices[0]) return s.choices[0].nextStepId;
