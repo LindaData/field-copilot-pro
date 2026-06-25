@@ -34,11 +34,35 @@ export interface Equipment {
 }
 
 export interface Customer { id: string; name: string; phone: string; email?: string; }
-export interface Property { id: string; customerId: string; address: string; accessNotes?: string; }
+export interface Property {
+  id: string; customerId: string; address: string; accessNotes?: string;
+  lat?: number; lng?: number; geofenceRadiusFt?: number;
+}
 
 export type JobStatus =
   | "Scheduled" | "En Route" | "On Site" | "Diagnosing"
   | "Waiting for Approval" | "Waiting for Parts" | "Completed" | "Follow-Up";
+
+export type ArrivalMethod = "gps-detected" | "tech-confirmed" | "manual" | "office-adjusted";
+
+export type PauseReason =
+  | "Lunch / break" | "Waiting for customer" | "Waiting for approval"
+  | "Waiting for parts" | "Calling senior technician" | "Researching documentation"
+  | "Equipment inaccessible" | "Weather" | "Other";
+
+export type JobStage = "Travel" | "On Site" | "Diagnosis" | "Repair" | "Documentation";
+
+export interface PauseRecord {
+  id: string;
+  startedAt: string;
+  endedAt?: string;
+  reason: PauseReason;
+  notes?: string;
+  stage: JobStage;
+  userId: string;
+  billable?: boolean;
+  locationStatus?: string;
+}
 
 export interface Job {
   id: string;
@@ -53,9 +77,13 @@ export interface Job {
   notes?: string;
   travelStartedAt?: string;
   arrivedAt?: string;
+  arrivalMethod?: ArrivalMethod;
+  arrivalDetectedAt?: string;
   diagnosisStartedAt?: string;
+  /** legacy single-pause fields. New code uses pauses[]. */
   pausedAt?: string;
   pausedMs?: number;
+  pauses?: PauseRecord[];
   completedAt?: string;
 }
 
@@ -81,6 +109,8 @@ export interface DiagStepResult {
   notes?: string;
 }
 
+export type DiagStepStatus = "complete" | "current" | "skipped" | "needs-review" | "pending";
+
 export interface DiagnosticSession {
   id: string;
   jobId: string;
@@ -91,6 +121,34 @@ export interface DiagnosticSession {
   hypothesis?: string;
   confidence?: "Low" | "Medium" | "High";
   completed?: boolean;
+  visitedStepIds?: string[];
+  invalidatedStepIds?: string[];
+}
+
+export type PartRequestStatus =
+  | "Identification Needed" | "Compatibility Review" | "Requested"
+  | "Approved" | "Ordered" | "Available at Warehouse"
+  | "Assigned to Technician" | "Installed" | "Cancelled";
+
+export interface PartRequest {
+  id: string;
+  jobId: string;
+  customerId: string;
+  equipmentId?: string;
+  technicianId: string;
+  name: string;
+  partNumber?: string;
+  equipmentModel?: string;
+  specs?: string;
+  qty: number;
+  urgency: "Low" | "Normal" | "High" | "Critical";
+  supplier?: string;
+  photoDataUrl?: string;
+  notes?: string;
+  compatibility: "Unknown" | "Likely" | "Verified by qualified user";
+  status: PartRequestStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Part {
