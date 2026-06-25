@@ -80,9 +80,9 @@ export const TESTS: TestDef[] = [
     expected: "Within range 4.7–5.3 µF",
     run: () => {
       const r = checkTolerance(4.9, 5, 6);
-      return r.ok && r.low === 4.7 && r.high === 5.3 ? pass(`4.9 µF in ${r.low}–${r.high}`) : fail(JSON.stringify(r)),
+      return r.ok && r.low === 4.7 && r.high === 5.3 ? pass(`4.9 µF in ${r.low}–${r.high}`) : fail(JSON.stringify(r));
     },
-  } as TestDef,
+  },
   {
     id: "DIA-A3", category: "Diagnostics", severity: "P2", kind: "automated",
     scenario: "Scenario A — 229 V within approved 197–253 V range",
