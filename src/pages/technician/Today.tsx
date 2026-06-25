@@ -196,12 +196,28 @@ export default function Today() {
       {/* ONE primary action */}
       <PrimaryCta action={action} />
 
-      {/* Today's schedule — all jobs */}
-      {myJobs.length > 0 && (
+      {/* Range selector */}
+      <div className="flex items-center gap-1 rounded-md border bg-card p-1">
+        {(["day", "week", "month", "all"] as const).map((r) => (
+          <button
+            key={r}
+            onClick={() => setRange(r)}
+            className={cn(
+              "touch-target flex-1 whitespace-nowrap rounded px-2 text-xs font-medium",
+              range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+            )}
+          >
+            {RANGE_LABEL[r]}
+          </button>
+        ))}
+      </div>
+
+      {/* Schedule — scoped to range */}
+      {myJobs.length > 0 ? (
         <section>
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Today's schedule ({myJobs.length})
+              {RANGE_LABEL[range]} ({myJobs.length})
             </div>
             <Link to="/app/jobs" className="text-[11px] font-medium text-primary">View all</Link>
           </div>
@@ -213,6 +229,7 @@ export default function Today() {
                 const p = propertyOf(j.propertyId);
                 const isCurrent = current?.id === j.id;
                 const done = j.status === "Completed";
+                const when = new Date(j.scheduledFor);
                 return (
                   <Link
                     key={j.id}
@@ -223,9 +240,12 @@ export default function Today() {
                       done && "opacity-60",
                     )}
                   >
-                    <div className="w-14 shrink-0 text-center">
+                    <div className="w-16 shrink-0 text-center">
+                      <div className="text-[10px] font-semibold uppercase leading-tight text-muted-foreground">
+                        {when.toLocaleDateString([], { month: "short", day: "numeric" })}
+                      </div>
                       <div className="text-sm font-semibold leading-tight">
-                        {new Date(j.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        {when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                       </div>
                     </div>
                     <div className="min-w-0 flex-1">
@@ -246,7 +266,13 @@ export default function Today() {
               })}
           </div>
         </section>
+      ) : (
+        <div className="card-elev p-4 text-center text-sm text-muted-foreground">
+          No jobs scheduled in {RANGE_LABEL[range].toLowerCase()}.
+        </div>
       )}
+
+
 
       {/* Quick links — secondary */}
       <div className="grid grid-cols-2 gap-2">
