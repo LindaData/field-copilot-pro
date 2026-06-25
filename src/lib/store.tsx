@@ -7,7 +7,7 @@ import type {
   SystemRecord, UserProfile,
 } from "./types";
 
-const KEY = "hvac-copilot-store-v7";
+const KEY = "hvac-copilot-store-v8";
 
 type Role = "guest-tech" | "guest-owner" | "user";
 
@@ -100,7 +100,9 @@ interface Ctx {
   // AI feedback
   addAiFeedback: (fb: AiFeedback) => void;
   markAiFeedbackReviewed: (id: string, reviewed: boolean) => void;
+  updateCompany: (patch: Partial<Company>) => void;
 }
+
 
 const StoreCtx = createContext<Ctx | null>(null);
 
@@ -235,6 +237,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })),
     addAiFeedback: (fb) => setStateRaw((s) => ({ ...s, aiFeedback: [fb, ...(s.aiFeedback ?? [])] })),
     markAiFeedbackReviewed: (id, reviewed) => setStateRaw((s) => ({ ...s, aiFeedback: (s.aiFeedback ?? []).map((f) => f.id === id ? { ...f, reviewed } : f) })),
+    updateCompany: (patch) => setStateRaw((s) => ({ ...s, company: { ...s.company, ...patch } })),
+
   }), [state, setState]);
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;

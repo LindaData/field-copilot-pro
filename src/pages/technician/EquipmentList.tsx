@@ -60,7 +60,7 @@ export default function EquipmentList() {
                 <div>Verified specs <span className="text-foreground">{verifiedCount}</span></div>
                 {lastService && <div>Last service <span className="text-foreground">{lastService}</span></div>}
                 <div>Warranty <span className="text-foreground">{warranty}</span></div>
-                {openJob && <div className="col-span-2 text-warning">Open issue: {openJob.title}</div>}
+                {openJob && <div className="col-span-2 text-warning">Open issue: {openJob.complaint}</div>}
               </div>
 
               <div className="flex flex-wrap gap-1.5">
