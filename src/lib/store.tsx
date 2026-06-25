@@ -4,10 +4,10 @@ import type {
   AiFeedback, ArrivalMethod, Authorization, Company, Customer, DiagnosticSession, DiagStepResult,
   DocItem, Equipment, Job, JobPart, JobStage, JobStatus, KnowledgeCase, Measurement,
   PartRequest, PartRequestStatus, Part, PauseRecord, PauseReason, Property,
-  UserProfile,
+  SystemRecord, UserProfile,
 } from "./types";
 
-const KEY = "hvac-copilot-store-v4";
+const KEY = "hvac-copilot-store-v5";
 
 type Role = "guest-tech" | "guest-owner" | "user";
 
@@ -18,6 +18,7 @@ export interface StoreState {
   role: Role;
   customers: Customer[];
   properties: Property[];
+  systems: SystemRecord[];
   equipment: Equipment[];
   jobs: Job[];
   parts: Part[];
@@ -31,6 +32,10 @@ export interface StoreState {
   tourSeen: boolean;
   recentEquipmentIds: string[];
   aiFeedback: AiFeedback[];
+  customerFeedback: import("./types").CustomerFeedback[];
+  techFeedback: import("./types").TechFeedback[];
+  serviceReports: import("./types").ServiceReport[];
+  photos: import("./types").Photo[];
 }
 
 const initialState = (): StoreState => ({
@@ -40,11 +45,12 @@ const initialState = (): StoreState => ({
   role: "guest-tech",
   customers: seed.CUSTOMERS,
   properties: seed.PROPERTIES,
+  systems: seed.SYSTEMS,
   equipment: seed.EQUIPMENT,
   jobs: seed.JOBS,
   parts: seed.PARTS,
   jobParts: seed.JOB_PARTS,
-  partRequests: [],
+  partRequests: seed.PART_REQUESTS,
   auths: seed.AUTHORIZATIONS,
   docs: seed.DOCS,
   knowledge: seed.KNOWLEDGE,
@@ -53,6 +59,10 @@ const initialState = (): StoreState => ({
   tourSeen: false,
   recentEquipmentIds: ["eq-1"],
   aiFeedback: [],
+  customerFeedback: seed.CUSTOMER_FEEDBACK,
+  techFeedback: seed.TECH_FEEDBACK,
+  serviceReports: seed.SERVICE_REPORTS,
+  photos: seed.PHOTOS,
 });
 
 interface Ctx {

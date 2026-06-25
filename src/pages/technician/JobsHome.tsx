@@ -9,14 +9,22 @@ import { cn } from "@/lib/utils";
 import type { JobStatus } from "@/lib/types";
 
 const statusColor: Record<JobStatus, string> = {
+  "Unassigned": "bg-muted text-muted-foreground",
   "Scheduled": "bg-secondary text-secondary-foreground",
   "En Route": "bg-info text-info-foreground",
+  "Near Destination": "bg-info/70 text-info-foreground",
   "On Site": "bg-accent text-accent-foreground",
   "Diagnosing": "bg-primary text-primary-foreground",
+  "Paused": "bg-muted text-foreground",
+  "Waiting for Customer": "bg-warning/40 text-warning-foreground",
   "Waiting for Approval": "bg-warning text-warning-foreground",
   "Waiting for Parts": "bg-warning/60 text-warning-foreground",
+  "Repairing": "bg-primary/70 text-primary-foreground",
+  "Verifying": "bg-primary/50 text-primary-foreground",
+  "Documentation": "bg-secondary text-secondary-foreground",
   "Completed": "bg-success text-success-foreground",
   "Follow-Up": "bg-muted text-foreground",
+  "Cancelled": "bg-destructive/20 text-destructive",
 };
 
 const priorityColor = { Low: "text-muted-foreground", Normal: "text-foreground", High: "text-destructive" } as const;

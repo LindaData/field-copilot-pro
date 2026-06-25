@@ -4,10 +4,12 @@ import { cn } from "@/lib/utils";
 
 const meta: Record<SourceKind, { label: string; icon: typeof ShieldCheck; classes: string }> = {
   manufacturer_verified: { label: "Manufacturer verified", icon: ShieldCheck, classes: "bg-success/15 text-success border-success/30" },
-  company_sop: { label: "Company SOP", icon: FileText, classes: "bg-info/15 text-info border-info/30" },
-  prior_job: { label: "Prior job evidence", icon: History, classes: "bg-primary/10 text-primary border-primary/20" },
+  company_sop: { label: "Approved company SOP", icon: FileText, classes: "bg-info/15 text-info border-info/30" },
+  prior_job: { label: "Prior demo job", icon: History, classes: "bg-primary/10 text-primary border-primary/20" },
   technician_observation: { label: "Technician observation", icon: Eye, classes: "bg-accent/20 text-accent-foreground border-accent/40" },
   demo_inference: { label: "Demo inference — verify before use", icon: AlertTriangle, classes: "bg-destructive/10 text-destructive border-destructive/30" },
+  fictional_demo: { label: "Fictional demo data", icon: AlertTriangle, classes: "bg-muted text-muted-foreground border-border" },
+  verification_required: { label: "Verification required", icon: AlertTriangle, classes: "bg-warning/15 text-warning-foreground border-warning/40" },
 };
 
 export function SourceBadge({ source, compact = false }: { source: Source; compact?: boolean }) {
