@@ -37,11 +37,38 @@ const companySopSource = {
 // =============================================================================
 export const COMPANY: Company = {
   name: "Caloosa Cooling",
-  phone: "(239) 555-0144",
-  address: "1820 Cleveland Ave, Fort Myers, FL 33901",
+  phone: "239-226-0202",
+  address: "14241 Jetport Loop, Unit #1, Fort Myers, FL 33913",
   laborRate: 145,
   tax: 6.5,
+  establishedYear: 2001,
+  weekdayHours: "7:00 a.m.–9:00 p.m.",
+  weekendHours: "8:00 a.m.–9:00 p.m.",
+  services: [
+    "Air-conditioning repair",
+    "Air-conditioning installation and replacement",
+    "Air-conditioning maintenance",
+    "Heat pumps",
+    "Ductless mini-splits",
+    "Heating service",
+    "Indoor-air-quality services",
+    "Electrical services",
+    "Generator installation",
+    "Commercial HVAC",
+    "Rooftop HVAC",
+    "Cooling towers",
+    "New construction",
+    "Custom ductwork",
+  ],
+  serviceAreas: [
+    "Fort Myers",
+    "Lee County",
+    "Charlotte County",
+    "Collier County",
+    "Southwest Florida",
+  ],
 };
+
 
 // =============================================================================
 // Users (1 owner + 2 service managers + 8 technicians + 2 office = 13)
