@@ -78,7 +78,7 @@ const FIRST = ["Linda","Marcus","Priya","Tom","Janet","Aiden","Sofia","Eli","May
 const LAST = ["Hayes","Greene","Shah","Whitmore","Kim","Robinson","Patel","Nguyen","Cole","Reyes","Brown","Sanders","Jones","Carter","Foster","Walker","Bennett","Hughes","Reid","Hall","Wright","Russell","Sullivan","Cox","Murphy","Bell","Wood","Ross","Howard","Bailey"];
 const BUSINESS = [
   "Westview Apartments", "Rivertown Cafe", "Coastal Dental", "Banyan Bay HOA",
-  "Sunset Storage", "Queens Boulevard Diner", "Carolina Auto Care",
+  "Sunset Storage", "Cleveland Ave Diner", "Gulf Coast Auto Care",
   "Piedmont Pediatrics", "Charlotte Pet Lodge",
 ];
 
