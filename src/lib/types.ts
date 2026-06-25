@@ -336,6 +336,8 @@ export interface UserProfile {
   id: string;
   name: string;
   role: "Owner" | "ServiceManager" | "SeniorTech" | "Technician" | "Office";
+  /** Full job title shown on profile and detail screens (e.g. "Co-Owner & General Manager"). */
+  fullTitle?: string;
   avatarColor: string;
   active?: boolean;
 }

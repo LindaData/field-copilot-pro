@@ -47,7 +47,7 @@ export const COMPANY: Company = {
 // Users (1 owner + 2 service managers + 8 technicians + 2 office = 13)
 // =============================================================================
 export const USERS: UserProfile[] = [
-  { id: "u-owner", name: "Mike Torres", role: "Owner", avatarColor: "bg-amber-500", active: true },
+  { id: "u-owner", name: "Luis Gomez", role: "Owner", fullTitle: "Co-Owner & General Manager", avatarColor: "bg-amber-500", active: true },
   { id: "u-sm1", name: "Dana Whitfield", role: "ServiceManager", avatarColor: "bg-fuchsia-600", active: true },
   { id: "u-sm2", name: "Priya Banerjee", role: "ServiceManager", avatarColor: "bg-purple-600", active: true },
   { id: "u-alex", name: "Alex Reed", role: "SeniorTech", avatarColor: "bg-blue-600", active: true },
