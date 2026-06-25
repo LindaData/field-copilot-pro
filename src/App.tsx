@@ -67,16 +67,13 @@ const App = () => (
               <Route path="more" element={<More />} />
               <Route path="field-test" element={<FieldTest />} />
             </Route>
-            <Route path="/app/owner/qa" element={<OwnerShell />}>
-              <Route index element={<QACenter />} />
-            </Route>
-            </Route>
 
             <Route path="/app/owner" element={<OwnerShell />}>
               <Route index element={<OwnerDashboard />} />
               <Route path="jobs" element={<OwnerJobs />} />
               <Route path="customers" element={<OwnerCustomers />} />
               <Route path="equipment" element={<OwnerEquipment />} />
+              <Route path="qa" element={<QACenter />} />
               <Route path="more" element={<OwnerMore />} />
             </Route>
 
