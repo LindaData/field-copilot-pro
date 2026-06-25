@@ -185,12 +185,15 @@ export function buildChips(
   f.serviceCategories.forEach((s) => mk(`cat:${s}`, `Category: ${s}`, () => patch({ serviceCategories: f.serviceCategories.filter((x) => x !== s) })));
   f.billingTypes.forEach((s) => mk(`bill:${s}`, `Billing: ${s}`, () => patch({ billingTypes: f.billingTypes.filter((x) => x !== s) })));
   f.equipmentTypes.forEach((s) => mk(`eqt:${s}`, `Equipment: ${s}`, () => patch({ equipmentTypes: f.equipmentTypes.filter((x) => x !== s) })));
+  f.serviceClasses.forEach((s) => mk(`sc:${s}`, `Class: ${s}`, () => patch({ serviceClasses: f.serviceClasses.filter((x) => x !== s) })));
   f.cities.forEach((s) => mk(`city:${s}`, `City: ${s}`, () => patch({ cities: f.cities.filter((x) => x !== s) })));
   f.customerIds.forEach((id) => {
     const name = ctx.customers.find((c) => c.id === id)?.name ?? id;
     mk(`cust:${id}`, `Customer: ${name}`, () => patch({ customerIds: f.customerIds.filter((x) => x !== id) }));
   });
-  if (f.callbackOnly) mk("callback", "Callbacks only", () => patch({ callbackOnly: false }));
+  if (f.visitType === "callback") mk("vt", "Callbacks only", () => patch({ visitType: undefined }));
+  else if (f.visitType === "first") mk("vt", "First visits only", () => patch({ visitType: undefined }));
+  if (f.callbackOnly && f.visitType !== "callback") mk("callback", "Callbacks only", () => patch({ callbackOnly: false }));
   if (f.openOnly) mk("open", "Open only", () => patch({ openOnly: false }));
   if (f.waitingPartsOnly) mk("wparts", "Waiting for parts", () => patch({ waitingPartsOnly: false }));
   if (f.maintenancePlanOnly) mk("mp", "Maintenance plan", () => patch({ maintenancePlanOnly: false }));
