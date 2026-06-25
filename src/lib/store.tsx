@@ -26,6 +26,7 @@ interface StoreState {
   diag: Record<string, DiagnosticSession>; // by jobId
   online: boolean;
   tourSeen: boolean;
+  recentEquipmentIds: string[];
 }
 
 const initialState = (): StoreState => ({
@@ -45,6 +46,7 @@ const initialState = (): StoreState => ({
   diag: { "j-1": seed.INITIAL_DIAG },
   online: true,
   tourSeen: false,
+  recentEquipmentIds: ["eq-1"],
 });
 
 interface Ctx {
