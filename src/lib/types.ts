@@ -13,7 +13,9 @@ export type VerificationStatus =
   | "Technician Observation"
   | "Prior Demo Job"
   | "Fictional Demo Data"
+  | "Demo Equipment — Specifications Not Verified"
   | "Verification Required";
+
 
 
 export interface Source {
