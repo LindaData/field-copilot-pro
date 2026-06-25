@@ -29,22 +29,37 @@ const statusColor: Record<JobStatus, string> = {
 
 const priorityColor = { Low: "text-muted-foreground", Normal: "text-foreground", High: "text-destructive" } as const;
 
+type RangeKey = "today" | "week" | "month" | "all";
+
+function inRange(d: Date, range: RangeKey): boolean {
+  if (range === "all") return true;
+  const now = new Date();
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  if (range === "today") end.setDate(end.getDate() + 1);
+  else if (range === "week") end.setDate(end.getDate() + 7);
+  else end.setMonth(end.getMonth() + 1);
+  return d >= start && d < end;
+}
+
 export default function JobsHome() {
   const { state } = useStore();
   const user = useCurrentUser();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"mine" | "all">("mine");
+  const [range, setRange] = useState<RangeKey>("today");
 
   const jobs = useMemo(() => {
     return state.jobs
       .filter((j) => filter === "all" ? true : j.technicianId === user.id)
+      .filter((j) => inRange(new Date(j.scheduledFor), range))
       .filter((j) => {
         if (!q) return true;
         const c = state.customers.find((c) => c.id === j.customerId);
         return [c?.name, j.complaint, j.status].some((x) => x?.toLowerCase().includes(q.toLowerCase()));
       })
       .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
-  }, [state, user.id, q, filter]);
+  }, [state, user.id, q, filter, range]);
 
   const onSite = jobs.find((j) => j.status === "On Site");
 
