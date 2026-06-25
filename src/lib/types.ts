@@ -88,9 +88,14 @@ export interface AiFeedback {
   reviewed?: boolean;
 }
 
-export interface Customer { id: string; name: string; phone: string; email?: string; }
+export interface Customer {
+  id: string; name: string; phone: string; email?: string;
+  city?: string;
+  maintenancePlan?: boolean;
+}
 export interface Property {
   id: string; customerId: string; address: string; accessNotes?: string;
+  city?: string;
   lat?: number; lng?: number; geofenceRadiusFt?: number;
 }
 
@@ -119,6 +124,10 @@ export interface PauseRecord {
   locationStatus?: string;
 }
 
+export type JobType = "Repair" | "Maintenance" | "Install" | "Inspection" | "Warranty";
+export type ServiceCategory = "No Cooling" | "No Heat" | "Leak" | "Noise" | "Tune-Up" | "Install" | "Thermostat" | "Other";
+export type BillingType = "Billable" | "Warranty" | "Maintenance Plan";
+
 export interface Job {
   id: string;
   customerId: string;
@@ -140,6 +149,23 @@ export interface Job {
   pausedMs?: number;
   pauses?: PauseRecord[];
   completedAt?: string;
+  // ---- demo metrics (seeded; written by future real flows) ----
+  jobType?: JobType;
+  serviceCategory?: ServiceCategory;
+  billingType?: BillingType;
+  isCallback?: boolean;
+  originalJobId?: string;
+  firstTimeFix?: boolean;
+  estimateApproved?: boolean;
+  rating?: 1 | 2 | 3 | 4 | 5;
+  revenue?: number;
+  partsCost?: number;
+  laborCost?: number;
+  travelMinutes?: number;
+  diagnosticMinutes?: number;
+  activeLaborMinutes?: number;
+  pausedMinutes?: number;
+  totalDurationMinutes?: number;
 }
 
 export interface Measurement {
@@ -259,6 +285,7 @@ export interface UserProfile {
   name: string;
   role: "Owner" | "ServiceManager" | "SeniorTech" | "Technician" | "Office";
   avatarColor: string;
+  active?: boolean;
 }
 
 export interface Company { name: string; phone: string; address: string; laborRate: number; tax: number; }
