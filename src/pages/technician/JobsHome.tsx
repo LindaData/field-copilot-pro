@@ -102,6 +102,27 @@ export default function JobsHome() {
         </div>
       </div>
 
+      <div className="flex items-center gap-1 overflow-x-auto rounded-md border bg-card p-1">
+        {([
+          { k: "today", label: "Today" },
+          { k: "week", label: "This week" },
+          { k: "month", label: "This month" },
+          { k: "all", label: "All" },
+        ] as const).map((r) => (
+          <button
+            key={r.k}
+            onClick={() => setRange(r.k)}
+            className={cn(
+              "touch-target flex-1 whitespace-nowrap rounded px-3 text-xs font-medium",
+              range === r.k ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            )}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+
       <div className="flex flex-col gap-2">
         {jobs.map((j) => {
           const c = state.customers.find((x) => x.id === j.customerId);
