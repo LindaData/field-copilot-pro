@@ -39,7 +39,7 @@ export default function Landing() {
         <p className="text-sm opacity-90">A working prototype you can run on your phone. Tap a role to start.</p>
 
         <div className="flex flex-col gap-3">
-          <Link to="/app/jobs" onClick={() => setRole("guest-tech", "u-alex")}>
+          <Link to="/app/today" onClick={() => setRole("guest-tech", "u-alex")}>
             <Button className="touch-target h-14 w-full justify-between bg-accent text-accent-foreground hover:bg-accent/90 text-base font-semibold">
               <span className="inline-flex items-center gap-2"><Wrench className="h-5 w-5" /> Enter Demo as Technician</span>
               <ArrowRight className="h-5 w-5" />
