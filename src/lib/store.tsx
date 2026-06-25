@@ -223,6 +223,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...s,
       partRequests: s.partRequests.map((p) => p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p),
     })),
+    addAiFeedback: (fb) => setStateRaw((s) => ({ ...s, aiFeedback: [fb, ...(s.aiFeedback ?? [])] })),
+    markAiFeedbackReviewed: (id, reviewed) => setStateRaw((s) => ({ ...s, aiFeedback: (s.aiFeedback ?? []).map((f) => f.id === id ? { ...f, reviewed } : f) })),
   }), [state, setState]);
 
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;
