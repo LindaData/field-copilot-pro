@@ -98,12 +98,22 @@ export function OwnerShell() {
             {state.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
             {state.online ? "Synced" : "Offline"}
           </button>
-          <Button variant="secondary" size="sm" onClick={() => nav("/app/jobs")}>Switch to Tech</Button>
+          <Button variant="secondary" size="sm" onClick={() => nav("/app/today")}>Switch to Tech</Button>
           <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-soft" onClick={() => { if (confirm("Reset demo?")) { reset(); nav("/"); } }}>
             <RotateCcw className="h-5 w-5" />
           </Button>
         </div>
       </header>
+      <nav className="sticky top-[60px] z-20 flex items-center gap-1 overflow-x-auto border-b bg-card px-3 py-2">
+        {ownerTabs.map(({ to, label, icon: Icon, end }) => (
+          <NavLink key={to} to={to} end={end} className={({ isActive }) => cn(
+            "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap",
+            isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+          )}>
+            <Icon className="h-4 w-4" />{label}
+          </NavLink>
+        ))}
+      </nav>
       <main className="flex-1 p-4 md:p-6"><Outlet /></main>
     </div>
   );
