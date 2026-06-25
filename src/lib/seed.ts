@@ -88,6 +88,25 @@ const goodmanGSXN3Specs: Spec[] = [
   { key: "valves", label: "Service valves", value: "Sweat connections with accessible gauge ports", group: "Certifications", source: goodmanPdfSource },
 ];
 
+const goodmanErrorCodes = [
+  { code: "1F", meaning: "High pressure switch open", likelyCauses: ["Dirty/blocked condenser coil", "Failed condenser fan motor", "Overcharge", "Restricted liquid line"], safeChecks: ["Wash coil with power off", "Confirm fan rotation and amps vs FLA", "Measure liquid and suction pressures against manufacturer chart"], source: goodmanPdfSource },
+  { code: "2F", meaning: "Low pressure switch open", likelyCauses: ["Refrigerant loss", "Restricted metering device", "Iced indoor coil"], safeChecks: ["Inspect for oil residue at fittings", "Verify airflow across indoor coil", "Compare superheat to target"], source: goodmanPdfSource },
+  { code: "3F", meaning: "Compressor overload trip", likelyCauses: ["Locked rotor", "Weak run capacitor", "Low line voltage"], safeChecks: ["Confirm line voltage within 197 V – 253 V", "Bench-test capacitor against printed µF rating", "Measure LRA only with manufacturer-approved procedure"], source: goodmanPdfSource },
+  { code: "4F", meaning: "Outdoor fan motor fault", likelyCauses: ["Failed condenser fan motor", "Failed fan capacitor section", "Wiring fault"], safeChecks: ["Confirm 24 V at contactor coil", "Measure fan motor amps vs 0.70 A FLA", "Inspect wiring per diagram"], source: goodmanPdfSource },
+];
+
+const goodmanBom = [
+  { ref: "C1", description: "Dual-run capacitor", specHint: "Verify printed µF / voltage on installed component", approvedPartIds: ["pt-1"], source: goodmanPdfSource },
+  { ref: "K1", description: "Compressor contactor", specHint: "30 A 2-pole, 24 V coil", approvedPartIds: ["pt-2"], source: goodmanPdfSource },
+  { ref: "FD", description: "Liquid line filter drier (factory)", specHint: "3/8 in. O.D.", approvedPartIds: ["pt-3"], source: goodmanPdfSource },
+  { ref: "M2", description: "Condenser fan motor", specHint: "1/8 HP PSC, 0.70 A FLA", approvedPartIds: ["pt-4"], source: goodmanPdfSource },
+];
+
+const goodmanDiagrams = [
+  { id: "wd-1", title: "GSXN3 line voltage wiring", url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf#page=5", source: goodmanPdfSource },
+  { id: "wd-2", title: "GSXN3 low voltage / 24 V controls", url: "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf#page=6", source: goodmanPdfSource },
+];
+
 export const EQUIPMENT: Equipment[] = [
   {
     id: "eq-1",
@@ -103,6 +122,10 @@ export const EQUIPMENT: Equipment[] = [
       { label: "Goodman GSXN3 product page", url: goodmanProductSource.url! },
       { label: "SS-GSXN3 specification sheet (PDF)", url: goodmanPdfSource.url! },
     ],
+    errorCodes: goodmanErrorCodes,
+    bom: goodmanBom,
+    approvedReplacementPartIds: ["pt-1", "pt-2", "pt-3", "pt-4"],
+    wiringDiagrams: goodmanDiagrams,
   },
   { id: "eq-2", manufacturer: "Carrier", model: "24ACC636A003", serial: "CR8821X", family: "Comfort 16", type: "Split AC", specs: [], manualUrls: [] },
   { id: "eq-3", manufacturer: "Trane", model: "XR14 4TTR4036L", serial: "TR55001", family: "XR14", type: "Split AC", specs: [], manualUrls: [] },
