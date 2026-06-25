@@ -119,7 +119,7 @@ export default function OwnerJobs() {
                   <tr
                     key={j.id}
                     className={`cursor-pointer hover:bg-muted/30 ${isFocus ? "bg-accent/20" : ""}`}
-                    onClick={() => navigate(`/app/owner/jobs/${j.id}`)}
+                    onClick={() => navigate(`/app/jobs/${j.id}`)}
                   >
                     <td className="px-3 py-2 font-medium">{c?.name}</td>
                     <td className="text-muted-foreground">{j.complaint}</td>
