@@ -47,9 +47,30 @@ function PrimaryCta({ action }: { action: PrimaryAction }) {
   );
 }
 
+type RangeKey = "day" | "week" | "month" | "all";
+
+function inRange(d: Date, range: RangeKey): boolean {
+  if (range === "all") return true;
+  const now = new Date();
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  if (range === "day") end.setDate(end.getDate() + 1);
+  else if (range === "week") end.setDate(end.getDate() + 7);
+  else end.setMonth(end.getMonth() + 1);
+  return d >= start && d < end;
+}
+
+const RANGE_LABEL: Record<RangeKey, string> = {
+  day: "Today",
+  week: "This week",
+  month: "This month",
+  all: "All upcoming",
+};
+
 export default function Today() {
   const { state } = useStore();
   const user = useCurrentUser();
+  const [range, setRange] = useState<RangeKey>("day");
 
   // tick once per minute to keep timers live
   const [, setTick] = useState(0);
@@ -58,9 +79,12 @@ export default function Today() {
     return () => clearInterval(t);
   }, []);
 
-  const myJobs = state.jobs.filter((j) => j.technicianId === user.id);
+  const allMyJobs = state.jobs.filter((j) => j.technicianId === user.id);
+  const myJobs = allMyJobs.filter((j) => inRange(new Date(j.scheduledFor), range));
   const openJobs = myJobs.filter((j) => j.status !== "Completed");
-  const doneToday = myJobs.filter((j) => j.status === "Completed").length;
+  const doneToday = allMyJobs.filter(
+    (j) => j.status === "Completed" && inRange(new Date(j.scheduledFor), "day"),
+  ).length;
 
   const current =
     myJobs.find((j) => j.status === "On Site" || j.status === "Diagnosing")
@@ -72,7 +96,7 @@ export default function Today() {
     .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
 
   const next = upcoming[0];
-  const remaining = upcoming.length;
+
 
   const diag = current ? state.diag[current.id] : undefined;
   const auth = current ? state.auths.find((a) => a.jobId === current.id) : undefined;
