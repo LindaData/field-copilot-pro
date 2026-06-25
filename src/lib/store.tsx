@@ -67,6 +67,8 @@ interface Ctx {
   promoteDoc: (id: string) => void;
   toggleOnline: () => void;
   markTourSeen: () => void;
+  touchEquipment: (id: string) => void;
+  removeJobPart: (jobId: string, partId: string) => void;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
