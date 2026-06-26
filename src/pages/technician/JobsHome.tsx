@@ -96,7 +96,7 @@ export default function JobsHome() {
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel("On Site")}</Badge>
             <div className="text-xs font-medium text-accent-foreground/80">{t("today.activeJob")}</div>
             <div className="mt-1 text-base font-semibold">{state.customers.find(c => c.id === onSite.customerId)?.name}</div>
-            <div className="text-sm text-muted-foreground">{onSite.complaint}</div>
+            <div className="text-sm text-muted-foreground">{tx(onSite.complaint)}</div>
             <Button className="mt-3 touch-target w-full">{t("today.resumeDiag")}</Button>
           </div>
         </Link>
