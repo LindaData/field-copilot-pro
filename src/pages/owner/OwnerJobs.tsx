@@ -132,7 +132,7 @@ export default function OwnerJobs() {
                     onClick={() => navigate(`/app/jobs/${j.id}`)}
                   >
                     <td className="px-3 py-2 font-medium">{c?.name}</td>
-                    <td className="text-muted-foreground">{j.complaint}</td>
+                    <td className="text-muted-foreground">{tx(j.complaint)}</td>
                     <td className="text-xs">{deriveJobType(j)}</td>
                     <td>{u?.name}</td>
                     <td><Badge variant="secondary">{statusLabel(j.status)}</Badge></td>
