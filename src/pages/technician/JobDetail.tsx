@@ -244,7 +244,7 @@ export default function JobDetail() {
         <section className="card-elev p-4">
           <div className="mb-2 inline-flex items-center gap-1 text-sm font-semibold"><History className="h-4 w-4" /> {t("jobDetail.serviceHistory")}</div>
           <div className="space-y-1 text-xs text-muted-foreground">
-            {history.map((h) => (<div key={h.id}>· {new Date(h.scheduledFor).toLocaleDateString()} — {h.complaint}</div>))}
+            {history.map((h) => (<div key={h.id}>· {new Date(h.scheduledFor).toLocaleDateString()} — {tx(h.complaint)}</div>))}
           </div>
         </section>
       )}
