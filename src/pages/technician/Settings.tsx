@@ -2,10 +2,12 @@ import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 export default function Settings() {
   const { state, updateCompany } = useStore();
+  const { t } = useTranslation();
   const c = state.company;
   const [draft, setDraft] = useState(c);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -21,49 +23,49 @@ export default function Settings() {
 
   const save = () => {
     updateCompany?.(draft);
-    toast.success("Company profile saved");
+    toast.success(t("settings.profileSaved"));
   };
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="card-elev p-4">
-        <h1 className="text-base font-semibold">Company profile</h1>
-        <p className="mt-0.5 text-xs text-muted-foreground">All headers, reports and documents read from this profile.</p>
+        <h1 className="text-base font-semibold">{t("settings.companyProfile")}</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.profileDesc")}</p>
 
         <div className="mt-3 grid grid-cols-1 gap-3 text-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-md border bg-muted">
               {draft.logoDataUrl
                 ? <img src={draft.logoDataUrl} alt="Logo" className="h-full w-full object-contain" />
-                : <span className="text-xs text-muted-foreground">No logo</span>}
+                : <span className="text-xs text-muted-foreground">{t("settings.noLogo")}</span>}
             </div>
             <div className="flex flex-col gap-1">
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && onLogo(e.target.files[0])} />
-              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Upload logo</Button>
-              {draft.logoDataUrl && <Button variant="ghost" size="sm" onClick={() => setDraft({ ...draft, logoDataUrl: undefined })}>Remove</Button>}
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>{t("settings.uploadLogo")}</Button>
+              {draft.logoDataUrl && <Button variant="ghost" size="sm" onClick={() => setDraft({ ...draft, logoDataUrl: undefined })}>{t("common.remove")}</Button>}
             </div>
           </div>
 
-          <label>Company name<Input className="mt-1 touch-target" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
-          <label>Phone<Input className="mt-1 touch-target" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
-          <label>Address<Input className="mt-1 touch-target" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></label>
+          <label>{t("settings.companyName")}<Input className="mt-1 touch-target" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
+          <label>{t("settings.phone")}<Input className="mt-1 touch-target" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} /></label>
+          <label>{t("settings.address")}<Input className="mt-1 touch-target" value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></label>
 
           <div className="grid grid-cols-2 gap-2">
-            <label>Established<Input className="mt-1 touch-target" type="number" value={draft.establishedYear ?? ""} onChange={(e) => setDraft({ ...draft, establishedYear: Number(e.target.value) || undefined })} /></label>
-            <label>Labor rate ($/hr)<Input className="mt-1 touch-target" type="number" value={draft.laborRate} onChange={(e) => setDraft({ ...draft, laborRate: Number(e.target.value) })} /></label>
+            <label>{t("settings.established")}<Input className="mt-1 touch-target" type="number" value={draft.establishedYear ?? ""} onChange={(e) => setDraft({ ...draft, establishedYear: Number(e.target.value) || undefined })} /></label>
+            <label>{t("settings.laborRate")}<Input className="mt-1 touch-target" type="number" value={draft.laborRate} onChange={(e) => setDraft({ ...draft, laborRate: Number(e.target.value) })} /></label>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <label>Weekday hours<Input className="mt-1 touch-target" value={draft.weekdayHours ?? ""} onChange={(e) => setDraft({ ...draft, weekdayHours: e.target.value })} /></label>
-            <label>Weekend hours<Input className="mt-1 touch-target" value={draft.weekendHours ?? ""} onChange={(e) => setDraft({ ...draft, weekendHours: e.target.value })} /></label>
+            <label>{t("settings.weekdayHours")}<Input className="mt-1 touch-target" value={draft.weekdayHours ?? ""} onChange={(e) => setDraft({ ...draft, weekdayHours: e.target.value })} /></label>
+            <label>{t("settings.weekendHours")}<Input className="mt-1 touch-target" value={draft.weekendHours ?? ""} onChange={(e) => setDraft({ ...draft, weekendHours: e.target.value })} /></label>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <label>Brand primary
+            <label>{t("settings.brandPrimary")}
               <div className="mt-1 flex gap-2">
                 <Input type="color" className="h-10 w-14 p-1" value={draft.brandPrimary ?? "#1d4ed8"} onChange={(e) => setDraft({ ...draft, brandPrimary: e.target.value })} />
                 <Input className="touch-target flex-1" value={draft.brandPrimary ?? ""} placeholder="#1d4ed8" onChange={(e) => setDraft({ ...draft, brandPrimary: e.target.value })} />
               </div>
             </label>
-            <label>Brand accent
+            <label>{t("settings.brandAccent")}
               <div className="mt-1 flex gap-2">
                 <Input type="color" className="h-10 w-14 p-1" value={draft.brandAccent ?? "#0ea5e9"} onChange={(e) => setDraft({ ...draft, brandAccent: e.target.value })} />
                 <Input className="touch-target flex-1" value={draft.brandAccent ?? ""} placeholder="#0ea5e9" onChange={(e) => setDraft({ ...draft, brandAccent: e.target.value })} />
@@ -71,14 +73,14 @@ export default function Settings() {
             </label>
           </div>
 
-          <label>Primary services (one per line)
+          <label>{t("settings.primaryServices")}
             <textarea
               className="mt-1 min-h-[140px] w-full rounded-md border bg-background p-2 text-sm"
               value={(draft.services ?? []).join("\n")}
               onChange={(e) => setDraft({ ...draft, services: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean) })}
             />
           </label>
-          <label>Service geography (one per line)
+          <label>{t("settings.serviceGeography")}
             <textarea
               className="mt-1 min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
               value={(draft.serviceAreas ?? []).join("\n")}
@@ -87,13 +89,13 @@ export default function Settings() {
           </label>
 
           <div>
-            <Button onClick={save}>Save profile</Button>
+            <Button onClick={save}>{t("settings.saveProfile")}</Button>
           </div>
         </div>
       </div>
 
       <div className="card-elev p-4">
-        <h2 className="text-sm font-semibold">Users</h2>
+        <h2 className="text-sm font-semibold">{t("settings.users")}</h2>
         <ul className="mt-2 divide-y text-sm">
           {state.users.map((u) => (
             <li key={u.id} className="flex items-center gap-3 py-2">

@@ -101,7 +101,7 @@ export default function Feedback() {
           {t("feedback.reference")}: <span className="font-mono font-semibold">{submittedRef}</span>
         </div>
         <Button onClick={() => { setSubmittedRef(null); setWhat(""); setExpected(""); }}>
-          Send another
+          {t("feedback.sendAnother")}
         </Button>
       </div>
     );
@@ -114,7 +114,7 @@ export default function Feedback() {
           <MessageSquare className="h-4 w-4" /> {t("feedback.title")}
         </h1>
         <p className="text-xs text-muted-foreground">
-          Help us improve. Auto-attached: page, role, language, app version, timestamp.
+          {t("feedback.helpText")}
         </p>
       </div>
 
@@ -123,11 +123,11 @@ export default function Feedback() {
           <Label>{t("feedback.category")}</Label>
           <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{t(`feedback.categories.${c}`, { defaultValue: c })}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
-          <Label>Page or workflow</Label>
+          <Label>{t("feedback.page")}</Label>
           <Input value={page} onChange={(e) => setPage(e.target.value)} className="mt-1" />
         </div>
         <div>
@@ -142,7 +142,7 @@ export default function Feedback() {
           <Label>{t("feedback.severity")}</Label>
           <Select value={severity} onValueChange={setSeverity}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>{SEVERITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+            <SelectContent>{SEVERITIES.map((c) => <SelectItem key={c} value={c}>{t(`feedback.severities.${c}`, { defaultValue: c })}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <label className="flex items-center gap-2 text-sm">
@@ -151,19 +151,19 @@ export default function Feedback() {
         </label>
 
         <Button onClick={submit} disabled={submitting || !what.trim()} className="touch-target">
-          {submitting ? "Submitting…" : t("common.submit")}
+          {submitting ? t("common.submitting") : t("common.submit")}
         </Button>
       </div>
 
       {existing.length > 0 && (
         <Card className="p-3">
-          <div className="text-sm font-semibold">Your previous feedback</div>
+          <div className="text-sm font-semibold">{t("feedback.previous")}</div>
           <ul className="mt-2 divide-y text-xs">
             {existing.slice(0, 8).map((f) => (
               <li key={f.id} className="flex items-start justify-between gap-2 py-2">
                 <div>
                   <div className="font-mono font-semibold">{f.ref}</div>
-                  <div className="text-muted-foreground">{f.category} · {f.severity} · {new Date(f.createdAt).toLocaleString()}</div>
+                  <div className="text-muted-foreground">{t(`feedback.categories.${f.category}`, { defaultValue: f.category })} · {t(`feedback.severities.${f.severity}`, { defaultValue: f.severity })} · {new Date(f.createdAt).toLocaleString()}</div>
                   <div className="line-clamp-2 text-foreground">{f.what}</div>
                 </div>
               </li>

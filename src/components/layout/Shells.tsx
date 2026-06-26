@@ -27,7 +27,7 @@ function OverflowMenu({ onReset, onHelp, onFeedback }: { onReset: () => void; on
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="More options"
+        aria-label={t("nav.moreOptions")}
         className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/30 bg-white/10 text-primary-foreground hover:bg-white/20"
       >
         <MoreVertical className="h-4 w-4" />
@@ -61,7 +61,7 @@ function SyncPill() {
         "stat-pill border whitespace-nowrap",
         state.online ? "border-white/30 bg-white/10" : "border-accent/60 bg-accent/20 text-accent",
       )}
-      aria-label="Toggle sync"
+      aria-label={t("nav.toggleSync")}
     >
       {state.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
       {state.online ? t("status.synced") : t("status.offline")}
@@ -94,11 +94,11 @@ export function MobileShell() {
   const canBack = loc.pathname !== "/app/today" && loc.pathname !== "/app/jobs";
 
   const doReset = () => {
-    if (confirm("Reset all demo data?")) {
-      reset(); nav("/"); toast.success("Demo reset");
+    if (confirm(t("more.confirmReset"))) {
+      reset(); nav("/"); toast.success(t("more.demoReset"));
     }
   };
-  const doHelp = () => toast("Help", { description: "Tap the More tab for the tour and demo reset." });
+  const doHelp = () => toast(t("nav.help"), { description: t("owner.techHelpDesc") });
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
@@ -158,8 +158,8 @@ export function OwnerShell() {
   const { t } = useTranslation();
   const nav = useNavigate();
 
-  const doReset = () => { if (confirm("Reset demo?")) { reset(); nav("/"); } };
-  const doHelp = () => toast("Help", { description: "Owner overview for jobs, customers, and equipment." });
+  const doReset = () => { if (confirm(t("more.confirmReset"))) { reset(); nav("/"); } };
+  const doHelp = () => toast(t("nav.help"), { description: t("owner.helpDesc") });
   const visibleOwnerTabs = ownerTabs;
 
   return (

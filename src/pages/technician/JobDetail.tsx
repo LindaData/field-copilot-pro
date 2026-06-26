@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { jobActivePause, jobPausedMs, useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { JobStage, PauseReason } from "@/lib/types";
+import { useStatusLabel } from "@/i18n/status";
 
 function fmtClock(iso?: string) {
   if (!iso) return "—";
@@ -20,7 +22,6 @@ function fmtDur(ms: number) {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
-// Haversine -> feet
 function distanceFt(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -33,9 +34,14 @@ function distanceFt(a: { lat: number; lng: number }, b: { lat: number; lng: numb
 
 type LocStatus = "idle" | "asking" | "denied" | "unavailable" | "en-route" | "near" | "arrived";
 
+const PAUSE_REASONS: PauseReason[] = ["Lunch / break","Waiting for customer","Waiting for approval","Waiting for parts","Calling senior technician","Researching documentation","Equipment inaccessible","Weather","Other"];
+const STAGES: JobStage[] = ["Travel","On Site","Diagnosis","Repair","Documentation"];
+
 export default function JobDetail() {
   const { id = "" } = useParams();
-  const { state, setState, setJobStatus, startPause, endPause, setArrival, setArrivalDetected, updateJob } = useStore();
+  const { state, setJobStatus, startPause, endPause, setArrival, setArrivalDetected, updateJob } = useStore();
+  const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
   const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
 
@@ -52,7 +58,6 @@ export default function JobDetail() {
   const hasCoords = !!(p?.lat && p?.lng);
   const radius = p?.geofenceRadiusFt ?? 200;
 
-  // Geofence watcher: only active while En Route, not yet arrived
   useEffect(() => {
     if (!job || !hasCoords || job.arrivedAt || job.status !== "En Route") return;
     if (typeof navigator === "undefined" || !navigator.geolocation) { setLocStatus("unavailable"); return; }
@@ -81,7 +86,7 @@ export default function JobDetail() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [job?.id, job?.status, job?.arrivedAt, hasCoords, p, radius, setArrivalDetected]);
 
-  if (!job) return <div className="p-6">Job not found. <Link className="underline" to="/app/jobs">Back</Link></div>;
+  if (!job) return <div className="p-6">{t("common.jobNotFound")} <Link className="underline" to="/app/jobs">{t("common.back")}</Link></div>;
 
   const c = state.customers.find((x) => x.id === job.customerId);
   const eq = state.equipment.find((x) => x.id === job.equipmentId);
@@ -95,10 +100,10 @@ export default function JobDetail() {
   const isPaused = !!activePause || !!job.pausedAt;
   const linkedRequests = state.partRequests.filter((pr) => pr.jobId === job.id);
 
-  const onStartTravel = () => { updateJob(job.id, { travelStartedAt: new Date().toISOString() }); setJobStatus(job.id, "En Route"); toast.success("Travel started"); };
-  const onArriveManual = () => { setArrival(job.id, "manual"); toast.success("Arrival recorded (manual)"); };
-  const onArriveConfirm = () => { setArrival(job.id, "tech-confirmed"); setConfirmArrival(null); toast.success("Arrival confirmed"); };
-  const onArriveGps = () => { setArrival(job.id, "gps-detected"); setConfirmArrival(null); toast.success("Arrival auto-detected"); };
+  const onStartTravel = () => { updateJob(job.id, { travelStartedAt: new Date().toISOString() }); setJobStatus(job.id, "En Route"); toast.success(t("jobDetail.toast.travelStarted")); };
+  const onArriveManual = () => { setArrival(job.id, "manual"); toast.success(t("jobDetail.toast.arrivalManual")); };
+  const onArriveConfirm = () => { setArrival(job.id, "tech-confirmed"); setConfirmArrival(null); toast.success(t("jobDetail.toast.arrivalConfirmed")); };
+  const onArriveGps = () => { setArrival(job.id, "gps-detected"); setConfirmArrival(null); toast.success(t("jobDetail.toast.arrivalGps")); };
   const onStartDiag = () => { updateJob(job.id, { diagnosisStartedAt: job.diagnosisStartedAt ?? new Date().toISOString() }); setJobStatus(job.id, "Diagnosing"); nav(`/app/jobs/${job.id}/diagnose`); };
   const openPause = () => {
     setPauseStage(job.status === "En Route" ? "Travel" : job.status === "Diagnosing" ? "Diagnosis" : "On Site");
@@ -106,19 +111,24 @@ export default function JobDetail() {
   };
   const confirmPause = () => {
     startPause(job.id, pauseReason, pauseStage, pauseNotes.trim() || undefined);
-    setPauseOpen(false); setPauseNotes(""); toast("Paused");
+    setPauseOpen(false); setPauseNotes(""); toast(t("jobDetail.toast.paused"));
   };
-  const onResume = () => { endPause(job.id); toast.success("Resumed"); };
+  const onResume = () => { endPause(job.id); toast.success(t("jobDetail.toast.resumed")); };
   const onComplete = () => {
-    if (isPaused) { toast.error("Resume the job before completing."); return; }
-    updateJob(job.id, { completedAt: new Date().toISOString() }); setJobStatus(job.id, "Completed"); toast.success("Job completed");
+    if (isPaused) { toast.error(t("jobDetail.toast.resumeBeforeComplete")); return; }
+    updateJob(job.id, { completedAt: new Date().toISOString() }); setJobStatus(job.id, "Completed"); toast.success(t("jobDetail.toast.completed"));
   };
-  const onWaitingForParts = () => { setJobStatus(job.id, "Waiting for Parts"); toast("Moved to Waiting for Parts"); };
+  const onWaitingForParts = () => { setJobStatus(job.id, "Waiting for Parts"); toast(t("jobDetail.toast.movedWaitingParts")); };
 
   const totalPaused = jobPausedMs(job);
   const laborMs = job.arrivedAt
     ? ((job.completedAt ? +new Date(job.completedAt) : Date.now()) - +new Date(job.arrivedAt) - totalPaused)
     : 0;
+
+  const compatLabel = (compat: string) =>
+    compat === "Verified by qualified user" ? t("jobDetail.compatibilityVerified")
+    : compat === "Likely" ? t("jobDetail.compatibilityLikely")
+    : t("jobDetail.compatibilityUnknown");
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-24">
@@ -129,101 +139,100 @@ export default function JobDetail() {
             <h1 className="text-lg font-semibold leading-tight">{c?.name}</h1>
             <div className="mt-1 text-sm text-foreground/90">{job.complaint}</div>
           </div>
-          <Badge>{job.status}</Badge>
+          <Badge>{statusLabel(job.status)}</Badge>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
           <div className="inline-flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {p?.address}</div>
-          {p?.accessNotes && <div className="rounded-md bg-muted px-2 py-1 text-xs">Access: {p.accessNotes}</div>}
+          {p?.accessNotes && <div className="rounded-md bg-muted px-2 py-1 text-xs">{t("jobDetail.accessLabel", { notes: p.accessNotes })}</div>}
           <div className="flex gap-2">
-            <a href={`tel:${c?.phone}`} className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Phone className="mr-1 h-4 w-4" /> Call</Button></a>
-            <a href={`https://maps.google.com/?q=${encodeURIComponent(p?.address ?? "")}`} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> Directions</Button></a>
+            <a href={`tel:${c?.phone}`} className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Phone className="mr-1 h-4 w-4" /> {t("jobDetail.call")}</Button></a>
+            <a href={`https://maps.google.com/?q=${encodeURIComponent(p?.address ?? "")}`} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.directions")}</Button></a>
           </div>
         </div>
       </div>
 
-      {/* Active pause banner */}
       {isPaused && (
         <div className="rounded-md border border-warning bg-warning/10 p-3 text-xs">
-          <div className="inline-flex items-center gap-1 font-semibold"><Pause className="h-4 w-4" /> Paused — {activePause?.reason ?? "manual"}</div>
+          <div className="inline-flex items-center gap-1 font-semibold"><Pause className="h-4 w-4" /> {t("jobDetail.pausedBanner", { reason: activePause?.reason ? t(`jobDetail.pauseReason.${activePause.reason}`) : t("jobDetail.pauseReason.Other") })}</div>
           {activePause?.notes && <div className="mt-1 text-muted-foreground">{activePause.notes}</div>}
-          <Button size="sm" className="mt-2 h-8" onClick={onResume}><Play className="mr-1 h-3 w-3" /> Resume work</Button>
+          <Button size="sm" className="mt-2 h-8" onClick={onResume}><Play className="mr-1 h-3 w-3" /> {t("jobDetail.resumeWork")}</Button>
         </div>
       )}
 
       <section className="card-elev p-4">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Workflow</div>
+          <div className="text-sm font-semibold">{t("jobDetail.workflow")}</div>
           {job.status === "En Route" && !job.arrivedAt && (
             <LocationStatusPill status={locStatus} dist={locDist} radius={radius} />
           )}
         </div>
         <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
-          <div><div className="font-medium text-foreground">Travel</div>{fmtClock(job.travelStartedAt)}</div>
-          <div><div className="font-medium text-foreground">Arrived</div>{fmtClock(job.arrivedAt)}{job.arrivalMethod && <div className="text-[10px]">({job.arrivalMethod})</div>}</div>
-          <div><div className="font-medium text-foreground">Completed</div>{fmtClock(job.completedAt)}</div>
+          <div><div className="font-medium text-foreground">{t("jobDetail.travel")}</div>{fmtClock(job.travelStartedAt)}</div>
+          <div><div className="font-medium text-foreground">{t("jobDetail.arrived")}</div>{fmtClock(job.arrivedAt)}{job.arrivalMethod && <div className="text-[10px]">({job.arrivalMethod})</div>}</div>
+          <div><div className="font-medium text-foreground">{t("jobDetail.completed")}</div>{fmtClock(job.completedAt)}</div>
         </div>
         {job.arrivedAt && (
           <div className="mt-2 inline-flex flex-wrap items-center gap-1 text-xs">
-            <span className="stat-pill bg-secondary text-secondary-foreground"><Clock className="h-3 w-3" /> Active labor: {fmtDur(laborMs)}</span>
-            {totalPaused > 0 && <span className="stat-pill bg-muted text-muted-foreground">Paused: {fmtDur(totalPaused)}</span>}
-            {(job.pauses?.length ?? 0) > 0 && <span className="stat-pill bg-muted text-muted-foreground">{job.pauses!.length} pause(s)</span>}
+            <span className="stat-pill bg-secondary text-secondary-foreground"><Clock className="h-3 w-3" /> {t("jobDetail.activeLaborLabel", { value: fmtDur(laborMs) })}</span>
+            {totalPaused > 0 && <span className="stat-pill bg-muted text-muted-foreground">{t("jobDetail.pausedLabel", { value: fmtDur(totalPaused) })}</span>}
+            {(job.pauses?.length ?? 0) > 0 && <span className="stat-pill bg-muted text-muted-foreground">{t("jobDetail.pauses", { count: job.pauses!.length })}</span>}
           </div>
         )}
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {!job.travelStartedAt && <Button onClick={onStartTravel} className="touch-target h-12 col-span-2"><Navigation className="mr-1 h-4 w-4" /> Start travel</Button>}
+          {!job.travelStartedAt && <Button onClick={onStartTravel} className="touch-target h-12 col-span-2"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.startTravel")}</Button>}
           {job.travelStartedAt && !job.arrivedAt && (
-            <Button onClick={onArriveManual} className="touch-target h-12 col-span-2 bg-accent text-accent-foreground hover:bg-accent/90"><MapPin className="mr-1 h-4 w-4" /> Arrive on site (manual)</Button>
+            <Button onClick={onArriveManual} className="touch-target h-12 col-span-2 bg-accent text-accent-foreground hover:bg-accent/90"><MapPin className="mr-1 h-4 w-4" /> {t("jobDetail.arriveManual")}</Button>
           )}
           {job.arrivedAt && !job.completedAt && (
             <>
               {isPaused
-                ? <Button onClick={onResume} variant="outline" className="touch-target h-12"><Play className="mr-1 h-4 w-4" /> Resume</Button>
-                : <Button onClick={openPause} variant="outline" className="touch-target h-12"><Pause className="mr-1 h-4 w-4" /> Pause…</Button>}
-              <Button onClick={onComplete} variant="outline" className="touch-target h-12" disabled={isPaused}><CheckCircle2 className="mr-1 h-4 w-4" /> Complete</Button>
+                ? <Button onClick={onResume} variant="outline" className="touch-target h-12"><Play className="mr-1 h-4 w-4" /> {t("jobDetail.resume")}</Button>
+                : <Button onClick={openPause} variant="outline" className="touch-target h-12"><Pause className="mr-1 h-4 w-4" /> {t("jobDetail.pause")}</Button>}
+              <Button onClick={onComplete} variant="outline" className="touch-target h-12" disabled={isPaused}><CheckCircle2 className="mr-1 h-4 w-4" /> {t("jobDetail.complete")}</Button>
             </>
           )}
         </div>
         {locStatus === "denied" && (
-          <div className="mt-2 rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground">Location permission denied. Use manual arrival. Privacy: we only use your location while en route to this job.</div>
+          <div className="mt-2 rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground">{t("jobDetail.locationDeniedHelp")}</div>
         )}
       </section>
 
       <section className="card-elev p-4">
         <div className="mb-2 flex items-center justify-between">
-          <div className="text-sm font-semibold">Equipment</div>
-          {!eq && <Link to="/app/scan"><Button size="sm" variant="outline" className="touch-target"><Camera className="mr-1 h-4 w-4" /> Scan</Button></Link>}
+          <div className="text-sm font-semibold">{t("jobs.equipment")}</div>
+          {!eq && <Link to="/app/scan"><Button size="sm" variant="outline" className="touch-target"><Camera className="mr-1 h-4 w-4" /> {t("jobDetail.scan")}</Button></Link>}
         </div>
         {eq ? (
           <Link to={`/app/equipment/${eq.id}`} className="block rounded-lg border p-3 hover:bg-muted/30">
             <div className="text-sm font-semibold">{eq.manufacturer} {eq.model}</div>
             <div className="text-xs text-muted-foreground">Serial {eq.serial} · {eq.type}</div>
-            <div className="mt-1 inline-flex items-center gap-1 text-xs text-primary"><Wrench className="h-3 w-3" /> View specs & manuals</div>
+            <div className="mt-1 inline-flex items-center gap-1 text-xs text-primary"><Wrench className="h-3 w-3" /> {t("jobDetail.viewSpecs")}</div>
           </Link>
         ) : (
-          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No equipment attached yet. Use Scan to add the data plate.</div>
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{t("jobDetail.noEquipment")}</div>
         )}
       </section>
 
       <section className="card-elev p-4">
         <div className="mb-2 flex items-center justify-between">
-          <div className="inline-flex items-center gap-1 text-sm font-semibold"><PackageSearch className="h-4 w-4" /> Parts requests</div>
-          <Link to={`/app/jobs/${job.id}/parts-request`}><Button size="sm" variant="outline" className="touch-target">+ Part needed</Button></Link>
+          <div className="inline-flex items-center gap-1 text-sm font-semibold"><PackageSearch className="h-4 w-4" /> {t("jobDetail.partsRequests")}</div>
+          <Link to={`/app/jobs/${job.id}/parts-request`}><Button size="sm" variant="outline" className="touch-target">{t("jobDetail.addPart")}</Button></Link>
         </div>
         {linkedRequests.length === 0 ? (
-          <div className="text-xs text-muted-foreground">No parts requested. Tap "+ Part needed" if a required part isn't on the truck.</div>
+          <div className="text-xs text-muted-foreground">{t("jobDetail.noPartsRequested")}</div>
         ) : (
           <ul className="space-y-1 text-xs">
             {linkedRequests.map((pr) => (
               <li key={pr.id} className="flex items-center justify-between rounded-md border p-2">
                 <div>
                   <div className="font-medium">{pr.name} <span className="text-muted-foreground">×{pr.qty}</span></div>
-                  <div className="text-[10px] text-muted-foreground">{pr.compatibility === "Verified by qualified user" ? "Compatibility verified" : pr.compatibility === "Likely" ? "Compatibility likely — confirm" : "Compatibility unknown"}</div>
+                  <div className="text-[10px] text-muted-foreground">{compatLabel(pr.compatibility)}</div>
                 </div>
                 <Badge variant="outline">{pr.status}</Badge>
               </li>
             ))}
             {job.status !== "Waiting for Parts" && job.status !== "Completed" && (
-              <Button size="sm" variant="outline" className="mt-1 w-full" onClick={onWaitingForParts}>Move job to Waiting for Parts</Button>
+              <Button size="sm" variant="outline" className="mt-1 w-full" onClick={onWaitingForParts}>{t("jobDetail.moveToWaitingForParts")}</Button>
             )}
           </ul>
         )}
@@ -231,7 +240,7 @@ export default function JobDetail() {
 
       {history.length > 0 && (
         <section className="card-elev p-4">
-          <div className="mb-2 inline-flex items-center gap-1 text-sm font-semibold"><History className="h-4 w-4" /> Service history</div>
+          <div className="mb-2 inline-flex items-center gap-1 text-sm font-semibold"><History className="h-4 w-4" /> {t("jobDetail.serviceHistory")}</div>
           <div className="space-y-1 text-xs text-muted-foreground">
             {history.map((h) => (<div key={h.id}>· {new Date(h.scheduledFor).toLocaleDateString()} — {h.complaint}</div>))}
           </div>
@@ -242,104 +251,101 @@ export default function JobDetail() {
         <Button onClick={onStartDiag} className="touch-target h-14 w-full justify-between text-base" disabled={!job.arrivedAt && job.status !== "Diagnosing"}>
           <span className="inline-flex items-center gap-2">
             <Bot className="h-5 w-5" />
-            {diag?.completed ? "Review diagnostic" :
-              diag?.results?.length ? `Continue diagnosis · step ${diag.currentStepId}` :
-              "Start guided diagnostic"}
+            {diag?.completed ? t("jobDetail.reviewDiagnostic") :
+              diag?.results?.length ? t("jobDetail.continueDiagnosis", { step: diag.currentStepId }) :
+              t("jobDetail.startGuidedDiagnostic")}
           </span>
           <ArrowRight className="h-5 w-5" />
         </Button>
         {diag?.results?.length ? (
           <div className="grid grid-cols-2 gap-2">
             <Link to={`/app/jobs/${job.id}/diagnostics?review=1`}>
-              <Button variant="outline" className="touch-target h-10 w-full">Review completed steps</Button>
+              <Button variant="outline" className="touch-target h-10 w-full">{t("jobDetail.reviewCompletedSteps")}</Button>
             </Link>
             <Link to={`/app/equipment/${job.equipmentId ?? ""}#specs`}>
-              <Button variant="outline" className="touch-target h-10 w-full">View specifications</Button>
+              <Button variant="outline" className="touch-target h-10 w-full">{t("jobDetail.viewSpecifications")}</Button>
             </Link>
           </div>
         ) : null}
         <Link to={`/app/jobs/${job.id}/approval`}>
-          <Button variant="outline" className="touch-target h-12 w-full justify-between"><span className="inline-flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Customer approval</span><ArrowRight className="h-5 w-5" /></Button>
+          <Button variant="outline" className="touch-target h-12 w-full justify-between"><span className="inline-flex items-center gap-2"><ClipboardList className="h-5 w-5" /> {t("jobDetail.customerApproval")}</span><ArrowRight className="h-5 w-5" /></Button>
         </Link>
         <Link to={`/app/jobs/${job.id}/report`}>
-          <Button variant="outline" className="touch-target h-12 w-full justify-between"><span className="inline-flex items-center gap-2"><FileText className="h-5 w-5" /> {hasReport ? "View" : "Generate"} service report</span><ArrowRight className="h-5 w-5" /></Button>
+          <Button variant="outline" className="touch-target h-12 w-full justify-between"><span className="inline-flex items-center gap-2"><FileText className="h-5 w-5" /> {hasReport ? t("jobDetail.viewServiceReport") : t("jobDetail.generateServiceReport")}</span><ArrowRight className="h-5 w-5" /></Button>
         </Link>
       </section>
 
-
       {(job.pauses?.length ?? 0) > 0 && (
         <section className="card-elev p-4 text-xs">
-          <div className="mb-1 font-semibold">Pause timeline</div>
+          <div className="mb-1 font-semibold">{t("jobDetail.pauseTimeline")}</div>
           {job.pauses!.map((p) => (
             <div key={p.id} className="flex justify-between border-b py-1 last:border-0">
               <div>
-                <div className="font-medium">{p.reason} <span className="text-muted-foreground">· {p.stage}</span></div>
+                <div className="font-medium">{t(`jobDetail.pauseReason.${p.reason}`)} <span className="text-muted-foreground">· {t(`jobDetail.stage.${p.stage}`)}</span></div>
                 {p.notes && <div className="text-muted-foreground">{p.notes}</div>}
                 <div className="text-[10px] text-muted-foreground">{fmtClock(p.startedAt)} → {fmtClock(p.endedAt)}</div>
               </div>
               <div className="text-right">
                 <div>{fmtDur((p.endedAt ? +new Date(p.endedAt) : Date.now()) - +new Date(p.startedAt))}</div>
-                <div className="text-[10px] text-muted-foreground">{p.billable ? "Billable" : "Non-billable"}</div>
+                <div className="text-[10px] text-muted-foreground">{p.billable ? t("jobDetail.billable") : t("jobDetail.nonBillable")}</div>
               </div>
             </div>
           ))}
         </section>
       )}
 
-      <Button variant="ghost" className="touch-target text-destructive" onClick={() => { setJobStatus(job.id, "Follow-Up"); toast("Escalated as follow-up"); nav("/app/today"); }}>
-        <ShieldAlert className="mr-1 h-4 w-4" /> Stop & escalate this job
+      <Button variant="ghost" className="touch-target text-destructive" onClick={() => { setJobStatus(job.id, "Follow-Up"); toast(t("jobDetail.toast.escalated")); nav("/app/today"); }}>
+        <ShieldAlert className="mr-1 h-4 w-4" /> {t("jobDetail.stopEscalate")}
       </Button>
 
-      {/* Pause dialog */}
       <Dialog open={pauseOpen} onOpenChange={setPauseOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Pause job</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("jobDetail.pauseDialog.title")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium">Reason</label>
+              <label className="text-xs font-medium">{t("jobDetail.pauseDialog.reason")}</label>
               <Select value={pauseReason} onValueChange={(v) => setPauseReason(v as PauseReason)}>
                 <SelectTrigger className="touch-target"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(["Lunch / break","Waiting for customer","Waiting for approval","Waiting for parts","Calling senior technician","Researching documentation","Equipment inaccessible","Weather","Other"] as PauseReason[]).map((r) => (
-                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  {PAUSE_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>{t(`jobDetail.pauseReason.${r}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-xs font-medium">Stage</label>
+              <label className="text-xs font-medium">{t("jobDetail.pauseDialog.stage")}</label>
               <Select value={pauseStage} onValueChange={(v) => setPauseStage(v as JobStage)}>
                 <SelectTrigger className="touch-target"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {(["Travel","On Site","Diagnosis","Repair","Documentation"] as JobStage[]).map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                  {STAGES.map((s) => (<SelectItem key={s} value={s}>{t(`jobDetail.stage.${s}`)}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-xs font-medium">Note (optional)</label>
-              <Textarea value={pauseNotes} onChange={(e) => setPauseNotes(e.target.value)} placeholder="e.g. Customer left to pick up child from school" />
+              <label className="text-xs font-medium">{t("jobDetail.pauseDialog.noteLabel")}</label>
+              <Textarea value={pauseNotes} onChange={(e) => setPauseNotes(e.target.value)} placeholder={t("jobDetail.pauseDialog.notePlaceholder")} />
             </div>
-            <div className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground"><AlertTriangle className="mr-1 inline h-3 w-3" /> Lunch/break is non-billable by default. Owners can change pause-billing policy.</div>
+            <div className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground"><AlertTriangle className="mr-1 inline h-3 w-3" /> {t("jobDetail.pauseDialog.billingNote")}</div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPauseOpen(false)}>Cancel</Button>
-            <Button onClick={confirmPause}>Start pause</Button>
+            <Button variant="outline" onClick={() => setPauseOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={confirmPause}>{t("jobDetail.pauseDialog.start")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Arrival auto-confirm */}
       <Dialog open={!!confirmArrival} onOpenChange={(o) => !o && setConfirmArrival(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Arrived at property?</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("jobDetail.arrivalDialog.title")}</DialogTitle></DialogHeader>
           <div className="space-y-2 text-sm">
-            <p>You're within ~{Math.round(confirmArrival?.distFt ?? 0)} ft of <strong>{p?.address}</strong>. Confirm arrival to start on-site time.</p>
-            <div className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Detection method will be recorded for the audit log.</div>
+            <p>{t("jobDetail.arrivalDialog.body", { ft: Math.round(confirmArrival?.distFt ?? 0), address: p?.address ?? "" })}</p>
+            <div className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">{t("jobDetail.arrivalDialog.auditNote")}</div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmArrival(null)}>Not yet</Button>
-            <Button variant="outline" onClick={onArriveGps}>It's correct — GPS</Button>
-            <Button onClick={onArriveConfirm}>Confirm arrival</Button>
+            <Button variant="outline" onClick={() => setConfirmArrival(null)}>{t("jobDetail.arrivalDialog.notYet")}</Button>
+            <Button variant="outline" onClick={onArriveGps}>{t("jobDetail.arrivalDialog.gpsCorrect")}</Button>
+            <Button onClick={onArriveConfirm}>{t("jobDetail.arrivalDialog.confirmArrival")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -348,14 +354,15 @@ export default function JobDetail() {
 }
 
 function LocationStatusPill({ status, dist, radius }: { status: LocStatus; dist: number | null; radius: number }) {
+  const { t } = useTranslation();
   const map: Record<LocStatus, { text: string; cls: string }> = {
-    idle: { text: "Location idle", cls: "bg-muted text-muted-foreground" },
-    asking: { text: "Getting location…", cls: "bg-muted text-muted-foreground" },
-    denied: { text: "Location denied", cls: "bg-destructive/10 text-destructive" },
-    unavailable: { text: "Location unavailable", cls: "bg-muted text-muted-foreground" },
-    "en-route": { text: `En route${dist ? ` · ${Math.round(dist)} ft` : ""}`, cls: "bg-secondary text-secondary-foreground" },
-    near: { text: `Near (${Math.round(dist ?? 0)} ft)`, cls: "bg-warning/20 text-warning-foreground" },
-    arrived: { text: `Arrived (~${Math.round(dist ?? 0)} ft of ${radius} ft)`, cls: "bg-success/15 text-success" },
+    idle: { text: t("jobDetail.loc.idle"), cls: "bg-muted text-muted-foreground" },
+    asking: { text: t("jobDetail.loc.asking"), cls: "bg-muted text-muted-foreground" },
+    denied: { text: t("jobDetail.loc.denied"), cls: "bg-destructive/10 text-destructive" },
+    unavailable: { text: t("jobDetail.loc.unavailable"), cls: "bg-muted text-muted-foreground" },
+    "en-route": { text: `${t("jobDetail.loc.enRoute")}${dist ? ` · ${Math.round(dist)} ft` : ""}`, cls: "bg-secondary text-secondary-foreground" },
+    near: { text: `${t("jobDetail.loc.near")} (${Math.round(dist ?? 0)} ft)`, cls: "bg-warning/20 text-warning-foreground" },
+    arrived: { text: `${t("jobDetail.loc.arrived")} (~${Math.round(dist ?? 0)} ft / ${radius} ft)`, cls: "bg-success/15 text-success" },
   };
   const v = map[status];
   return <span className={"stat-pill " + v.cls}><Locate className="h-3 w-3" /> {v.text}</span>;

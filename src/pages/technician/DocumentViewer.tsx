@@ -1,5 +1,6 @@
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ type ViewerState =
 export default function DocumentViewer() {
   const { id = "" } = useParams();
   const { state } = useStore();
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const focusKey = params.get("spec");
 
@@ -30,7 +32,7 @@ export default function DocumentViewer() {
   const [embedFailed, setEmbedFailed] = useState(false);
   useEffect(() => { setEmbedFailed(false); }, [id]);
 
-  if (!doc) return <div className="p-6">Not found</div>;
+  if (!doc) return <div className="p-6">{t("common.notFound")}</div>;
 
   const hasRealUrl = !!doc.url && doc.url !== "#";
   const viewerState: ViewerState =
@@ -68,18 +70,18 @@ export default function DocumentViewer() {
           <FileText className="h-10 w-10 text-muted-foreground" />
           <div className="font-medium">
             {hasRealUrl
-              ? "Preview unavailable in this browser."
-              : "No approved document is currently available for this entry."}
+              ? t("documentViewer.previewUnavailable")
+              : t("documentViewer.noApprovedDoc")}
           </div>
           {hasRealUrl ? (
             <Button asChild>
               <a href={doc.url} target="_blank" rel="noreferrer">
-                Open official source <ExternalLink className="ml-1 h-4 w-4" />
+                {t("documentViewer.openSource")} <ExternalLink className="ml-1 h-4 w-4" />
               </a>
             </Button>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Upload an approved copy of this document, or add an official source URL in the document record.
+              {t("documentViewer.uploadHint")}
             </p>
           )}
         </div>
@@ -89,9 +91,9 @@ export default function DocumentViewer() {
 
   const SpecsPane = (
     <div className="rounded-md border p-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Extracted specifications</div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("documentViewer.extractedSpecs")}</div>
       {specs.length === 0 ? (
-        <p className="mt-2 text-xs text-muted-foreground">No specifications are linked to this document yet.</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t("documentViewer.noSpecsLinked")}</p>
       ) : (
         <ul className="mt-2 divide-y text-sm">
           {specs.map(({ s, eq }) => {
@@ -107,7 +109,7 @@ export default function DocumentViewer() {
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>{s.sourcePage ?? "—"}</span>
-                  <Link to={`/app/equipment/${eq.id}#specs`} className="underline">Open on {eq.manufacturer} {eq.model}</Link>
+                  <Link to={`/app/equipment/${eq.id}#specs`} className="underline">{t("documentViewer.openOn", { name: `${eq.manufacturer} ${eq.model}` })}</Link>
                 </div>
               </li>
             );
@@ -124,20 +126,19 @@ export default function DocumentViewer() {
         <div className="mt-0.5 flex flex-wrap items-center gap-2">
           <h1 className="text-base font-semibold">{doc.title}</h1>
           <span className={`stat-pill ${stateBadge}`}>
-            {viewerState === "Approved" ? <ShieldCheck className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />} {viewerState}
+            {viewerState === "Approved" ? <ShieldCheck className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />} {t(`documentViewer.viewerState.${viewerState}`)}
           </span>
         </div>
         <div className="mt-1 text-[11px] text-muted-foreground">
-          Uploaded {doc.uploadedAt}{doc.manufacturer && ` · ${doc.manufacturer}`}{doc.model && ` ${doc.model}`}
+          {t("documentViewer.uploaded", { date: doc.uploadedAt })}{doc.manufacturer && ` · ${doc.manufacturer}`}{doc.model && ` ${doc.model}`}
         </div>
         {hasRealUrl && (
           <a href={doc.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-info underline">
-            Open official source <ExternalLink className="h-3 w-3" />
+            {t("documentViewer.openSource")} <ExternalLink className="h-3 w-3" />
           </a>
         )}
       </div>
 
-      {/* Desktop: side-by-side. Mobile: tabs. */}
       <div className="mt-4 hidden gap-4 md:grid md:grid-cols-2">
         {PreviewPane}
         {SpecsPane}
@@ -146,8 +147,8 @@ export default function DocumentViewer() {
       <div className="mt-4 md:hidden">
         <Tabs defaultValue="document">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="document">Document</TabsTrigger>
-            <TabsTrigger value="specs">Extracted Specs</TabsTrigger>
+            <TabsTrigger value="document">{t("documentViewer.tabs.document")}</TabsTrigger>
+            <TabsTrigger value="specs">{t("documentViewer.tabs.specs")}</TabsTrigger>
           </TabsList>
           <TabsContent value="document" className="mt-3">{PreviewPane}</TabsContent>
           <TabsContent value="specs" className="mt-3">{SpecsPane}</TabsContent>
@@ -158,7 +159,7 @@ export default function DocumentViewer() {
         <SourceBadge source={doc.id === "d-2" ? goodmanPdfSource : { kind: "verification_required", title: doc.title }} />
       </div>
 
-      <div className="mt-4 text-center"><Link className="text-sm underline" to="/app/documents">← Back to documents</Link></div>
+      <div className="mt-4 text-center"><Link className="text-sm underline" to="/app/documents">{t("documentViewer.backToDocuments")}</Link></div>
     </div>
   );
 }

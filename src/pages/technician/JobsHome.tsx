@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore, useCurrentUser } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Camera, MapPin, Phone, AlertCircle, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JobStatus } from "@/lib/types";
+import { useStatusLabel } from "@/i18n/status";
 
 const statusColor: Record<JobStatus, string> = {
   "Unassigned": "bg-muted text-muted-foreground",
@@ -45,6 +47,8 @@ function inRange(d: Date, range: RangeKey): boolean {
 export default function JobsHome() {
   const { state } = useStore();
   const user = useCurrentUser();
+  const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"mine" | "all">("mine");
   const [range, setRange] = useState<RangeKey>("today");
@@ -62,52 +66,54 @@ export default function JobsHome() {
   }, [state, user.id, q, filter, range]);
 
   const onSite = jobs.find((j) => j.status === "On Site");
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? t("common.good.morning") : t("common.good.afternoon");
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <section className="rounded-2xl bg-primary p-4 text-primary-foreground">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs opacity-80">Good {new Date().getHours() < 12 ? "morning" : "afternoon"}, {user.name.split(" ")[0]}</div>
-            <div className="mt-1 text-xl font-semibold">Today · {jobs.length} jobs</div>
+            <div className="text-xs opacity-80">{greeting}, {user.name.split(" ")[0]}</div>
+            <div className="mt-1 text-xl font-semibold">{t("today.todayCount", { count: jobs.length })}</div>
           </div>
           <Link to="/app/scan">
             <Button className="touch-target bg-accent text-accent-foreground hover:bg-accent/90">
-              <Camera className="mr-2 h-5 w-5" /> Scan Equipment
+              <Camera className="mr-2 h-5 w-5" /> {t("today.scanEquipment")}
             </Button>
           </Link>
         </div>
         <Link to="/app/copilot" className="mt-4 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm">
-          <Bot className="h-4 w-4" /> Ask Copilot anything…
+          <Bot className="h-4 w-4" /> {t("today.askCopilot")}
         </Link>
       </section>
 
       {onSite && (
         <Link to={`/app/jobs/${onSite.id}`}>
           <div className="card-elev relative overflow-hidden border-l-4 border-l-accent p-4">
-            <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">On Site</Badge>
-            <div className="text-xs font-medium text-accent-foreground/80">Active job</div>
+            <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel("On Site")}</Badge>
+            <div className="text-xs font-medium text-accent-foreground/80">{t("today.activeJob")}</div>
             <div className="mt-1 text-base font-semibold">{state.customers.find(c => c.id === onSite.customerId)?.name}</div>
             <div className="text-sm text-muted-foreground">{onSite.complaint}</div>
-            <Button className="mt-3 touch-target w-full">Resume diagnostic →</Button>
+            <Button className="mt-3 touch-target w-full">{t("today.resumeDiag")}</Button>
           </div>
         </Link>
       )}
 
       <div className="flex items-center gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search jobs" className="touch-target" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("common.searchPlaceholder")} className="touch-target" />
         <div className="flex rounded-md border bg-card">
-          <button onClick={() => setFilter("mine")} className={cn("touch-target px-3 text-xs", filter === "mine" && "bg-primary text-primary-foreground rounded-l-md")}>Mine</button>
-          <button onClick={() => setFilter("all")} className={cn("touch-target px-3 text-xs", filter === "all" && "bg-primary text-primary-foreground rounded-r-md")}>All</button>
+          <button onClick={() => setFilter("mine")} className={cn("touch-target px-3 text-xs", filter === "mine" && "bg-primary text-primary-foreground rounded-l-md")}>{t("common.mine")}</button>
+          <button onClick={() => setFilter("all")} className={cn("touch-target px-3 text-xs", filter === "all" && "bg-primary text-primary-foreground rounded-r-md")}>{t("common.all")}</button>
         </div>
       </div>
 
       <div className="flex items-center gap-1 overflow-x-auto rounded-md border bg-card p-1">
         {([
-          { k: "today", label: "Today" },
-          { k: "week", label: "This week" },
-          { k: "month", label: "This month" },
-          { k: "all", label: "All" },
+          { k: "today", label: t("common.today") },
+          { k: "week", label: t("common.thisWeek") },
+          { k: "month", label: t("common.thisMonth") },
+          { k: "all", label: t("common.all") },
         ] as const).map((r) => (
           <button
             key={r.k}
@@ -131,7 +137,7 @@ export default function JobsHome() {
             <Link key={j.id} to={`/app/jobs/${j.id}`} className="card-elev flex flex-col gap-2 p-3 active:bg-muted/30">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold">{c?.name}</div>
-                <span className={cn("stat-pill", statusColor[j.status])}>{j.status}</span>
+                <span className={cn("stat-pill", statusColor[j.status])}>{statusLabel(j.status)}</span>
               </div>
               <div className="text-sm text-foreground/90 line-clamp-2">{j.complaint}</div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -146,7 +152,7 @@ export default function JobsHome() {
           );
         })}
         {jobs.length === 0 && (
-          <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No jobs match. Try clearing the filter.</div>
+          <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{t("jobs.noMatch")}</div>
         )}
       </div>
     </div>
