@@ -50,6 +50,7 @@ export default function JobsHome() {
   const user = useCurrentUser();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"mine" | "all">("mine");
   const [range, setRange] = useState<RangeKey>("today");
