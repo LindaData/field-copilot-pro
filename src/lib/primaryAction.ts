@@ -53,8 +53,8 @@ export function getPrimaryAction(
     case "On Site": {
       const started = !!diag && diag.results.length > 0;
       return started
-        ? { kind: "continue-diagnosis", label: "Continue Diagnosis", to: `${base}/diagnostics`, variant: "default" }
-        : { kind: "start-diagnosis", label: "Start Diagnosis", to: `${base}/diagnostics`, variant: "default" };
+        ? { kind: "continue-diagnosis", label: "Continue Diagnosis", to: `${base}/diagnose`, variant: "default" }
+        : { kind: "start-diagnosis", label: "Start Diagnosis", to: `${base}/diagnose`, variant: "default" };
     }
     case "Diagnosing": {
       const hasHyp = !!diag?.hypothesis;
@@ -62,7 +62,7 @@ export function getPrimaryAction(
       if (hasHyp && !hasAuth) {
         return { kind: "request-approval", label: "Get Customer Approval", to: `${base}/approval`, variant: "accent" };
       }
-      return { kind: "continue-diagnosis", label: "Continue Diagnosis", to: `${base}/diagnostics`, variant: "default" };
+      return { kind: "continue-diagnosis", label: "Continue Diagnosis", to: `${base}/diagnose`, variant: "default" };
     }
     case "Waiting for Approval":
       return { kind: "waiting-approval", label: "Waiting for Approval", helper: "Open quote with customer", to: `${base}/approval`, variant: "muted" };
