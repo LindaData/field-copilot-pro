@@ -1,17 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Wrench, FileText, History, ListChecks, Play, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function EquipmentList() {
   const { state } = useStore();
+  const { t } = useTranslation();
   const nav = useNavigate();
 
   return (
     <div className="flex flex-col gap-3 p-4">
       <div>
-        <h1 className="text-lg font-semibold">Equipment</h1>
-        <p className="text-xs text-muted-foreground">All equipment on file. Tap a unit to see verified specs, documents, and service history.</p>
+        <h1 className="text-lg font-semibold">{t("equipmentList.title")}</h1>
+        <p className="text-xs text-muted-foreground">{t("equipmentList.desc")}</p>
       </div>
       <div className="flex flex-col gap-2">
         {state.equipment.map((eq) => {
@@ -23,7 +25,7 @@ export default function EquipmentList() {
           const openJob = eqJobs.find((j) => !["Completed","Cancelled"].includes(j.status));
           const verifiedCount = eq.specs.filter((s) => (s.verificationStatus ?? "Manufacturer Verified") === "Manufacturer Verified").length;
           const isVerified = eq.verificationStatus === "Manufacturer Verified";
-          const warranty = property?.warrantyActive ? "Active" : "Unknown";
+          const warranty = property?.warrantyActive ? t("equipmentList.warrantyActive") : t("equipmentList.warrantyUnknown");
 
           return (
             <Link
@@ -39,9 +41,9 @@ export default function EquipmentList() {
                   <div className="flex items-center gap-2">
                     <div className="truncate text-sm font-semibold">{eq.manufacturer} {eq.model}</div>
                     {isVerified ? (
-                      <span className="stat-pill bg-success/15 text-success"><ShieldCheck className="h-3 w-3" /> Verified</span>
+                      <span className="stat-pill bg-success/15 text-success"><ShieldCheck className="h-3 w-3" /> {t("equipmentList.verified")}</span>
                     ) : (
-                      <span className="stat-pill bg-warning/15 text-warning"><AlertTriangle className="h-3 w-3" /> Demo — Not Verified</span>
+                      <span className="stat-pill bg-warning/15 text-warning"><AlertTriangle className="h-3 w-3" /> {t("equipmentList.demoNotVerified")}</span>
                     )}
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
@@ -56,29 +58,29 @@ export default function EquipmentList() {
               </div>
 
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                {eq.installDate && <div>Installed <span className="text-foreground">{eq.installDate}</span></div>}
-                <div>Verified specs <span className="text-foreground">{verifiedCount}</span></div>
-                {lastService && <div>Last service <span className="text-foreground">{lastService}</span></div>}
-                <div>Warranty <span className="text-foreground">{warranty}</span></div>
-                {openJob && <div className="col-span-2 text-warning">Open issue: {openJob.complaint}</div>}
+                {eq.installDate && <div>{t("equipmentList.installed")} <span className="text-foreground">{eq.installDate}</span></div>}
+                <div>{t("equipmentList.verifiedSpecs")} <span className="text-foreground">{verifiedCount}</span></div>
+                {lastService && <div>{t("equipmentList.lastService")} <span className="text-foreground">{lastService}</span></div>}
+                <div>{t("equipmentList.warranty")} <span className="text-foreground">{warranty}</span></div>
+                {openJob && <div className="col-span-2 text-warning">{t("equipmentList.openIssue", { value: openJob.complaint })}</div>}
               </div>
 
               <div className="flex flex-wrap gap-1.5">
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={(e) => { e.preventDefault(); nav(`/app/equipment/${eq.id}`); }}>
-                  Open
+                  {t("equipmentList.open")}
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={(e) => { e.preventDefault(); nav(`/app/equipment/${eq.id}#history`); }}>
-                  <History className="h-3 w-3" /> History
+                  <History className="h-3 w-3" /> {t("equipmentList.history")}
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={(e) => { e.preventDefault(); nav(`/app/equipment/${eq.id}#specs`); }}>
-                  <ListChecks className="h-3 w-3" /> Specs
+                  <ListChecks className="h-3 w-3" /> {t("equipmentList.specs")}
                 </Button>
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={(e) => { e.preventDefault(); nav(`/app/equipment/${eq.id}#documents`); }}>
-                  <FileText className="h-3 w-3" /> Docs
+                  <FileText className="h-3 w-3" /> {t("equipmentList.docs")}
                 </Button>
                 {openJob && (
                   <Button size="sm" className="h-8 gap-1" onClick={(e) => { e.preventDefault(); nav(`/app/jobs/${openJob.id}`); }}>
-                    <Play className="h-3 w-3" /> Start Job
+                    <Play className="h-3 w-3" /> {t("equipmentList.startJob")}
                   </Button>
                 )}
               </div>

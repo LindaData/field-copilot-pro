@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,17 +7,18 @@ import { FileText, Package, Book, Settings as SettingsIcon, Cloud, MessageSquare
 
 export default function OwnerMore() {
   const { state, reset } = useStore();
+  const { t } = useTranslation();
   const items = [
-    { to: "/app/owner/integrations/aws", label: "AWS Storage", icon: Cloud, sub: "Connect S3, RDS, EC2 and Cognito" },
-    { to: "/app/documents", label: "Documents", icon: FileText, sub: `${state.docs.length} on file` },
-    { to: "/app/parts", label: "Parts & inventory", icon: Package, sub: `${state.parts.length} parts` },
-    { to: "/app/knowledge", label: "Knowledge base", icon: Book, sub: `${state.knowledge.length} approved cases` },
-    { to: "/app/owner/feedback", label: "Send feedback", icon: MessageSquare, sub: "Help us improve the product" },
-    { to: "/app/settings", label: "Settings", icon: SettingsIcon },
+    { to: "/app/owner/integrations/aws", label: t("more.awsStorage"), icon: Cloud, sub: t("more.awsStorageSub") },
+    { to: "/app/documents", label: t("more.documents"), icon: FileText, sub: t("more.documentsSub", { count: state.docs.length }) },
+    { to: "/app/parts", label: t("more.parts"), icon: Package, sub: t("more.partsSub", { count: state.parts.length }) },
+    { to: "/app/knowledge", label: t("more.knowledge"), icon: Book, sub: t("more.knowledgeSubApproved", { count: state.knowledge.length }) },
+    { to: "/app/owner/feedback", label: t("more.feedback"), icon: MessageSquare, sub: t("more.feedbackSub") },
+    { to: "/app/settings", label: t("more.settings"), icon: SettingsIcon },
   ];
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">More</h1>
+      <h1 className="text-2xl font-bold">{t("ownerMore.title")}</h1>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {items.map(({ to, label, icon: Icon, sub }) => (
           <Link key={to} to={to}>
@@ -31,9 +33,9 @@ export default function OwnerMore() {
         ))}
       </div>
       <Card className="p-4">
-        <div className="text-sm font-semibold">Demo controls</div>
-        <p className="mt-1 text-xs text-muted-foreground">Reset returns all data — jobs, diagnostics, approvals — to seeded defaults.</p>
-        <Button variant="destructive" className="mt-3" onClick={() => { if (confirm("Reset all demo data?")) { reset(); window.location.href = "/"; } }}>Reset demo</Button>
+        <div className="text-sm font-semibold">{t("more.demoControls")}</div>
+        <p className="mt-1 text-xs text-muted-foreground">{t("more.demoControlsDesc")}</p>
+        <Button variant="destructive" className="mt-3" onClick={() => { if (confirm(t("more.confirmReset"))) { reset(); window.location.href = "/"; } }}>{t("nav.resetDemo")}</Button>
       </Card>
     </div>
   );

@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  TrendingUp, TrendingDown, Wallet, Wrench, Users, Clock, Briefcase, AlertTriangle,
+  TrendingUp, TrendingDown, Wallet, Wrench, Users, Clock, AlertTriangle,
   PauseCircle, ArrowRight, Package, Minus, Truck, MapPin, CheckCircle2,
   ClipboardCheck, FileX, MessageSquare, Search, PhoneCall,
 } from "lucide-react";
@@ -20,18 +21,20 @@ import {
 } from "recharts";
 import { computeAttention, type AttentionKind } from "@/lib/attention";
 import { jobPausedMs } from "@/lib/store";
+import { useStatusLabel } from "@/i18n/status";
 
-function TrendBadge({ t }: { t: Trend }) {
-  if (t.insufficient) return <span className="text-[10px] text-muted-foreground">No prior period</span>;
-  const Icon = t.dir === "up" ? TrendingUp : t.dir === "down" ? TrendingDown : Minus;
-  const cls = t.dir === "up" ? "text-success" : t.dir === "down" ? "text-destructive" : "text-muted-foreground";
-  return <span className={`inline-flex items-center gap-1 text-[11px] ${cls}`}><Icon className="h-3 w-3" /> {t.label}</span>;
+function TrendBadge({ t: tr, noPriorLabel }: { t: Trend; noPriorLabel: string }) {
+  if (tr.insufficient) return <span className="text-[10px] text-muted-foreground">{noPriorLabel}</span>;
+  const Icon = tr.dir === "up" ? TrendingUp : tr.dir === "down" ? TrendingDown : Minus;
+  const cls = tr.dir === "up" ? "text-success" : tr.dir === "down" ? "text-destructive" : "text-muted-foreground";
+  return <span className={`inline-flex items-center gap-1 text-[11px] ${cls}`}><Icon className="h-3 w-3" /> {tr.label}</span>;
 }
 
 function KPI({
-  icon: Icon, label, value, sub, href, trend,
+  icon: Icon, label, value, sub, href, trend, viewMatchingLabel, noPriorLabel,
 }: {
   icon: typeof Wallet; label: string; value: string; sub?: string; href?: string; trend?: Trend;
+  viewMatchingLabel: string; noPriorLabel: string;
 }) {
   const inner = (
     <Card className="h-full p-4 transition hover:bg-muted/30">
@@ -42,9 +45,9 @@ function KPI({
       <div className="mt-1 text-2xl font-bold">{value}</div>
       <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
         {sub && <span>{sub}</span>}
-        {trend && <TrendBadge t={trend} />}
+        {trend && <TrendBadge t={trend} noPriorLabel={noPriorLabel} />}
       </div>
-      {href && <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary">View matching jobs <ArrowRight className="h-3 w-3" /></div>}
+      {href && <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary">{viewMatchingLabel} <ArrowRight className="h-3 w-3" /></div>}
     </Card>
   );
   return href ? <Link to={href} className="block h-full">{inner}</Link> : inner;
@@ -63,6 +66,8 @@ const ATTENTION_ICONS: Record<AttentionKind, typeof AlertTriangle> = {
 
 export default function OwnerDashboard() {
   const { state } = useStore();
+  const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
   const { filters, patch, reset } = useJobFilters("owner");
 
   const techs = state.users.filter((u) => u.role !== "Owner");
@@ -79,8 +84,8 @@ export default function OwnerDashboard() {
   const prevBounds = useMemo(() => previousRangeBounds(rangeBounds(filters)), [filters]);
   const prevJobs = useMemo(
     () => state.jobs.filter((j) => {
-      const t = +new Date(j.scheduledFor);
-      return t >= +prevBounds.start && t <= +prevBounds.end;
+      const tt = +new Date(j.scheduledFor);
+      return tt >= +prevBounds.start && tt <= +prevBounds.end;
     }),
     [state.jobs, prevBounds],
   );
@@ -89,12 +94,11 @@ export default function OwnerDashboard() {
   const m: Metrics = useMemo(() => computeMetrics(filteredJobs, mctx), [filteredJobs, mctx]);
   const mPrev: Metrics = useMemo(() => computeMetrics(prevJobs, mctx), [prevJobs, mctx]);
 
-  // Today derivations from the same filtered set
   const today = useMemo(() => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const end = new Date(start); end.setDate(end.getDate() + 1);
     const todayJobs = filteredJobs.filter((j) => {
-      const t = +new Date(j.scheduledFor); return t >= +start && t < +end;
+      const tt = +new Date(j.scheduledFor); return tt >= +start && tt < +end;
     });
     const enRoute = todayJobs.filter((j) => j.status === "En Route" || j.status === "Near Destination").length;
     const onSite = todayJobs.filter((j) => ["On Site", "Diagnosing", "Repairing", "Verifying", "Documentation"].includes(j.status)).length;
@@ -105,7 +109,6 @@ export default function OwnerDashboard() {
     return { todayJobs, enRoute, onSite, completedToday, activeLaborMin, pausedTodayMin, revenueToday };
   }, [filteredJobs]);
 
-  // Needs attention — computed from same filtered jobs
   const attention = useMemo(() => computeAttention({
     jobs: filteredJobs,
     diag: state.diag,
@@ -124,14 +127,14 @@ export default function OwnerDashboard() {
   }, [attention]);
 
   const ATTENTION_ORDER: { kind: AttentionKind; label: string }[] = [
-    { kind: "overdue",            label: "Late or overdue jobs" },
-    { kind: "paused-too-long",    label: "Paused over 30 minutes" },
-    { kind: "waiting-approval",   label: "Waiting for approval" },
-    { kind: "waiting-parts",      label: "Waiting for parts" },
-    { kind: "possible-callback",  label: "Possible callbacks" },
-    { kind: "diag-review",        label: "Diagnostics needing review" },
-    { kind: "missing-report",     label: "Missing service reports" },
-    { kind: "customer-follow-up", label: "Customer follow-ups" },
+    { kind: "overdue",            label: t("ownerDashboard.attentionGroups.overdue") },
+    { kind: "paused-too-long",    label: t("ownerDashboard.attentionGroups.paused-too-long") },
+    { kind: "waiting-approval",   label: t("ownerDashboard.attentionGroups.waiting-approval") },
+    { kind: "waiting-parts",      label: t("ownerDashboard.attentionGroups.waiting-parts") },
+    { kind: "possible-callback",  label: t("ownerDashboard.attentionGroups.possible-callback") },
+    { kind: "diag-review",        label: t("ownerDashboard.attentionGroups.diag-review") },
+    { kind: "missing-report",     label: t("ownerDashboard.attentionGroups.missing-report") },
+    { kind: "customer-follow-up", label: t("ownerDashboard.attentionGroups.customer-follow-up") },
   ];
 
   const exportFiltered = () => {
@@ -146,16 +149,15 @@ export default function OwnerDashboard() {
   };
 
   const totalAttention = attention.length;
+  const viewMatchingLabel = t("ownerDashboard.kpiSubs.viewMatching");
+  const noPriorLabel = t("ownerDashboard.kpiSubs.noPrior");
 
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Operations</h1>
-          <div className="text-xs text-muted-foreground">
-            Every card, chart, and drill-down below is computed from the same filtered set.
-            Comparisons use the immediately preceding period of equal length.
-          </div>
+          <h1 className="text-2xl font-bold">{t("ownerDashboard.title")}</h1>
+          <div className="text-xs text-muted-foreground">{t("ownerDashboard.desc")}</div>
         </div>
       </div>
 
@@ -169,18 +171,17 @@ export default function OwnerDashboard() {
       <Tabs defaultValue="attention">
         <TabsList>
           <TabsTrigger value="attention">
-            Needs Attention {totalAttention > 0 && <Badge className="ml-2 bg-destructive text-destructive-foreground">{totalAttention}</Badge>}
+            {t("ownerDashboard.tabs.attention")} {totalAttention > 0 && <Badge className="ml-2 bg-destructive text-destructive-foreground">{totalAttention}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="today">{t("ownerDashboard.tabs.today")}</TabsTrigger>
+          <TabsTrigger value="performance">{t("ownerDashboard.tabs.performance")}</TabsTrigger>
         </TabsList>
 
-        {/* NEEDS ATTENTION */}
         <TabsContent value="attention" className="space-y-3">
           {totalAttention === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
               <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-success" />
-              Nothing requires your attention in the current filter window.
+              {t("ownerDashboard.noAttention")}
             </Card>
           ) : (
             ATTENTION_ORDER.map(({ kind, label }) => {
@@ -209,11 +210,11 @@ export default function OwnerDashboard() {
                           <div className="flex shrink-0 gap-1">
                             {j && (
                               <Link to={`/app/jobs/${j.id}`}>
-                                <button className="rounded-md border px-2 py-1 text-xs hover:bg-muted">Open job</button>
+                                <button className="rounded-md border px-2 py-1 text-xs hover:bg-muted">{t("common.openJob")}</button>
                               </Link>
                             )}
                             <Link to={a.href}>
-                              <button className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground hover:opacity-90">Review</button>
+                              <button className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground hover:opacity-90">{t("common.review")}</button>
                             </Link>
                           </div>
                         </li>
@@ -221,7 +222,7 @@ export default function OwnerDashboard() {
                     })}
                     {items.length > 6 && (
                       <li className="px-4 py-2 text-center text-xs">
-                        <Link to={items[0].href} className="text-primary hover:underline">View all {items.length} →</Link>
+                        <Link to={items[0].href} className="text-primary hover:underline">{t("ownerDashboard.viewAllN", { count: items.length })}</Link>
                       </li>
                     )}
                   </ul>
@@ -231,28 +232,32 @@ export default function OwnerDashboard() {
           )}
         </TabsContent>
 
-        {/* TODAY */}
         <TabsContent value="today" className="space-y-3">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <KPI icon={Truck}        label="En route"      value={String(today.enRoute)}        href="/app/owner/jobs?preset=en-route" />
-            <KPI icon={MapPin}       label="On site"       value={String(today.onSite)}         href="/app/owner/jobs?preset=on-site" />
-            <KPI icon={CheckCircle2} label="Completed today" value={String(today.completedToday)} href="/app/owner/jobs?preset=completed-today" />
-            <KPI icon={Clock}        label="Active labor"  value={`${today.activeLaborMin} min`} sub="across today's jobs" />
-            <KPI icon={PauseCircle}  label="Paused time"   value={`${today.pausedTodayMin} min`} sub="across today's jobs" />
-            <KPI icon={Wallet}       label="Revenue today" value={`$${today.revenueToday.toLocaleString()}`} />
+            <KPI icon={Truck}        label={t("ownerDashboard.kpis.enRoute")}        value={String(today.enRoute)}        href="/app/owner/jobs?preset=en-route" viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+            <KPI icon={MapPin}       label={t("ownerDashboard.kpis.onSite")}         value={String(today.onSite)}         href="/app/owner/jobs?preset=on-site" viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+            <KPI icon={CheckCircle2} label={t("ownerDashboard.kpis.completedToday")} value={String(today.completedToday)} href="/app/owner/jobs?preset=completed-today" viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+            <KPI icon={Clock}        label={t("ownerDashboard.kpis.activeLabor")}    value={`${today.activeLaborMin} min`} sub={t("ownerDashboard.kpiSubs.acrossToday")} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+            <KPI icon={PauseCircle}  label={t("ownerDashboard.kpis.pausedTime")}     value={`${today.pausedTodayMin} min`} sub={t("ownerDashboard.kpiSubs.acrossToday")} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+            <KPI icon={Wallet}       label={t("ownerDashboard.kpis.revenueToday")}   value={`$${today.revenueToday.toLocaleString()}`} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
           </div>
 
           <Card className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-semibold">Today's jobs ({today.todayJobs.length})</div>
-              <Link to="/app/owner/jobs?preset=completed-today" className="text-xs text-primary hover:underline">Open in Jobs →</Link>
+              <div className="text-sm font-semibold">{t("ownerDashboard.todaysJobs", { count: today.todayJobs.length })}</div>
+              <Link to="/app/owner/jobs?preset=completed-today" className="text-xs text-primary hover:underline">{t("ownerDashboard.openInJobs")}</Link>
             </div>
             {today.todayJobs.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No jobs scheduled for today in the current filter.</div>
+              <div className="text-sm text-muted-foreground">{t("ownerDashboard.noJobsToday")}</div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase text-muted-foreground">
-                  <tr><th className="py-1">Time</th><th>Customer</th><th>Tech</th><th>Status</th></tr>
+                  <tr>
+                    <th className="py-1">{t("ownerDashboard.table.time")}</th>
+                    <th>{t("ownerDashboard.table.customer")}</th>
+                    <th>{t("ownerDashboard.table.tech")}</th>
+                    <th>{t("ownerDashboard.table.status")}</th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y">
                   {today.todayJobs.slice(0, 12).map((j) => {
@@ -263,7 +268,7 @@ export default function OwnerDashboard() {
                         <td className="py-1.5 text-xs">{new Date(j.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</td>
                         <td><Link to={`/app/jobs/${j.id}`} className="hover:underline">{c?.name}</Link></td>
                         <td>{u?.name}</td>
-                        <td><Badge variant="secondary">{j.status}</Badge></td>
+                        <td><Badge variant="secondary">{statusLabel(j.status)}</Badge></td>
                       </tr>
                     );
                   })}
@@ -273,24 +278,23 @@ export default function OwnerDashboard() {
           </Card>
         </TabsContent>
 
-        {/* PERFORMANCE */}
         <TabsContent value="performance" className="space-y-3">
           {filteredJobs.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">No jobs match the current filters.</Card>
+            <Card className="p-8 text-center text-sm text-muted-foreground">{t("ownerDashboard.noJobsMatch")}</Card>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                <KPI icon={Wrench}         label="First-time fix"   value={m.completed === 0 ? "—" : `${m.fixRate}%`} trend={trend(m.fixRate, mPrev.fixRate, mPrev.completed)} sub={`${m.completed} completed`} />
-                <KPI icon={AlertTriangle}  label="Callback rate"    value={`${m.callbackRate}%`}                       trend={trend(m.callbackRate, mPrev.callbackRate, prevJobs.length)} href="/app/owner/jobs?preset=callback" />
-                <KPI icon={Wallet}         label="Average ticket"   value={m.avgTicket === 0 ? "—" : `$${m.avgTicket.toLocaleString()}`} />
-                <KPI icon={Clock}          label="Diagnostic time"  value={m.avgDiagMin ? `${m.avgDiagMin} min` : "—"} sub="avg per completed job" />
-                <KPI icon={Users}          label="Tech utilization" value={`${m.utilization}%`} sub={`${m.completed}/${m.total} closed`} />
-                <KPI icon={Wallet}         label="Gross margin"     value={m.completed === 0 ? "—" : `${m.margin}%`} trend={trend(m.margin, mPrev.margin, mPrev.completed)} sub={`$${m.grossProfit.toLocaleString()} profit`} />
+                <KPI icon={Wrench}         label={t("ownerDashboard.kpis.firstTimeFix")}   value={m.completed === 0 ? "—" : `${m.fixRate}%`} trend={trend(m.fixRate, mPrev.fixRate, mPrev.completed)} sub={t("ownerDashboard.kpiSubs.completed", { count: m.completed })} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+                <KPI icon={AlertTriangle}  label={t("ownerDashboard.kpis.callbackRate")}   value={`${m.callbackRate}%`}                       trend={trend(m.callbackRate, mPrev.callbackRate, prevJobs.length)} href="/app/owner/jobs?preset=callback" viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+                <KPI icon={Wallet}         label={t("ownerDashboard.kpis.avgTicket")}      value={m.avgTicket === 0 ? "—" : `$${m.avgTicket.toLocaleString()}`} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+                <KPI icon={Clock}          label={t("ownerDashboard.kpis.diagnosticTime")} value={m.avgDiagMin ? `${m.avgDiagMin} min` : "—"} sub={t("ownerDashboard.kpiSubs.avgPerCompleted")} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+                <KPI icon={Users}          label={t("ownerDashboard.kpis.techUtil")}       value={`${m.utilization}%`} sub={t("ownerDashboard.kpiSubs.techRatio", { done: m.completed, total: m.total })} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
+                <KPI icon={Wallet}         label={t("ownerDashboard.kpis.grossMargin")}    value={m.completed === 0 ? "—" : `${m.margin}%`} trend={trend(m.margin, mPrev.margin, mPrev.completed)} sub={t("ownerDashboard.kpiSubs.profit", { value: m.grossProfit.toLocaleString() })} viewMatchingLabel={viewMatchingLabel} noPriorLabel={noPriorLabel} />
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Card className="p-4">
-                  <div className="mb-2 text-sm font-semibold">Revenue over time</div>
+                  <div className="mb-2 text-sm font-semibold">{t("ownerDashboard.charts.revenueOverTime")}</div>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={m.revenueByDay}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -303,9 +307,9 @@ export default function OwnerDashboard() {
                 </Card>
 
                 <Card className="p-4">
-                  <div className="mb-2 text-sm font-semibold">Jobs by status</div>
+                  <div className="mb-2 text-sm font-semibold">{t("ownerDashboard.charts.jobsByStatus")}</div>
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={m.jobsByStatus}>
+                    <BarChart data={m.jobsByStatus.map((x) => ({ ...x, status: statusLabel(x.status) }))}>
                       <XAxis dataKey="status" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                       <Tooltip />
@@ -316,23 +320,29 @@ export default function OwnerDashboard() {
               </div>
 
               <Card className="p-4">
-                <div className="mb-2 text-sm font-semibold">Technician performance</div>
+                <div className="mb-2 text-sm font-semibold">{t("ownerDashboard.charts.technicianPerformance")}</div>
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs uppercase text-muted-foreground">
-                    <tr><th className="py-1">Tech</th><th>Jobs</th><th>Revenue</th><th>First-time fix</th><th>Rating</th></tr>
+                    <tr>
+                      <th className="py-1">{t("ownerDashboard.table.tech")}</th>
+                      <th>{t("ownerDashboard.table.jobs")}</th>
+                      <th>{t("ownerDashboard.table.revenue")}</th>
+                      <th>{t("ownerDashboard.table.firstTimeFix")}</th>
+                      <th>{t("ownerDashboard.table.rating")}</th>
+                    </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {m.techStats.filter((t) => t.jobs > 0).map((t) => (
-                      <tr key={t.id} className="cursor-pointer hover:bg-muted/30">
+                    {m.techStats.filter((tt) => tt.jobs > 0).map((tt) => (
+                      <tr key={tt.id} className="cursor-pointer hover:bg-muted/30">
                         <td className="py-1.5">
-                          <Link to={`/app/owner/jobs?preset=open`} onClick={() => patch({ techIds: [t.id] })} className="hover:underline">
-                            {t.name}
+                          <Link to={`/app/owner/jobs?preset=open`} onClick={() => patch({ techIds: [tt.id] })} className="hover:underline">
+                            {tt.name}
                           </Link>
                         </td>
-                        <td>{t.jobs}</td>
-                        <td>${t.revenue.toLocaleString()}</td>
-                        <td>{t.jobs === 0 ? "—" : `${t.fixRate}%`}</td>
-                        <td>{t.rating ? `${t.rating} ★` : "—"}</td>
+                        <td>{tt.jobs}</td>
+                        <td>${tt.revenue.toLocaleString()}</td>
+                        <td>{tt.jobs === 0 ? "—" : `${tt.fixRate}%`}</td>
+                        <td>{tt.rating ? `${tt.rating} ★` : "—"}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import type { PartRequest } from "@/lib/types";
 export default function PartsRequest() {
   const { id = "" } = useParams();
   const { state, addPartRequest, setJobStatus } = useStore();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
   const eq = job ? state.equipment.find((e) => e.id === job.equipmentId) : undefined;
@@ -30,7 +32,7 @@ export default function PartsRequest() {
   const [photo, setPhoto] = useState<string | undefined>();
   const [moveStatus, setMoveStatus] = useState(true);
 
-  if (!job) return <div className="p-6">Job not found.</div>;
+  if (!job) return <div className="p-6">{t("common.jobNotFound")}</div>;
 
   const onPhoto: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const f = e.target.files?.[0]; if (!f) return;
@@ -38,7 +40,7 @@ export default function PartsRequest() {
   };
 
   const submit = () => {
-    if (!name.trim()) { toast.error("Part name is required"); return; }
+    if (!name.trim()) { toast.error(t("partsRequest.toast.nameRequired")); return; }
     const now = new Date().toISOString();
     const pr: PartRequest = {
       id: `pr-${Date.now()}`, jobId: job.id, customerId: job.customerId,
@@ -55,70 +57,75 @@ export default function PartsRequest() {
     };
     addPartRequest(pr);
     if (moveStatus) setJobStatus(job.id, "Waiting for Parts");
-    toast.success("Part request submitted");
+    toast.success(t("partsRequest.toast.submitted"));
     nav(`/app/jobs/${job.id}`);
   };
 
+  const compLabel = (c: PartRequest["compatibility"]) =>
+    c === "Verified by qualified user" ? t("partsRequest.comp.Verified")
+    : c === "Likely" ? t("partsRequest.comp.Likely")
+    : t("partsRequest.comp.Unknown");
+
   return (
     <div className="flex flex-col gap-4 p-4 pb-24">
-      <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 text-xs text-muted-foreground"><ArrowLeft className="h-3 w-3" /> Back to job</button>
-      <h1 className="text-lg font-semibold">Part needed — not on hand</h1>
+      <button onClick={() => nav(-1)} className="inline-flex items-center gap-1 text-xs text-muted-foreground"><ArrowLeft className="h-3 w-3" /> {t("partsRequest.back")}</button>
+      <h1 className="text-lg font-semibold">{t("partsRequest.title")}</h1>
 
       <div className="card-elev space-y-3 p-4">
-        <Field label="Part name *"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Dual-run capacitor 40/5 µF 440V" className="touch-target" /></Field>
+        <Field label={t("partsRequest.fields.name")}><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("partsRequest.namePlaceholder")} className="touch-target" /></Field>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Part number"><Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} placeholder="If known" className="touch-target" /></Field>
-          <Field label="Qty"><Input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className="touch-target" /></Field>
+          <Field label={t("partsRequest.fields.partNumber")}><Input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} placeholder={t("partsRequest.ph.partNumber")} className="touch-target" /></Field>
+          <Field label={t("partsRequest.fields.qty")}><Input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className="touch-target" /></Field>
         </div>
-        <Field label="Equipment model"><Input value={equipmentModel} onChange={(e) => setEquipmentModel(e.target.value)} className="touch-target" /></Field>
-        <Field label="Required specifications"><Textarea value={specs} onChange={(e) => setSpecs(e.target.value)} placeholder="Voltage, rating, dimensions, tolerance" /></Field>
+        <Field label={t("partsRequest.fields.model")}><Input value={equipmentModel} onChange={(e) => setEquipmentModel(e.target.value)} className="touch-target" /></Field>
+        <Field label={t("partsRequest.fields.specs")}><Textarea value={specs} onChange={(e) => setSpecs(e.target.value)} placeholder={t("partsRequest.ph.specs")} /></Field>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Urgency">
+          <Field label={t("partsRequest.fields.urgency")}>
             <Select value={urgency} onValueChange={(v) => setUrgency(v as PartRequest["urgency"]) }>
               <SelectTrigger className="touch-target"><SelectValue /></SelectTrigger>
-              <SelectContent>{["Low","Normal","High","Critical"].map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}</SelectContent>
+              <SelectContent>{(["Low","Normal","High","Critical"] as const).map((u) => (<SelectItem key={u} value={u}>{t(`partsRequest.urgency.${u}`)}</SelectItem>))}</SelectContent>
             </Select>
           </Field>
-          <Field label="Preferred supplier"><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Ferguson" className="touch-target" /></Field>
+          <Field label={t("partsRequest.fields.supplier")}><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder={t("partsRequest.ph.supplier")} className="touch-target" /></Field>
         </div>
-        <Field label="Compatibility (technician honest assessment)">
+        <Field label={t("partsRequest.fields.compatibility")}>
           <Select value={compatibility} onValueChange={(v) => setCompatibility(v as PartRequest["compatibility"])}>
             <SelectTrigger className="touch-target"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Unknown">Unknown — needs identification</SelectItem>
-              <SelectItem value="Likely">Likely — needs office review</SelectItem>
-              <SelectItem value="Verified by qualified user">Verified by qualified user (I confirmed against installed component & docs)</SelectItem>
+              <SelectItem value="Unknown">{t("partsRequest.comp.Unknown")}</SelectItem>
+              <SelectItem value="Likely">{t("partsRequest.comp.Likely")}</SelectItem>
+              <SelectItem value="Verified by qualified user">{t("partsRequest.comp.Verified")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
         {compatibility !== "Verified by qualified user" && (
-          <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px]"><ShieldAlert className="mr-1 inline h-3 w-3" /> Compatibility will be shown as <strong>{compatibility}</strong> until a qualified user approves.</div>
+          <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px]"><ShieldAlert className="mr-1 inline h-3 w-3" /> {t("partsRequest.compNotice", { value: compLabel(compatibility) })}</div>
         )}
-        <Field label="Photo (data plate / installed part)">
+        <Field label={t("partsRequest.fields.photo")}>
           <label className="flex h-24 cursor-pointer items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            {photo ? <img src={photo} alt="part" className="h-full object-contain" /> : <span><Camera className="mr-1 inline h-4 w-4" /> Take or attach photo</span>}
+            {photo ? <img src={photo} alt="part" className="h-full object-contain" /> : <span><Camera className="mr-1 inline h-4 w-4" /> {t("partsRequest.takePhoto")}</span>}
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} />
           </label>
         </Field>
-        <Field label="Notes"><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the office should know" /></Field>
+        <Field label={t("partsRequest.fields.notes")}><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("partsRequest.ph.notes")} /></Field>
 
         <label className="flex items-center gap-2 text-xs">
           <input type="checkbox" checked={moveStatus} onChange={(e) => setMoveStatus(e.target.checked)} className="h-4 w-4" />
-          Move job to "Waiting for Parts" and notify office. Customer authorization for existing work is preserved; a follow-up visit may add charges.
+          {t("partsRequest.moveStatus")}
         </label>
 
-        <Button className="touch-target h-12 w-full" onClick={submit}>Submit part request</Button>
+        <Button className="touch-target h-12 w-full" onClick={submit}>{t("partsRequest.submit")}</Button>
       </div>
 
       {existing.length > 0 && (
         <div className="card-elev p-4">
-          <div className="mb-2 text-sm font-semibold">Existing requests on this job</div>
+          <div className="mb-2 text-sm font-semibold">{t("partsRequest.existing")}</div>
           <ul className="space-y-1 text-xs">
             {existing.map((pr) => (
               <li key={pr.id} className="flex items-center justify-between rounded-md border p-2">
                 <div>
                   <div className="font-medium">{pr.name} <span className="text-muted-foreground">×{pr.qty}</span></div>
-                  <div className="text-[10px] text-muted-foreground">{pr.compatibility}</div>
+                  <div className="text-[10px] text-muted-foreground">{compLabel(pr.compatibility)}</div>
                 </div>
                 <Badge variant="outline">{pr.status}</Badge>
               </li>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +11,12 @@ import { applyJobFilters, deriveJobType } from "@/lib/filters";
 import { useJobFilters } from "@/lib/useJobFilters";
 import FilterBar from "@/components/owner/FilterBar";
 import { presetToFilterPatch, PRESET_LABELS } from "@/lib/attention";
+import { useStatusLabel } from "@/i18n/status";
 
 export default function OwnerJobs() {
   const { state } = useStore();
+  const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
   const { filters, patch, reset } = useJobFilters("owner");
   const [q, setQ] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,19 +76,19 @@ export default function OwnerJobs() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Jobs</h1>
+        <h1 className="text-2xl font-bold">{t("ownerJobs.title")}</h1>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="w-64 pl-8" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("common.searchPlaceholder")} className="w-64 pl-8" />
         </div>
       </div>
 
       {preset && PRESET_LABELS[preset] && (
         <div className="flex items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs">
-          <span className="font-semibold uppercase tracking-wide">Drill-down</span>
+          <span className="font-semibold uppercase tracking-wide">{t("ownerJobs.drillDown")}</span>
           <span>{PRESET_LABELS[preset]}</span>
           <Button size="sm" variant="ghost" className="ml-auto h-7 gap-1 px-2" onClick={clearPreset}>
-            <X className="h-3 w-3" /> Clear
+            <X className="h-3 w-3" /> {t("common.clear")}
           </Button>
         </div>
       )}
@@ -99,15 +103,19 @@ export default function OwnerJobs() {
       <Card className="overflow-hidden p-0">
         {rows.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            No jobs match these filters.
-            <div className="mt-3"><Button variant="outline" onClick={reset}>Reset filters</Button></div>
+            {t("jobs.noMatchFilters")}
+            <div className="mt-3"><Button variant="outline" onClick={reset}>{t("jobs.resetFilters")}</Button></div>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="px-3 py-2">Customer</th><th>Complaint</th><th>Type</th>
-                <th>Technician</th><th>Status</th><th>Scheduled</th>
+                <th className="px-3 py-2">{t("ownerJobs.tableHead.customer")}</th>
+                <th>{t("ownerJobs.tableHead.complaint")}</th>
+                <th>{t("ownerJobs.tableHead.type")}</th>
+                <th>{t("ownerJobs.tableHead.technician")}</th>
+                <th>{t("ownerJobs.tableHead.status")}</th>
+                <th>{t("ownerJobs.tableHead.scheduled")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -125,7 +133,7 @@ export default function OwnerJobs() {
                     <td className="text-muted-foreground">{j.complaint}</td>
                     <td className="text-xs">{deriveJobType(j)}</td>
                     <td>{u?.name}</td>
-                    <td><Badge variant="secondary">{j.status}</Badge></td>
+                    <td><Badge variant="secondary">{statusLabel(j.status)}</Badge></td>
                     <td className="text-xs text-muted-foreground">
                       {new Date(j.scheduledFor).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                     </td>
@@ -138,7 +146,7 @@ export default function OwnerJobs() {
       </Card>
 
       <div className="text-xs text-muted-foreground">
-        {rows.length} jobs · matches current owner filters · <button className="underline" onClick={exportCsv}><Download className="-mt-0.5 inline h-3 w-3" /> Export CSV</button>
+        {t("ownerJobs.matchedFooter", { count: rows.length })} · <button className="underline" onClick={exportCsv}><Download className="-mt-0.5 inline h-3 w-3" /> {t("common.exportCsv")}</button>
       </div>
     </div>
   );

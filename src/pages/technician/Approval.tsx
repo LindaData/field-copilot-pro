@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useRef, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Check, X } from "lucide-react";
 export default function Approval() {
   const { id = "" } = useParams();
   const { state, setAuth, addJobPart, setJobStatus, parts } = { ...useStore(), parts: useStore().state.parts };
+  const { t } = useTranslation();
   const job = state.jobs.find((j) => j.id === id);
   const cap = parts.find((p) => p.id === "pt-1")!;
   const nav = useNavigate();
@@ -40,7 +42,7 @@ export default function Approval() {
     return () => { c.removeEventListener("pointerdown", down); c.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
   }, []);
 
-  if (!job) return <div className="p-6">Not found</div>;
+  if (!job) return <div className="p-6">{t("common.notFound")}</div>;
   const customer = state.customers.find(c => c.id === job.customerId);
 
   const approve = () => {
@@ -48,13 +50,13 @@ export default function Approval() {
     setAuth({ jobId: job.id, signedBy: customer?.name, signatureDataUrl: dataUrl, approvedAt: new Date().toISOString(), total, email, decision: "approved" });
     addJobPart({ jobId: job.id, partId: cap.id, qty: 1 });
     setJobStatus(job.id, "Waiting for Parts");
-    toast.success("Customer approved");
+    toast.success(t("approval.toast.approved"));
     nav(`/app/jobs/${job.id}/diagnose`);
   };
 
   const decline = () => {
     setAuth({ jobId: job.id, signedBy: customer?.name, approvedAt: new Date().toISOString(), decision: "declined" });
-    toast("Customer declined", { description: "Recorded on the job" });
+    toast(t("approval.toast.declinedTitle"), { description: t("approval.toast.declinedBody") });
     nav(`/app/jobs/${job.id}`);
   };
 
@@ -66,48 +68,48 @@ export default function Approval() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="card-elev p-4">
-        <h1 className="text-lg font-semibold">Customer approval</h1>
-        <p className="mt-1 text-sm">Hi {customer?.name?.split(" ")[0]}, here's the diagnosis and the quote in plain language. Approve to proceed with the repair.</p>
+        <h1 className="text-lg font-semibold">{t("approval.title")}</h1>
+        <p className="mt-1 text-sm">{t("approval.intro", { name: customer?.name?.split(" ")[0] ?? "" })}</p>
         <div className="mt-3 rounded-md bg-muted/40 p-3 text-sm">
-          <div className="font-medium">What we found</div>
-          <p className="mt-1 text-muted-foreground">Your outdoor unit's start capacitor is below the tolerance printed on its label. The capacitor helps the compressor start; a weak one keeps the system from cooling. Replacement restores normal operation.</p>
+          <div className="font-medium">{t("approval.whatWeFound")}</div>
+          <p className="mt-1 text-muted-foreground">{t("approval.findings")}</p>
         </div>
 
         <div className="mt-3 rounded-md border p-3 text-sm">
           <div className="flex items-center justify-between gap-2">
-            <span>Part — {cap.name}</span>
+            <span>{t("approval.partRow", { name: cap.name })}</span>
             <div className="inline-flex items-center gap-1">$<Input type="number" inputMode="decimal" value={partPrice} onChange={(e) => setPartPrice(+e.target.value || 0)} className="h-8 w-20 text-right" /></div>
           </div>
           <div className="mt-2 flex items-center justify-between gap-2">
-            <span>Labor</span>
+            <span>{t("approval.labor")}</span>
             <div className="inline-flex items-center gap-1 text-xs">
-              <Input type="number" step="0.25" value={laborHrs} onChange={(e) => setLaborHrs(+e.target.value || 0)} className="h-8 w-16 text-right" /> hr ×
-              $<Input type="number" value={laborRate} onChange={(e) => setLaborRate(+e.target.value || 0)} className="h-8 w-20 text-right" />/hr
+              <Input type="number" step="0.25" value={laborHrs} onChange={(e) => setLaborHrs(+e.target.value || 0)} className="h-8 w-16 text-right" /> {t("approval.hr")} ×
+              $<Input type="number" value={laborRate} onChange={(e) => setLaborRate(+e.target.value || 0)} className="h-8 w-20 text-right" />{t("approval.perHr")}
             </div>
           </div>
-          <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Labor subtotal</span><span>${labor.toFixed(2)}</span></div>
-          <div className="mt-1 flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span>Tax ({state.company.tax}%)</span><span>${tax.toFixed(2)}</span></div>
-          <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold"><span>Total</span><span>${total.toFixed(2)}</span></div>
-          <div className="mt-1 text-[11px] text-muted-foreground">Prices are editable demo values.</div>
+          <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{t("approval.laborSubtotal")}</span><span>${labor.toFixed(2)}</span></div>
+          <div className="mt-1 flex justify-between"><span>{t("approval.subtotal")}</span><span>${subtotal.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span>{t("approval.tax", { pct: state.company.tax })}</span><span>${tax.toFixed(2)}</span></div>
+          <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold"><span>{t("approval.total")}</span><span>${total.toFixed(2)}</span></div>
+          <div className="mt-1 text-[11px] text-muted-foreground">{t("approval.pricesDemo")}</div>
         </div>
 
         <div className="mt-4">
-          <label className="text-xs font-medium">Email receipt to (optional)</label>
+          <label className="text-xs font-medium">{t("approval.emailReceipt")}</label>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="touch-target mt-1" />
         </div>
 
         <div className="mt-4">
-          <div className="text-xs font-medium">Signature</div>
+          <div className="text-xs font-medium">{t("approval.signature")}</div>
           <div className="mt-1 rounded-md border bg-card">
             <canvas ref={sigRef} width={600} height={180} className="h-40 w-full touch-none rounded-md" />
           </div>
-          <Button variant="ghost" size="sm" className="mt-1" onClick={clear}>Clear</Button>
+          <Button variant="ghost" size="sm" className="mt-1" onClick={clear}>{t("approval.clear")}</Button>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button variant="outline" className="touch-target h-12" onClick={decline}><X className="mr-1 h-5 w-5" /> Decline</Button>
-          <Button className="touch-target h-12" disabled={!signed} onClick={approve}><Check className="mr-1 h-5 w-5" /> Approve</Button>
+          <Button variant="outline" className="touch-target h-12" onClick={decline}><X className="mr-1 h-5 w-5" /> {t("approval.decline")}</Button>
+          <Button className="touch-target h-12" disabled={!signed} onClick={approve}><Check className="mr-1 h-5 w-5" /> {t("approval.approve")}</Button>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, ExternalLink } from "lucide-react";
@@ -15,6 +16,7 @@ const statusColor: Record<DocItem["status"], string> = {
 
 export default function Documents() {
   const { state, addDoc, promoteDoc } = useStore();
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const onFile = (f: File) => {
@@ -23,7 +25,7 @@ export default function Documents() {
       url: "#", status: "Uploaded", uploadedAt: new Date().toISOString().slice(0, 10),
     };
     addDoc(d);
-    toast.success("Uploaded. Auto-advancing through demo extraction…");
+    toast.success(t("documents.uploadedToast"));
     setTimeout(() => promoteDoc(d.id), 800);
     setTimeout(() => promoteDoc(d.id), 1800);
   };
@@ -31,10 +33,10 @@ export default function Documents() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="card-elev p-4">
-        <h1 className="text-base font-semibold">Document library</h1>
-        <p className="mt-1 text-xs text-muted-foreground">Manuals, spec sheets, wiring diagrams, and company SOPs. The Goodman GSXN3 docs are seeded.</p>
+        <h1 className="text-base font-semibold">{t("documents.title")}</h1>
+        <p className="mt-1 text-xs text-muted-foreground">{t("documents.desc")}</p>
         <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-        <Button onClick={() => fileRef.current?.click()} className="touch-target mt-3 w-full h-12"><Upload className="mr-2 h-5 w-5" /> Upload document</Button>
+        <Button onClick={() => fileRef.current?.click()} className="touch-target mt-3 w-full h-12"><Upload className="mr-2 h-5 w-5" /> {t("documents.upload")}</Button>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -45,7 +47,7 @@ export default function Documents() {
               <div className="text-sm font-semibold">{d.title}</div>
               <div className="text-xs text-muted-foreground">{[d.manufacturer, d.model, d.category.replace("_", " ")].filter(Boolean).join(" · ")}</div>
             </div>
-            <span className={`stat-pill ${statusColor[d.status]}`}>{d.status}</span>
+            <span className={`stat-pill ${statusColor[d.status]}`}>{t(`documents.status.${d.status}`)}</span>
             {d.url && d.url !== "#" && <a href={d.url} target="_blank" rel="noreferrer" className="text-muted-foreground" onClick={(e) => e.stopPropagation()}><ExternalLink className="h-4 w-4" /></a>}
           </Link>
         ))}

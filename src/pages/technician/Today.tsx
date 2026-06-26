@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore, useCurrentUser, jobPausedMs, jobActivePause } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,15 +10,12 @@ import {
 } from "lucide-react";
 import { primaryActionForToday, type PrimaryAction } from "@/lib/primaryAction";
 import { cn } from "@/lib/utils";
+import { useStatusLabel } from "@/i18n/status";
 
 function fmtDur(ms: number) {
   const m = Math.max(0, Math.round(ms / 60000));
   const h = Math.floor(m / 60);
   return h ? `${h}h ${m % 60}m` : `${m}m`;
-}
-
-function statusLabel(s: string) {
-  return s;
 }
 
 function PrimaryCta({ action }: { action: PrimaryAction }) {
@@ -60,23 +58,25 @@ function inRange(d: Date, range: RangeKey): boolean {
   return d >= start && d < end;
 }
 
-const RANGE_LABEL: Record<RangeKey, string> = {
-  day: "Today",
-  week: "This week",
-  month: "This month",
-  all: "All upcoming",
-};
-
 export default function Today() {
   const { state } = useStore();
   const user = useCurrentUser();
+  const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
   const [range, setRange] = useState<RangeKey>("day");
+
+  const RANGE_LABEL: Record<RangeKey, string> = {
+    day: t("common.today"),
+    week: t("common.thisWeek"),
+    month: t("common.thisMonth"),
+    all: t("common.allUpcoming"),
+  };
 
   // tick once per minute to keep timers live
   const [, setTick] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 30000);
-    return () => clearInterval(t);
+    const tt = setInterval(() => setTick((n) => n + 1), 30000);
+    return () => clearInterval(tt);
   }, []);
 
   const allMyJobs = state.jobs.filter((j) => j.technicianId === user.id);
@@ -97,12 +97,10 @@ export default function Today() {
 
   const next = upcoming[0];
 
-
   const diag = current ? state.diag[current.id] : undefined;
   const auth = current ? state.auths.find((a) => a.jobId === current.id) : undefined;
   const action = primaryActionForToday({ current, upcoming: next, diag, auth });
 
-  // active labor across all my jobs today (arrived → completed minus paused)
   const { activeMs, pausedMs, activePauseReason } = useMemo(() => {
     const now = Date.now();
     let act = 0;
@@ -129,31 +127,33 @@ export default function Today() {
   const customerOf = (id: string) => state.customers.find((c) => c.id === id);
   const propertyOf = (id?: string) => state.properties.find((p) => p.id === id);
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? t("common.good.morning") : hour < 18 ? t("common.good.afternoon") : t("common.good.evening");
+
   return (
     <div className="flex flex-col gap-4 p-4 pb-8">
-      {/* Greeting + sync status */}
       <header className="rounded-2xl bg-primary p-4 text-primary-foreground">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xs opacity-80">
-              Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {user.name.split(" ")[0]}
+              {greeting}, {user.name.split(" ")[0]}
             </div>
             <div className="mt-1 text-xl font-semibold leading-tight">
-              {openJobs.length} open {openJobs.length === 1 ? "job" : "jobs"} · {doneToday} done today
+              {t(openJobs.length === 1 ? "today.openJobsZero" : "today.openJobsOther", { count: openJobs.length, done: doneToday })}
             </div>
           </div>
           <span className="stat-pill border border-white/30 bg-white/10 text-[11px]">
             {state.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-            {state.online ? "Synced" : "Offline"}
+            {state.online ? t("status.synced") : t("status.offline")}
           </span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
           <div className="rounded-md bg-white/10 px-2 py-1.5">
-            <div className="flex items-center gap-1 opacity-80"><Clock className="h-3.5 w-3.5" /> Active labor</div>
+            <div className="flex items-center gap-1 opacity-80"><Clock className="h-3.5 w-3.5" /> {t("today.activeLabor")}</div>
             <div className="mt-0.5 text-sm font-semibold">{fmtDur(activeMs)}</div>
           </div>
           <div className="rounded-md bg-white/10 px-2 py-1.5">
-            <div className="flex items-center gap-1 opacity-80"><Pause className="h-3.5 w-3.5" /> Paused</div>
+            <div className="flex items-center gap-1 opacity-80"><Pause className="h-3.5 w-3.5" /> {t("today.pausedTime")}</div>
             <div className="mt-0.5 text-sm font-semibold">
               {fmtDur(pausedMs)}
               {activePauseReason && <span className="ml-1 text-[10px] font-normal opacity-80">· {activePauseReason}</span>}
@@ -162,12 +162,11 @@ export default function Today() {
         </div>
       </header>
 
-      {/* Current job card (or next if none current) */}
       {current ? (
         <Link to={`/app/jobs/${current.id}`}>
           <div className="card-elev relative overflow-hidden border-l-4 border-l-accent p-4">
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel(current.status)}</Badge>
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Current job</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.currentJob")}</div>
             <div className="mt-1 text-base font-semibold leading-tight">{customerOf(current.customerId)?.name}</div>
             <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{current.complaint}</div>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
@@ -179,7 +178,7 @@ export default function Today() {
       ) : next ? (
         <Link to={`/app/jobs/${next.id}`}>
           <div className="card-elev p-4">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Next job</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.nextJob")}</div>
             <div className="mt-1 text-base font-semibold">{customerOf(next.customerId)?.name}</div>
             <div className="text-sm text-muted-foreground line-clamp-2">{next.complaint}</div>
             <div className="mt-1 text-[11px] text-muted-foreground">
@@ -189,14 +188,12 @@ export default function Today() {
         </Link>
       ) : (
         <div className="card-elev p-4 text-center text-sm text-muted-foreground">
-          You're all caught up. Nice work.
+          {t("today.allCaughtUp")}
         </div>
       )}
 
-      {/* ONE primary action */}
       <PrimaryCta action={action} />
 
-      {/* Range selector */}
       <div className="flex items-center gap-1 rounded-md border bg-card p-1">
         {(["day", "week", "month", "all"] as const).map((r) => (
           <button
@@ -212,14 +209,13 @@ export default function Today() {
         ))}
       </div>
 
-      {/* Schedule — scoped to range */}
       {myJobs.length > 0 ? (
         <section>
           <div className="mb-2 flex items-center justify-between">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {RANGE_LABEL[range]} ({myJobs.length})
+              {t("today.scheduleHeader", { label: RANGE_LABEL[range], count: myJobs.length })}
             </div>
-            <Link to="/app/jobs" className="text-[11px] font-medium text-primary">View all</Link>
+            <Link to="/app/jobs" className="text-[11px] font-medium text-primary">{t("common.viewAll")}</Link>
           </div>
           <div className="flex flex-col gap-2">
             {[...myJobs]
@@ -251,7 +247,7 @@ export default function Today() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <div className="truncate text-sm font-semibold">{c?.name}</div>
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">{j.status}</Badge>
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">{statusLabel(j.status)}</Badge>
                       </div>
                       <div className="truncate text-[11px] text-muted-foreground">{j.complaint}</div>
                       {p && (
@@ -268,37 +264,33 @@ export default function Today() {
         </section>
       ) : (
         <div className="card-elev p-4 text-center text-sm text-muted-foreground">
-          No jobs scheduled in {RANGE_LABEL[range].toLowerCase()}.
+          {t("today.noJobsInRange", { label: RANGE_LABEL[range].toLowerCase() })}
         </div>
       )}
 
-
-
-      {/* Quick links — secondary */}
       <div className="grid grid-cols-2 gap-2">
         <Link to="/app/scan">
           <Button variant="outline" className="touch-target h-12 w-full">
-            <Camera className="mr-2 h-4 w-4" /> Scan
+            <Camera className="mr-2 h-4 w-4" /> {t("nav.scan")}
           </Button>
         </Link>
         <Link to="/app/copilot">
           <Button variant="outline" className="touch-target h-12 w-full">
-            <Bot className="mr-2 h-4 w-4" /> Copilot
+            <Bot className="mr-2 h-4 w-4" /> {t("nav.copilot")}
           </Button>
         </Link>
       </div>
 
-      {/* Recently viewed equipment */}
       {recent.length > 0 && (
         <section>
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Recently viewed equipment</div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t("today.recentlyViewed")}</div>
           <div className="flex flex-col gap-2">
             {recent.map((eq) => (
               <Link key={eq.id} to={`/app/equipment/${eq.id}`} className="card-elev flex items-center gap-3 p-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary"><Wrench className="h-5 w-5" /></div>
                 <div className="flex-1">
                   <div className="text-sm font-semibold leading-tight">{eq.manufacturer} {eq.model}</div>
-                  <div className="text-[11px] text-muted-foreground">Serial {eq.serial}</div>
+                  <div className="text-[11px] text-muted-foreground">{t("today.serial", { value: eq.serial })}</div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </Link>
