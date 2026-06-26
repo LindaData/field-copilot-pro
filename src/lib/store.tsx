@@ -118,12 +118,22 @@ const StoreCtx = createContext<Ctx | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setStateRaw] = useState<StoreState>(() => {
-    if (typeof window === "undefined") return initialState();
+    const fresh = initialState();
+    if (typeof window === "undefined") return fresh;
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) return { ...initialState(), ...JSON.parse(raw) };
+      if (!raw) return fresh;
+      const parsed = JSON.parse(raw) as Partial<StoreState>;
+      // Reseed if demo version changed or anchor day rolled over so that
+      // "today" filters always have data in any browser/origin.
+      if (parsed.demoDataVersion !== DEMO_DATA_VERSION || parsed.demoAnchor !== fresh.demoAnchor) {
+        return fresh;
+      }
+      // Safety: empty job list means a corrupt cache — reseed.
+      if (!Array.isArray(parsed.jobs) || parsed.jobs.length === 0) return fresh;
+      return { ...fresh, ...parsed };
     } catch { /* ignore */ }
-    return initialState();
+    return fresh;
   });
 
   useEffect(() => {
