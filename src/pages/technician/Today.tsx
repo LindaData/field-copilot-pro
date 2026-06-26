@@ -11,6 +11,7 @@ import {
 import { primaryActionForToday, type PrimaryAction } from "@/lib/primaryAction";
 import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 function fmtDur(ms: number) {
   const m = Math.max(0, Math.round(ms / 60000));
