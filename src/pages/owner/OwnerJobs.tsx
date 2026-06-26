@@ -12,6 +12,7 @@ import { useJobFilters } from "@/lib/useJobFilters";
 import FilterBar from "@/components/owner/FilterBar";
 import { presetToFilterPatch, PRESET_LABELS } from "@/lib/attention";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 export default function OwnerJobs() {
   const { state } = useStore();
