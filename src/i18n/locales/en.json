@@ -141,7 +141,7 @@
     "equipmentNotIdentified": "Equipment not identified",
     "identifyEquipment": "Identify equipment",
     "previousWork": "Previous work at this property",
-    "noJobsRange": "No jobs scheduled in {{range}}",
+    "noJobsRange": "No jobs scheduled {{range}}",
     "noMatch": "No jobs match. Try clearing the filter.",
     "noMatchFilters": "No jobs match these filters.",
     "resetFilters": "Reset filters"
