@@ -152,7 +152,7 @@ function buildCustomers(): Customer[] {
     list.push({
       id: `c-${i}`,
       name: `${first} ${last}`,
-      phone: `(704) 555-${String(2000 + i * 7).padStart(4,"0")}`,
+      phone: `(239) 555-${String(2000 + i * 7).padStart(4,"0")}`,
       email: rng.chance(0.7) ? `${first.toLowerCase()}.demo${i}@example.com` : undefined,
       city,
       maintenancePlan: rng.chance(0.45),
