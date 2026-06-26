@@ -93,20 +93,30 @@ const TECH_IDS = ["u-alex","u-jordan","u-sam","u-marcus","u-elena","u-chris","u-
 // =============================================================================
 // Geographic / catalog tables (deterministic)
 // =============================================================================
-const CITIES = ["Charlotte", "Matthews", "Pineville", "Huntersville", "Concord", "Gastonia", "Belmont", "Indian Trail"];
+const CITIES = ["Estero", "Bonita Springs", "Fort Myers", "Naples", "Cape Coral", "Fort Myers Beach", "San Carlos Park", "Lehigh Acres"];
+const CITY_ZIPS: Record<string, string> = {
+  "Estero": "33928",
+  "Bonita Springs": "34135",
+  "Fort Myers": "33912",
+  "Naples": "34108",
+  "Cape Coral": "33904",
+  "Fort Myers Beach": "33931",
+  "San Carlos Park": "33967",
+  "Lehigh Acres": "33936",
+};
 const STREETS = [
-  "Tryon St", "Providence Rd", "Park Rd", "Independence Blvd", "Sharon Ln",
-  "Queens Rd", "Sardis Rd", "Carmel Rd", "Rea Rd", "Idlewild Rd",
-  "South Blvd", "Monroe Rd", "Eastway Dr", "Albemarle Rd", "Central Ave",
-  "Mallard Creek Rd", "WT Harris Blvd", "Brookshire Blvd", "Beatties Ford Rd",
-  "Old Statesville Rd", "Concord Mills Blvd", "Wilkinson Blvd", "Freedom Dr",
+  "Corkscrew Rd", "Estero Pkwy", "Three Oaks Pkwy", "Coconut Rd", "Via Coconut Point",
+  "Broadway Ave", "Williams Rd", "Pelican Sound Dr", "Highlands Ave", "Sandy Ln",
+  "Ben Hill Griffin Pkwy", "Fountain Lakes Blvd", "Sweetwater Ranch Blvd", "River Ranch Rd",
+  "Tamiami Trail", "Bonita Beach Rd", "Imperial Pkwy", "Old US 41", "Pine Ridge Rd",
+  "Vanderbilt Beach Rd", "Daniels Pkwy", "Summerlin Rd", "Colonial Blvd",
 ];
 const FIRST = ["Linda","Marcus","Priya","Tom","Janet","Aiden","Sofia","Eli","Maya","Owen","Naomi","Jack","Emma","Noah","Ava","Liam","Zoe","Henry","Ruby","Leo","Mia","Asher","Iris","Caleb","Stella","Felix","Grace","Theo","Hazel","Nora","Cole","Wren"];
 const LAST = ["Hayes","Greene","Shah","Whitmore","Kim","Robinson","Patel","Nguyen","Cole","Reyes","Brown","Sanders","Jones","Carter","Foster","Walker","Bennett","Hughes","Reid","Hall","Wright","Russell","Sullivan","Cox","Murphy","Bell","Wood","Ross","Howard","Bailey"];
 const BUSINESS = [
   "Westview Apartments", "Rivertown Cafe", "Coastal Dental", "Banyan Bay HOA",
   "Sunset Storage", "Cleveland Ave Diner", "Gulf Coast Auto Care",
-  "Piedmont Pediatrics", "Charlotte Pet Lodge",
+  "Piedmont Pediatrics", "Estero Pet Lodge",
 ];
 
 const BRANDS = ["Goodman","Amana","Carrier","Bryant","Trane","American Standard","Rheem","Ruud","Lennox","York","Coleman","Daikin","Mitsubishi Electric","Fujitsu","Bosch"];
@@ -134,15 +144,15 @@ function buildCustomers(): Customer[] {
   const rng = makeRng(0xC0FFEE);
   const list: Customer[] = [];
   // Keep c-1 stable for the verified Goodman demo scenario
-  list.push({ id: "c-1", name: "Linda Hayes", phone: "(704) 555-0188", email: "linda.demo@example.com", city: "Charlotte", maintenancePlan: true, commPreference: "Text", isDemo: true });
+  list.push({ id: "c-1", name: "Linda Hayes", phone: "(239) 555-0188", email: "linda.demo@example.com", city: "Estero", maintenancePlan: true, commPreference: "Text", isDemo: true });
   for (let i = 2; i <= 31; i++) {
     const first = FIRST[rng.int(0, FIRST.length - 1)];
     const last = LAST[rng.int(0, LAST.length - 1)];
-    const city = CITIES[rng.int(0, CITIES.length - 1)];
+    const city = rng.chance(0.55) ? "Estero" : CITIES[rng.int(0, CITIES.length - 1)];
     list.push({
       id: `c-${i}`,
       name: `${first} ${last}`,
-      phone: `(704) 555-${String(2000 + i * 7).padStart(4,"0")}`,
+      phone: `(239) 555-${String(2000 + i * 7).padStart(4,"0")}`,
       email: rng.chance(0.7) ? `${first.toLowerCase()}.demo${i}@example.com` : undefined,
       city,
       maintenancePlan: rng.chance(0.45),
@@ -155,7 +165,7 @@ function buildCustomers(): Customer[] {
     const id = `c-${32 + i}`;
     list.push({
       id, name: BUSINESS[i],
-      phone: `(704) 555-${String(8100 + i * 11).padStart(4,"0")}`,
+      phone: `(239) 555-${String(8100 + i * 11).padStart(4,"0")}`,
       email: `ops.demo@${BUSINESS[i].toLowerCase().replace(/[^a-z]/g, "")}.example`,
       city: CITIES[rng.int(0, CITIES.length - 1)],
       maintenancePlan: rng.chance(0.7),
@@ -184,13 +194,13 @@ function buildProperties(): Property[] {
   const list: Property[] = [];
   // Stable: p-1 for the Goodman scenario
   list.push({
-    id: "p-1", customerId: "c-1", address: "412 Sharon Ln, Charlotte, NC 28211",
-    city: "Charlotte", propertyType: "Single-family", serviceClass: "Residential",
+    id: "p-1", customerId: "c-1", address: "9120 Corkscrew Palms Blvd, Estero, FL 33928",
+    city: "Estero", propertyType: "Single-family", serviceClass: "Residential",
     accessNotes: "Gate code on file at dispatch. Dog in back yard.",
     parkingNotes: "Driveway pad on right side.",
     pets: "Friendly retriever",
     warrantyActive: true, gateCode: "2244",
-    lat: 35.1700, lng: -80.8120, geofenceRadiusFt: 200,
+    lat: 26.4382, lng: -81.8068, geofenceRadiusFt: 200,
   });
   // One primary property per remaining customer
   for (let i = 2; i <= CUSTOMERS.length; i++) {
@@ -202,16 +212,18 @@ function buildProperties(): Property[] {
               : rng.pick(PROP_TYPES);
     const serviceClass: ServiceClass =
       ["Retail","Office","Restaurant","Warehouse","Multi-unit"].includes(propType ?? "") ? "Light Commercial" : "Residential";
+    const city = c.city ?? "Estero";
+    const zip = CITY_ZIPS[city] ?? "33928";
     list.push({
       id: `p-${i}`, customerId: c.id,
-      address: `${houseNum} ${street}, ${c.city ?? "Charlotte"}, NC`,
-      city: c.city, propertyType: propType, serviceClass,
+      address: `${houseNum} ${street}, ${city}, FL ${zip}`,
+      city, propertyType: propType, serviceClass,
       accessNotes: rng.chance(0.4) ? rng.pick(["Side gate unlocked","Call on arrival","Use service door","Office key at front"]) : undefined,
       parkingNotes: rng.chance(0.3) ? rng.pick(["Driveway","Visitor lot","Street parking only","Loading dock"]) : undefined,
       pets: rng.chance(0.25) ? rng.pick(["Small dog inside","Cat indoors","Two dogs in yard"]) : undefined,
       warrantyActive: rng.chance(0.3),
       gateCode: rng.chance(0.15) ? String(1000 + rng.int(0, 8999)) : undefined,
-      lat: 35.10 + rng.next() * 0.4, lng: -80.95 + rng.next() * 0.4,
+      lat: 26.30 + rng.next() * 0.35, lng: -81.90 + rng.next() * 0.25,
       geofenceRadiusFt: 200,
     });
   }
@@ -219,12 +231,14 @@ function buildProperties(): Property[] {
   const baseCount = list.length;
   for (let i = 0; i < 48 - baseCount; i++) {
     const parent = CUSTOMERS[31 + (i % BUSINESS.length)];
+    const city = parent.city ?? "Estero";
+    const zip = CITY_ZIPS[city] ?? "33928";
     list.push({
       id: `p-${baseCount + i + 1}`, customerId: parent.id,
-      address: `${rng.int(100, 9800)} ${STREETS[rng.int(0, STREETS.length - 1)]}, ${parent.city}, NC (Bldg ${String.fromCharCode(66 + i)})`,
-      city: parent.city, propertyType: "Multi-unit", serviceClass: "Light Commercial",
+      address: `${rng.int(100, 9800)} ${STREETS[rng.int(0, STREETS.length - 1)]}, ${city}, FL ${zip} (Bldg ${String.fromCharCode(66 + i)})`,
+      city, propertyType: "Multi-unit", serviceClass: "Light Commercial",
       warrantyActive: false,
-      lat: 35.10 + rng.next() * 0.4, lng: -80.95 + rng.next() * 0.4, geofenceRadiusFt: 250,
+      lat: 26.30 + rng.next() * 0.35, lng: -81.90 + rng.next() * 0.25, geofenceRadiusFt: 250,
     });
   }
   return list;
