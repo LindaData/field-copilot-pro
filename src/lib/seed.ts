@@ -703,6 +703,23 @@ function buildJobs(): { jobs: Job[]; jobParts: JobPart[] } {
     }));
   }
 
+  // ── Unknown-equipment jobs (4) — equipment to be identified on-site ──
+  const unknownSeeds: { id: string; daysAgo: number; hour: number; complaint: string; tech: string; cust: string; prop: string; }[] = [
+    { id: "j-unk-1", daysAgo: 0,  hour: 14, complaint: "No cooling. Customer does not know unit model — needs identification on arrival.", tech: "u-alex",   cust: CUSTOMERS[2].id, prop: PROPERTIES[2].id },
+    { id: "j-unk-2", daysAgo: -1, hour: 10, complaint: "Strange noise from outdoor unit. New homeowner — equipment unknown.",              tech: "u-jordan", cust: CUSTOMERS[4].id, prop: PROPERTIES[4].id },
+    { id: "j-unk-3", daysAgo: -3, hour: 11, complaint: "Furnace not igniting. Rental property — manager unsure of brand or model.",        tech: "u-sam",    cust: CUSTOMERS[6].id, prop: PROPERTIES[6].id },
+    { id: "j-unk-4", daysAgo: -5, hour: 9,  complaint: "Mini-split zone offline. Equipment not on file. To be identified on site.",         tech: "u-taylor", cust: CUSTOMERS[8].id, prop: PROPERTIES[8].id },
+  ];
+  for (const u of unknownSeeds) {
+    seeds.push({
+      id: u.id, customerId: u.cust, propertyId: u.prop,
+      systemId: undefined, equipmentId: undefined,
+      technicianId: u.tech, complaint: u.complaint,
+      status: "Scheduled", daysAgo: u.daysAgo, hour: u.hour, priority: "Normal",
+      jobType: "Repair", serviceCategory: "Other", billingType: "Billable",
+    });
+  }
+
   // ── Future scheduled (12) ────────────────────────────────────────
   for (let d = 1; d <= 12; d++) {
     seeds.push(makeJob({
