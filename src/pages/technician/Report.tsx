@@ -6,6 +6,7 @@ import { Printer, Share2 } from "lucide-react";
 import { SourceBadge } from "@/components/SourceBadge";
 import { toast } from "sonner";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 export default function Report() {
   const { id = "" } = useParams();
