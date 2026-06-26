@@ -194,13 +194,13 @@ function buildProperties(): Property[] {
   const list: Property[] = [];
   // Stable: p-1 for the Goodman scenario
   list.push({
-    id: "p-1", customerId: "c-1", address: "412 Sharon Ln, Charlotte, NC 28211",
-    city: "Charlotte", propertyType: "Single-family", serviceClass: "Residential",
+    id: "p-1", customerId: "c-1", address: "9120 Corkscrew Palms Blvd, Estero, FL 33928",
+    city: "Estero", propertyType: "Single-family", serviceClass: "Residential",
     accessNotes: "Gate code on file at dispatch. Dog in back yard.",
     parkingNotes: "Driveway pad on right side.",
     pets: "Friendly retriever",
     warrantyActive: true, gateCode: "2244",
-    lat: 35.1700, lng: -80.8120, geofenceRadiusFt: 200,
+    lat: 26.4382, lng: -81.8068, geofenceRadiusFt: 200,
   });
   // One primary property per remaining customer
   for (let i = 2; i <= CUSTOMERS.length; i++) {
@@ -212,16 +212,18 @@ function buildProperties(): Property[] {
               : rng.pick(PROP_TYPES);
     const serviceClass: ServiceClass =
       ["Retail","Office","Restaurant","Warehouse","Multi-unit"].includes(propType ?? "") ? "Light Commercial" : "Residential";
+    const city = c.city ?? "Estero";
+    const zip = CITY_ZIPS[city] ?? "33928";
     list.push({
       id: `p-${i}`, customerId: c.id,
-      address: `${houseNum} ${street}, ${c.city ?? "Charlotte"}, NC`,
-      city: c.city, propertyType: propType, serviceClass,
+      address: `${houseNum} ${street}, ${city}, FL ${zip}`,
+      city, propertyType: propType, serviceClass,
       accessNotes: rng.chance(0.4) ? rng.pick(["Side gate unlocked","Call on arrival","Use service door","Office key at front"]) : undefined,
       parkingNotes: rng.chance(0.3) ? rng.pick(["Driveway","Visitor lot","Street parking only","Loading dock"]) : undefined,
       pets: rng.chance(0.25) ? rng.pick(["Small dog inside","Cat indoors","Two dogs in yard"]) : undefined,
       warrantyActive: rng.chance(0.3),
       gateCode: rng.chance(0.15) ? String(1000 + rng.int(0, 8999)) : undefined,
-      lat: 35.10 + rng.next() * 0.4, lng: -80.95 + rng.next() * 0.4,
+      lat: 26.30 + rng.next() * 0.35, lng: -81.90 + rng.next() * 0.25,
       geofenceRadiusFt: 200,
     });
   }
@@ -229,12 +231,14 @@ function buildProperties(): Property[] {
   const baseCount = list.length;
   for (let i = 0; i < 48 - baseCount; i++) {
     const parent = CUSTOMERS[31 + (i % BUSINESS.length)];
+    const city = parent.city ?? "Estero";
+    const zip = CITY_ZIPS[city] ?? "33928";
     list.push({
       id: `p-${baseCount + i + 1}`, customerId: parent.id,
-      address: `${rng.int(100, 9800)} ${STREETS[rng.int(0, STREETS.length - 1)]}, ${parent.city}, NC (Bldg ${String.fromCharCode(66 + i)})`,
-      city: parent.city, propertyType: "Multi-unit", serviceClass: "Light Commercial",
+      address: `${rng.int(100, 9800)} ${STREETS[rng.int(0, STREETS.length - 1)]}, ${city}, FL ${zip} (Bldg ${String.fromCharCode(66 + i)})`,
+      city, propertyType: "Multi-unit", serviceClass: "Light Commercial",
       warrantyActive: false,
-      lat: 35.10 + rng.next() * 0.4, lng: -80.95 + rng.next() * 0.4, geofenceRadiusFt: 250,
+      lat: 26.30 + rng.next() * 0.35, lng: -81.90 + rng.next() * 0.25, geofenceRadiusFt: 250,
     });
   }
   return list;
