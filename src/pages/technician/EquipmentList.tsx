@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Wrench, FileText, History, ListChecks, Play, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDynamicText } from "@/i18n/dynamic";
 
 export default function EquipmentList() {
   const { state } = useStore();
