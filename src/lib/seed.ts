@@ -165,7 +165,7 @@ function buildCustomers(): Customer[] {
     const id = `c-${32 + i}`;
     list.push({
       id, name: BUSINESS[i],
-      phone: `(704) 555-${String(8100 + i * 11).padStart(4,"0")}`,
+      phone: `(239) 555-${String(8100 + i * 11).padStart(4,"0")}`,
       email: `ops.demo@${BUSINESS[i].toLowerCase().replace(/[^a-z]/g, "")}.example`,
       city: CITIES[rng.int(0, CITIES.length - 1)],
       maintenancePlan: rng.chance(0.7),
