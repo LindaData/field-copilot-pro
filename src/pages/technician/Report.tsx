@@ -13,6 +13,7 @@ export default function Report() {
   const { state } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const job = state.jobs.find((j) => j.id === id);
   if (!job) return <div className="p-6">{t("common.notFound")}</div>;
   const c = state.customers.find((x) => x.id === job.customerId);
