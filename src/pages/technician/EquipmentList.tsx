@@ -9,6 +9,7 @@ export default function EquipmentList() {
   const { state } = useStore();
   const { t } = useTranslation();
   const nav = useNavigate();
+  const tx = useDynamicText();
 
   return (
     <div className="flex flex-col gap-3 p-4">
