@@ -93,13 +93,23 @@ const TECH_IDS = ["u-alex","u-jordan","u-sam","u-marcus","u-elena","u-chris","u-
 // =============================================================================
 // Geographic / catalog tables (deterministic)
 // =============================================================================
-const CITIES = ["Charlotte", "Matthews", "Pineville", "Huntersville", "Concord", "Gastonia", "Belmont", "Indian Trail"];
+const CITIES = ["Estero", "Bonita Springs", "Fort Myers", "Naples", "Cape Coral", "Fort Myers Beach", "San Carlos Park", "Lehigh Acres"];
+const CITY_ZIPS: Record<string, string> = {
+  "Estero": "33928",
+  "Bonita Springs": "34135",
+  "Fort Myers": "33912",
+  "Naples": "34108",
+  "Cape Coral": "33904",
+  "Fort Myers Beach": "33931",
+  "San Carlos Park": "33967",
+  "Lehigh Acres": "33936",
+};
 const STREETS = [
-  "Tryon St", "Providence Rd", "Park Rd", "Independence Blvd", "Sharon Ln",
-  "Queens Rd", "Sardis Rd", "Carmel Rd", "Rea Rd", "Idlewild Rd",
-  "South Blvd", "Monroe Rd", "Eastway Dr", "Albemarle Rd", "Central Ave",
-  "Mallard Creek Rd", "WT Harris Blvd", "Brookshire Blvd", "Beatties Ford Rd",
-  "Old Statesville Rd", "Concord Mills Blvd", "Wilkinson Blvd", "Freedom Dr",
+  "Corkscrew Rd", "Estero Pkwy", "Three Oaks Pkwy", "Coconut Rd", "Via Coconut Point",
+  "Broadway Ave", "Williams Rd", "Pelican Sound Dr", "Highlands Ave", "Sandy Ln",
+  "Ben Hill Griffin Pkwy", "Fountain Lakes Blvd", "Sweetwater Ranch Blvd", "River Ranch Rd",
+  "Tamiami Trail", "Bonita Beach Rd", "Imperial Pkwy", "Old US 41", "Pine Ridge Rd",
+  "Vanderbilt Beach Rd", "Daniels Pkwy", "Summerlin Rd", "Colonial Blvd",
 ];
 const FIRST = ["Linda","Marcus","Priya","Tom","Janet","Aiden","Sofia","Eli","Maya","Owen","Naomi","Jack","Emma","Noah","Ava","Liam","Zoe","Henry","Ruby","Leo","Mia","Asher","Iris","Caleb","Stella","Felix","Grace","Theo","Hazel","Nora","Cole","Wren"];
 const LAST = ["Hayes","Greene","Shah","Whitmore","Kim","Robinson","Patel","Nguyen","Cole","Reyes","Brown","Sanders","Jones","Carter","Foster","Walker","Bennett","Hughes","Reid","Hall","Wright","Russell","Sullivan","Cox","Murphy","Bell","Wood","Ross","Howard","Bailey"];
