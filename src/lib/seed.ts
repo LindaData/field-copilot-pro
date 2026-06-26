@@ -148,7 +148,7 @@ function buildCustomers(): Customer[] {
   for (let i = 2; i <= 31; i++) {
     const first = FIRST[rng.int(0, FIRST.length - 1)];
     const last = LAST[rng.int(0, LAST.length - 1)];
-    const city = CITIES[rng.int(0, CITIES.length - 1)];
+    const city = rng.chance(0.55) ? "Estero" : CITIES[rng.int(0, CITIES.length - 1)];
     list.push({
       id: `c-${i}`,
       name: `${first} ${last}`,
