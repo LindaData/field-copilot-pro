@@ -43,6 +43,7 @@ export default function JobDetail() {
   const { state, setJobStatus, startPause, endPause, setArrival, setArrivalDetected, updateJob } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
 
