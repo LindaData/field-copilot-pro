@@ -7,7 +7,13 @@ import type {
   SystemRecord, UserProfile,
 } from "./types";
 
-const KEY = "hvac-copilot-store-v10";
+const KEY = "hvac-copilot-store-v11";
+export const DEMO_DATA_VERSION = "2026-06-26-v1";
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
 
 type Role = "guest-tech" | "guest-owner" | "user";
 
