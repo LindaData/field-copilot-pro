@@ -251,7 +251,7 @@ export default function Today() {
                         <div className="truncate text-sm font-semibold">{c?.name}</div>
                         <Badge variant="secondary" className="shrink-0 text-[10px]">{statusLabel(j.status)}</Badge>
                       </div>
-                      <div className="truncate text-[11px] text-muted-foreground">{j.complaint}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">{tx(j.complaint)}</div>
                       {p && (
                         <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                           <MapPin className="h-3 w-3" /> {p.address.split(",")[0]}
