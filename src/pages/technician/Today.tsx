@@ -170,7 +170,7 @@ export default function Today() {
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel(current.status)}</Badge>
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.currentJob")}</div>
             <div className="mt-1 text-base font-semibold leading-tight">{customerOf(current.customerId)?.name}</div>
-            <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{current.complaint}</div>
+            <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{tx(current.complaint)}</div>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{propertyOf(current.propertyId)?.address.split(",")[0]}</span>
               <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{customerOf(current.customerId)?.phone}</span>
