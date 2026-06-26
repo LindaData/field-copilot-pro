@@ -139,7 +139,7 @@ export default function JobDetail() {
           <div>
             <div className="text-xs text-muted-foreground">{new Date(job.scheduledFor).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</div>
             <h1 className="text-lg font-semibold leading-tight">{c?.name}</h1>
-            <div className="mt-1 text-sm text-foreground/90">{job.complaint}</div>
+            <div className="mt-1 text-sm text-foreground/90">{tx(job.complaint)}</div>
           </div>
           <Badge>{statusLabel(job.status)}</Badge>
         </div>
