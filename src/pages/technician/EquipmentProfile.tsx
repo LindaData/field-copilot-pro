@@ -14,6 +14,7 @@ import { resolveAnswer } from "@/lib/answers/resolver";
 import { findSimilarJobs } from "@/lib/answers/similarJobs";
 import type { Answer } from "@/lib/answers/types";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 const GROUP_ORDER: Spec["group"][] = ["Capacity", "Compressor", "Fan", "Refrigeration", "Electrical", "Physical", "Certifications"];
 
