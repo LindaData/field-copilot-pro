@@ -9,6 +9,7 @@ import { Camera, MapPin, Phone, AlertCircle, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JobStatus } from "@/lib/types";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 const statusColor: Record<JobStatus, string> = {
   "Unassigned": "bg-muted text-muted-foreground",
