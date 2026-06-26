@@ -196,7 +196,7 @@ export default function EquipmentProfile() {
           <ul className="divide-y text-sm">
             {eqJobs.slice(0, 10).map((j) => (
               <li key={j.id} className="flex items-center justify-between py-2">
-                <Link to={`/app/jobs/${j.id}`} className="truncate underline">{j.complaint}</Link>
+                <Link to={`/app/jobs/${j.id}`} className="truncate underline">{tx(j.complaint)}</Link>
                 <span className="text-xs text-muted-foreground">{(j.completedAt ?? j.scheduledFor).slice(0, 10)} · {statusLabel(j.status)}</span>
               </li>
             ))}
