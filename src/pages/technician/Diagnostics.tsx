@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { findStep, NO_COOLING, type DiagStep } from "@/lib/diagTemplate";
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const GROUPS = ["Capacity","Compressor","Fan","Refrigeration","Electrical","Physical","Certifications"] as const;
+
 export default function Diagnostics() {
   const { id = "" } = useParams();
   const { state, ensureDiag, saveStep, saveMeasurement, setHypothesis, completeDiag, setJobStatus, goToStep, clearInvalidation } = useStore();
+  const { t } = useTranslation();
   const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
   const session = useMemo(() => ensureDiag(id), [id, ensureDiag]);
@@ -30,15 +34,13 @@ export default function Diagnostics() {
   const step = findStep(currentId);
   const equipment = state.equipment.find((e) => e.id === job?.equipmentId);
 
-
-  // Pre-fill val when stepping onto a previously-answered measurement step
   useEffect(() => {
     setAck(false);
     const prior = live.results.find((r) => r.stepId === currentId);
     setVal(prior?.answer && prior.answer !== "skipped" && prior.answer !== "n/a" ? prior.answer : "");
   }, [currentId, live.results]);
 
-  if (!job || !step) return <div className="p-6">Job not found</div>;
+  if (!job || !step) return <div className="p-6">{t("diagnostics.jobNotFound")}</div>;
 
   const visited = live.visitedStepIds ?? [];
   const visitedIdx = visited.indexOf(currentId);
@@ -57,7 +59,6 @@ export default function Diagnostics() {
   const tryAdvance = (next: string, payload?: Partial<{ answer: string; ack: boolean }>) => {
     const prior = live.results.find((r) => r.stepId === step.id);
     const isEdit = prior && payload?.answer !== undefined && (prior.answer ?? "") !== payload.answer;
-    // If editing and downstream visited steps exist, confirm
     const downstream = visited.slice(visited.indexOf(step.id) + 1).filter((x) => x !== step.id);
     if (isEdit && downstream.length > 0) {
       setConfirmEdit(JSON.stringify({ next, payload }));
@@ -65,7 +66,7 @@ export default function Diagnostics() {
     }
     saveStep(job.id, { stepId: step.id, ts: new Date().toISOString(), ...payload }, next);
     if (step.id === "J") setHypothesis(job.id, "Installed dual-run capacitor compressor section out of label tolerance", "High");
-    toast("Saved", { duration: 1100 });
+    toast(t("diagnostics.savedToast"), { duration: 1100 });
   };
 
   const advance = tryAdvance;
@@ -89,7 +90,7 @@ export default function Diagnostics() {
 
   const escalate = () => {
     setJobStatus(job.id, "Follow-Up");
-    toast("Escalated as follow-up");
+    toast(t("diagnostics.escalatedToast"));
     nav(`/app/jobs/${job.id}`);
   };
 
@@ -105,20 +106,23 @@ export default function Diagnostics() {
   const progress = Math.min(100, Math.round((completed / 14) * 100));
   const isInvalidated = (live.invalidatedStepIds ?? []).includes(currentId);
 
+  const stepLabel = step.type === "alt-end"
+    ? t("diagnostics.stepLabel", { id: step.id, progress: t("diagnostics.altBranch") })
+    : t("diagnostics.stepLabel", { id: step.id, progress: `${completed + 1}/14` });
+
   return (
     <div className="flex flex-col gap-4 p-4 pb-36">
-      {/* Header / progress */}
       <div className="card-elev p-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-medium">Step {step.id} · {step.type === "alt-end" ? "Alternate branch" : `${completed + 1}/14`}</span>
+          <span className="font-medium">{stepLabel}</span>
           <div className="flex items-center gap-2">
             <RiskBadge risk={step.risk} />
             <Sheet>
               <SheetTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 gap-1"><ListChecks className="h-4 w-4" /> Steps</Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1"><ListChecks className="h-4 w-4" /> {t("equipmentList.specs")}</Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-80">
-                <SheetHeader><SheetTitle>Diagnostic steps</SheetTitle></SheetHeader>
+                <SheetHeader><SheetTitle>{t("diagnostics.stepsSheet")}</SheetTitle></SheetHeader>
                 <div className="mt-3 space-y-1">
                   {NO_COOLING.filter((s) => !s.id.startsWith("ALT-")).map((s) => {
                     const st = stepStatus(s.id);
@@ -140,23 +144,23 @@ export default function Diagnostics() {
             </Sheet>
             <Sheet>
               <SheetTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 gap-1"><BookOpen className="h-4 w-4" /> Specs</Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1"><BookOpen className="h-4 w-4" /> {t("equipmentList.specs")}</Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-96 overflow-y-auto">
-                <SheetHeader><SheetTitle>{equipment ? `${equipment.manufacturer} ${equipment.model}` : "Specifications"}</SheetTitle></SheetHeader>
+                <SheetHeader><SheetTitle>{equipment ? `${equipment.manufacturer} ${equipment.model}` : t("diagnostics.specsSheet")}</SheetTitle></SheetHeader>
                 {equipment ? (
                   <div className="mt-3 space-y-3 text-xs">
                     {equipment.verificationStatus !== "Manufacturer Verified" && (
                       <div className="rounded-md border border-warning bg-warning/10 p-2">
-                        Demo Equipment — Specifications Not Verified. No manufacturer specifications are displayed.
+                        {t("diagnostics.demoSpecsBanner")}
                       </div>
                     )}
-                    {(["Capacity","Compressor","Fan","Refrigeration","Electrical","Physical","Certifications"] as const).map((g) => {
+                    {GROUPS.map((g) => {
                       const items = equipment.specs.filter((s) => s.group === g);
                       if (!items.length) return null;
                       return (
                         <div key={g} className="rounded-md border">
-                          <div className="border-b bg-muted/30 px-2 py-1 font-semibold">{g}</div>
+                          <div className="border-b bg-muted/30 px-2 py-1 font-semibold">{t(`equipmentProfile.groups.${g}`)}</div>
                           <ul className="divide-y">
                             {items.map((s) => (
                               <li key={s.key} className="flex items-baseline justify-between gap-2 px-2 py-1.5">
@@ -170,36 +174,34 @@ export default function Diagnostics() {
                     })}
                     <div className="flex gap-2">
                       <Button asChild variant="outline" size="sm" className="flex-1">
-                        <a href={`/app/equipment/${equipment.id}#specs`} target="_blank" rel="noreferrer"><FileText className="mr-1 h-3 w-3" /> Open full profile</a>
+                        <a href={`/app/equipment/${equipment.id}#specs`} target="_blank" rel="noreferrer"><FileText className="mr-1 h-3 w-3" /> {t("diagnostics.openFullProfile")}</a>
                       </Button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Opening Specs does not reset the diagnostic session, lose entered data, or change the diagnosis.</p>
+                    <p className="text-[10px] text-muted-foreground">{t("diagnostics.noSession")}</p>
                   </div>
                 ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">No equipment is linked to this job.</p>
+                  <p className="mt-3 text-xs text-muted-foreground">{t("diagnostics.noEquipmentLinked")}</p>
                 )}
               </SheetContent>
             </Sheet>
-
           </div>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
         </div>
         {live.hypothesis && (
-          <div className="mt-2 rounded-md bg-accent/15 px-2 py-1 text-xs"><span className="font-semibold">Current hypothesis:</span> {live.hypothesis}</div>
+          <div className="mt-2 rounded-md bg-accent/15 px-2 py-1 text-xs"><span className="font-semibold">{t("diagnostics.currentHypothesis")}</span> {live.hypothesis}</div>
         )}
       </div>
 
       {isInvalidated && (
         <div className="rounded-md border border-warning bg-warning/10 p-3 text-xs">
-          <div className="font-semibold inline-flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> Needs review</div>
-          <p className="mt-1">An earlier answer changed. Re-confirm this step or re-enter the measurement, then it will be marked complete again.</p>
-          <Button size="sm" variant="outline" className="mt-2 h-8" onClick={() => clearInvalidation(job.id, currentId)}><RefreshCw className="mr-1 h-3 w-3" /> Mark reviewed</Button>
+          <div className="font-semibold inline-flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> {t("diagnostics.needsReview")}</div>
+          <p className="mt-1">{t("diagnostics.needsReviewBody")}</p>
+          <Button size="sm" variant="outline" className="mt-2 h-8" onClick={() => clearInvalidation(job.id, currentId)}><RefreshCw className="mr-1 h-3 w-3" /> {t("diagnostics.markReviewed")}</Button>
         </div>
       )}
 
-      {/* Step card */}
       <div className="card-elev p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -209,17 +211,17 @@ export default function Diagnostics() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="touch-target"><MoreVertical className="h-5 w-5" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => advance(nextStepIdOrSame(step), { answer: "skipped" })}>Skip step</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => advance(nextStepIdOrSame(step), { answer: "n/a" })}>Mark not applicable</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { const n = prompt("Add note for this step"); if (n) { saveStep(job.id, { stepId: step.id, ts: new Date().toISOString(), notes: n }); toast.success("Note added"); } }}>Add note</DropdownMenuItem>
-              <DropdownMenuItem onClick={escalate}>Escalate to senior tech</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => advance(nextStepIdOrSame(step), { answer: "skipped" })}>{t("diagnostics.skipStep")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => advance(nextStepIdOrSame(step), { answer: "n/a" })}>{t("diagnostics.markNa")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { const n = prompt(t("diagnostics.addNotePrompt")); if (n) { saveStep(job.id, { stepId: step.id, ts: new Date().toISOString(), notes: n }); toast.success(t("diagnostics.noteAdded")); } }}>{t("diagnostics.addNote")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={escalate}>{t("diagnostics.escalateSenior")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         {step.toolsNeeded && (
           <div className="mt-3 flex flex-wrap gap-1">
-            {step.toolsNeeded.map((t) => <span key={t} className="stat-pill bg-secondary text-secondary-foreground"><Wrench className="h-3 w-3" /> {t}</span>)}
+            {step.toolsNeeded.map((tn) => <span key={tn} className="stat-pill bg-secondary text-secondary-foreground"><Wrench className="h-3 w-3" /> {tn}</span>)}
           </div>
         )}
 
@@ -243,23 +245,23 @@ export default function Diagnostics() {
           )}
 
           {step.type === "info-end" && (
-            <Button className="touch-target h-12 w-full" onClick={() => { completeDiag(job.id); setJobStatus(job.id, "Completed"); toast.success("Diagnostic complete"); nav(`/app/jobs/${job.id}/report`); }}>
-              <Check className="mr-2 h-5 w-5" /> Generate service report
+            <Button className="touch-target h-12 w-full" onClick={() => { completeDiag(job.id); setJobStatus(job.id, "Completed"); toast.success(t("diagnostics.diagComplete")); nav(`/app/jobs/${job.id}/report`); }}>
+              <Check className="mr-2 h-5 w-5" /> {t("diagnostics.generateReport")}
             </Button>
           )}
 
           {step.type === "alt-end" && (
             <div className="space-y-2">
-              <div className="rounded-md border border-accent/40 bg-accent/10 p-2 text-xs">{step.detail ?? "Follow company SOP and applicable codes. Do not bypass safety devices."}</div>
-              <Button variant="ghost" className="touch-target w-full text-muted-foreground" onClick={() => setConfirmRestart(true)}>Restart diagnosis</Button>
-              <Button className="touch-target w-full" onClick={escalate}>Escalate this job</Button>
+              <div className="rounded-md border border-accent/40 bg-accent/10 p-2 text-xs">{step.detail ?? t("diagnostics.altSopText")}</div>
+              <Button variant="ghost" className="touch-target w-full text-muted-foreground" onClick={() => setConfirmRestart(true)}>{t("diagnostics.restartDiagnosis")}</Button>
+              <Button className="touch-target w-full" onClick={escalate}>{t("jobDetail.stopEscalate")}</Button>
             </div>
           )}
         </div>
 
         {(step.why || step.detail) && (
           <details className="mt-4 rounded-md border bg-muted/30 p-3 text-xs">
-            <summary className="cursor-pointer font-medium inline-flex items-center gap-1">Why this step? & technical details <ChevronDown className="h-3 w-3" /></summary>
+            <summary className="cursor-pointer font-medium inline-flex items-center gap-1">{t("diagnostics.whyThisStep")} <ChevronDown className="h-3 w-3" /></summary>
             {step.why && <p className="mt-2">{step.why}</p>}
             {step.detail && <p className="mt-1 text-muted-foreground">{step.detail}</p>}
           </details>
@@ -275,53 +277,49 @@ export default function Diagnostics() {
         {step.id === "K" && <LikelyCauseCard />}
       </div>
 
-      {/* Sticky bottom bar: Back / Next + escalate */}
       <div className="fixed inset-x-0 bottom-16 z-20 mx-auto w-full max-w-md px-4 space-y-2">
         <div className="flex gap-2">
           <Button variant="outline" className="touch-target h-12 flex-1" onClick={onBack}>
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back
+            <ArrowLeft className="mr-1 h-4 w-4" /> {t("diagnostics.back")}
           </Button>
           <Button variant="outline" className="touch-target h-12 flex-1" onClick={onNext} disabled={!nextVisitedId}>
-            Next <ArrowRight className="ml-1 h-4 w-4" />
+            {t("diagnostics.next")} <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
         </div>
         <Button variant="destructive" className="touch-target w-full shadow-lg" onClick={escalate}>
-          <ShieldAlert className="mr-2 h-5 w-5" /> Stop & escalate
+          <ShieldAlert className="mr-2 h-5 w-5" /> {t("diagnostics.stopEscalate")}
         </Button>
       </div>
 
       <Dialog open={!!confirmEdit} onOpenChange={(o) => !o && setConfirmEdit(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Change earlier answer?</DialogTitle></DialogHeader>
-          <div className="text-sm">Changing this answer may invalidate later steps. Affected steps will be marked <strong>Needs review</strong> until you re-confirm them.</div>
+          <DialogHeader><DialogTitle>{t("diagnostics.confirmEditTitle")}</DialogTitle></DialogHeader>
+          <div className="text-sm">{t("diagnostics.confirmEditBody")}</div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmEdit(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmEdit(null)}>{t("common.cancel")}</Button>
             <Button onClick={() => {
               const data = JSON.parse(confirmEdit!) as { next: string; payload: { answer?: string; ack?: boolean } };
               saveStep(job.id, { stepId: step.id, ts: new Date().toISOString(), ...data.payload }, data.next);
               setConfirmEdit(null);
-              toast("Updated — review later steps");
-            }}>Update & mark later steps for review</Button>
+              toast(t("diagnostics.updatedToast"));
+            }}>{t("diagnostics.updateMarkLater")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={confirmRestart} onOpenChange={setConfirmRestart}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Restart diagnosis?</DialogTitle></DialogHeader>
-          <div className="text-sm">
-            This will return to step A and clear the current hypothesis. Entered measurements and notes will remain in the job record but the active session pointer will reset. This action cannot be undone.
-          </div>
+          <DialogHeader><DialogTitle>{t("diagnostics.restartTitle")}</DialogTitle></DialogHeader>
+          <div className="text-sm">{t("diagnostics.restartBody")}</div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmRestart(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { goToStep(job.id, "A"); setConfirmRestart(false); toast("Returned to start"); }}>Restart diagnosis</Button>
+            <Button variant="outline" onClick={() => setConfirmRestart(false)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={() => { goToStep(job.id, "A"); setConfirmRestart(false); toast(t("diagnostics.returnedToStart")); }}>{t("diagnostics.restartDiagnosis")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
 
 function nextStepIdOrSame(s: DiagStep) {
   if (s.choices && s.choices[0]) return s.choices[0].nextStepId;
@@ -330,6 +328,7 @@ function nextStepIdOrSame(s: DiagStep) {
 }
 
 function StatusChip({ status }: { status: string }) {
+  const { t } = useTranslation();
   const map: Record<string, string> = {
     complete: "bg-success/15 text-success",
     current: "bg-primary text-primary-foreground",
@@ -337,15 +336,13 @@ function StatusChip({ status }: { status: string }) {
     skipped: "bg-muted text-muted-foreground",
     pending: "bg-muted text-muted-foreground",
   };
-  const label: Record<string, string> = {
-    complete: "Complete", current: "Current", "needs-review": "Review", skipped: "Skipped", pending: "—",
-  };
-  return <span className={cn("rounded px-2 py-0.5 text-[10px] font-medium", map[status])}>{label[status]}</span>;
+  return <span className={cn("rounded px-2 py-0.5 text-[10px] font-medium", map[status])}>{t(`diagnostics.status.${status}`)}</span>;
 }
 
 function RiskBadge({ risk }: { risk: "Low" | "Medium" | "High" }) {
+  const { t } = useTranslation();
   const cls = risk === "High" ? "bg-destructive text-destructive-foreground" : risk === "Medium" ? "bg-warning text-warning-foreground" : "bg-secondary text-secondary-foreground";
-  return <span className={cn("stat-pill", cls)}>Risk: {risk}</span>;
+  return <span className={cn("stat-pill", cls)}>{t(`diagnostics.risk.${risk}`)}</span>;
 }
 
 function ElectricalAck({ ack, setAck, onProceed }: { ack: boolean; setAck: (b: boolean) => void; onProceed: () => void }) {
