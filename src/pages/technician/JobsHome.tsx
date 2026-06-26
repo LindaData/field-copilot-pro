@@ -141,7 +141,7 @@ export default function JobsHome() {
                 <div className="text-sm font-semibold">{c?.name}</div>
                 <span className={cn("stat-pill", statusColor[j.status])}>{statusLabel(j.status)}</span>
               </div>
-              <div className="text-sm text-foreground/90 line-clamp-2">{j.complaint}</div>
+              <div className="text-sm text-foreground/90 line-clamp-2">{tx(j.complaint)}</div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {p?.address.split(",")[0]}</span>
                 <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {c?.phone}</span>
