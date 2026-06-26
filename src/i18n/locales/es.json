@@ -123,7 +123,7 @@
     "nextJob": "Siguiente orden",
     "allCaughtUp": "Estás al día. Buen trabajo.",
     "scheduleHeader": "{{label}} ({{count}})",
-    "noJobsInRange": "Sin órdenes programadas en {{label}}.",
+    "noJobsInRange": "Sin órdenes programadas {{label}}.",
     "recentlyViewed": "Equipos vistos recientemente",
     "serial": "Serie {{value}}",
     "scanEquipment": "Escanear equipo",
