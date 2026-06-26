@@ -116,7 +116,7 @@ const LAST = ["Hayes","Greene","Shah","Whitmore","Kim","Robinson","Patel","Nguye
 const BUSINESS = [
   "Westview Apartments", "Rivertown Cafe", "Coastal Dental", "Banyan Bay HOA",
   "Sunset Storage", "Cleveland Ave Diner", "Gulf Coast Auto Care",
-  "Piedmont Pediatrics", "Charlotte Pet Lodge",
+  "Piedmont Pediatrics", "Estero Pet Lodge",
 ];
 
 const BRANDS = ["Goodman","Amana","Carrier","Bryant","Trane","American Standard","Rheem","Ruud","Lennox","York","Coleman","Daikin","Mitsubishi Electric","Fujitsu","Bosch"];
