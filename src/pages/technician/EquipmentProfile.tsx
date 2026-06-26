@@ -23,6 +23,7 @@ export default function EquipmentProfile() {
   const { state, touchEquipment } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const eq = state.equipment.find((e) => e.id === id);
   const [q, setQ] = useState("");
   const [turn, setTurn] = useState<{ question: string; answer: Answer } | null>(null);
