@@ -71,6 +71,8 @@ const initialState = (): StoreState => ({
   techFeedback: seed.TECH_FEEDBACK,
   serviceReports: seed.SERVICE_REPORTS,
   photos: seed.PHOTOS,
+  demoDataVersion: DEMO_DATA_VERSION,
+  demoAnchor: todayKey(),
 });
 
 interface Ctx {
