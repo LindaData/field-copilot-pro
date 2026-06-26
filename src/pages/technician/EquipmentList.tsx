@@ -64,7 +64,7 @@ export default function EquipmentList() {
                 <div>{t("equipmentList.verifiedSpecs")} <span className="text-foreground">{verifiedCount}</span></div>
                 {lastService && <div>{t("equipmentList.lastService")} <span className="text-foreground">{lastService}</span></div>}
                 <div>{t("equipmentList.warranty")} <span className="text-foreground">{warranty}</span></div>
-                {openJob && <div className="col-span-2 text-warning">{t("equipmentList.openIssue", { value: openJob.complaint })}</div>}
+                {openJob && <div className="col-span-2 text-warning">{t("equipmentList.openIssue", { value: tx(openJob.complaint) })}</div>}
               </div>
 
               <div className="flex flex-wrap gap-1.5">
