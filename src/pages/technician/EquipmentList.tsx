@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Wrench, FileText, History, ListChecks, Play, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDynamicText } from "@/i18n/dynamic";
 
 export default function EquipmentList() {
   const { state } = useStore();
   const { t } = useTranslation();
   const nav = useNavigate();
+  const tx = useDynamicText();
 
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -62,7 +64,7 @@ export default function EquipmentList() {
                 <div>{t("equipmentList.verifiedSpecs")} <span className="text-foreground">{verifiedCount}</span></div>
                 {lastService && <div>{t("equipmentList.lastService")} <span className="text-foreground">{lastService}</span></div>}
                 <div>{t("equipmentList.warranty")} <span className="text-foreground">{warranty}</span></div>
-                {openJob && <div className="col-span-2 text-warning">{t("equipmentList.openIssue", { value: openJob.complaint })}</div>}
+                {openJob && <div className="col-span-2 text-warning">{t("equipmentList.openIssue", { value: tx(openJob.complaint) })}</div>}
               </div>
 
               <div className="flex flex-wrap gap-1.5">

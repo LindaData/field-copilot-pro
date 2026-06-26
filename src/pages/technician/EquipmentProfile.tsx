@@ -14,6 +14,7 @@ import { resolveAnswer } from "@/lib/answers/resolver";
 import { findSimilarJobs } from "@/lib/answers/similarJobs";
 import type { Answer } from "@/lib/answers/types";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 const GROUP_ORDER: Spec["group"][] = ["Capacity", "Compressor", "Fan", "Refrigeration", "Electrical", "Physical", "Certifications"];
 
@@ -22,6 +23,7 @@ export default function EquipmentProfile() {
   const { state, touchEquipment } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const eq = state.equipment.find((e) => e.id === id);
   const [q, setQ] = useState("");
   const [turn, setTurn] = useState<{ question: string; answer: Answer } | null>(null);
@@ -194,7 +196,7 @@ export default function EquipmentProfile() {
           <ul className="divide-y text-sm">
             {eqJobs.slice(0, 10).map((j) => (
               <li key={j.id} className="flex items-center justify-between py-2">
-                <Link to={`/app/jobs/${j.id}`} className="truncate underline">{j.complaint}</Link>
+                <Link to={`/app/jobs/${j.id}`} className="truncate underline">{tx(j.complaint)}</Link>
                 <span className="text-xs text-muted-foreground">{(j.completedAt ?? j.scheduledFor).slice(0, 10)} · {statusLabel(j.status)}</span>
               </li>
             ))}

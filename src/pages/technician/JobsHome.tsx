@@ -9,6 +9,7 @@ import { Camera, MapPin, Phone, AlertCircle, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JobStatus } from "@/lib/types";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 const statusColor: Record<JobStatus, string> = {
   "Unassigned": "bg-muted text-muted-foreground",
@@ -49,6 +50,7 @@ export default function JobsHome() {
   const user = useCurrentUser();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"mine" | "all">("mine");
   const [range, setRange] = useState<RangeKey>("today");
@@ -94,7 +96,7 @@ export default function JobsHome() {
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel("On Site")}</Badge>
             <div className="text-xs font-medium text-accent-foreground/80">{t("today.activeJob")}</div>
             <div className="mt-1 text-base font-semibold">{state.customers.find(c => c.id === onSite.customerId)?.name}</div>
-            <div className="text-sm text-muted-foreground">{onSite.complaint}</div>
+            <div className="text-sm text-muted-foreground">{tx(onSite.complaint)}</div>
             <Button className="mt-3 touch-target w-full">{t("today.resumeDiag")}</Button>
           </div>
         </Link>
@@ -139,7 +141,7 @@ export default function JobsHome() {
                 <div className="text-sm font-semibold">{c?.name}</div>
                 <span className={cn("stat-pill", statusColor[j.status])}>{statusLabel(j.status)}</span>
               </div>
-              <div className="text-sm text-foreground/90 line-clamp-2">{j.complaint}</div>
+              <div className="text-sm text-foreground/90 line-clamp-2">{tx(j.complaint)}</div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {p?.address.split(",")[0]}</span>
                 <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> {c?.phone}</span>

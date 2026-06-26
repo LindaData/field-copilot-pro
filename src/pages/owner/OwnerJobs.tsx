@@ -12,11 +12,13 @@ import { useJobFilters } from "@/lib/useJobFilters";
 import FilterBar from "@/components/owner/FilterBar";
 import { presetToFilterPatch, PRESET_LABELS } from "@/lib/attention";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 export default function OwnerJobs() {
   const { state } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const { filters, patch, reset } = useJobFilters("owner");
   const [q, setQ] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -130,7 +132,7 @@ export default function OwnerJobs() {
                     onClick={() => navigate(`/app/jobs/${j.id}`)}
                   >
                     <td className="px-3 py-2 font-medium">{c?.name}</td>
-                    <td className="text-muted-foreground">{j.complaint}</td>
+                    <td className="text-muted-foreground">{tx(j.complaint)}</td>
                     <td className="text-xs">{deriveJobType(j)}</td>
                     <td>{u?.name}</td>
                     <td><Badge variant="secondary">{statusLabel(j.status)}</Badge></td>

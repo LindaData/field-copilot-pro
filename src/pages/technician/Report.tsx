@@ -6,12 +6,14 @@ import { Printer, Share2 } from "lucide-react";
 import { SourceBadge } from "@/components/SourceBadge";
 import { toast } from "sonner";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 export default function Report() {
   const { id = "" } = useParams();
   const { state } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const job = state.jobs.find((j) => j.id === id);
   if (!job) return <div className="p-6">{t("common.notFound")}</div>;
   const c = state.customers.find((x) => x.id === job.customerId);
@@ -70,7 +72,7 @@ export default function Report() {
 
         <section>
           <div className="text-sm font-semibold">{t("report.complaint")}</div>
-          <div className="text-sm">{job.complaint}</div>
+          <div className="text-sm">{tx(job.complaint)}</div>
         </section>
 
         <section>

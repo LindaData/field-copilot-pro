@@ -11,6 +11,7 @@ import {
 import { primaryActionForToday, type PrimaryAction } from "@/lib/primaryAction";
 import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 function fmtDur(ms: number) {
   const m = Math.max(0, Math.round(ms / 60000));
@@ -63,6 +64,7 @@ export default function Today() {
   const user = useCurrentUser();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const [range, setRange] = useState<RangeKey>("day");
 
   const RANGE_LABEL: Record<RangeKey, string> = {
@@ -168,7 +170,7 @@ export default function Today() {
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel(current.status)}</Badge>
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.currentJob")}</div>
             <div className="mt-1 text-base font-semibold leading-tight">{customerOf(current.customerId)?.name}</div>
-            <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{current.complaint}</div>
+            <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{tx(current.complaint)}</div>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{propertyOf(current.propertyId)?.address.split(",")[0]}</span>
               <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{customerOf(current.customerId)?.phone}</span>
@@ -180,7 +182,7 @@ export default function Today() {
           <div className="card-elev p-4">
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.nextJob")}</div>
             <div className="mt-1 text-base font-semibold">{customerOf(next.customerId)?.name}</div>
-            <div className="text-sm text-muted-foreground line-clamp-2">{next.complaint}</div>
+            <div className="text-sm text-muted-foreground line-clamp-2">{tx(next.complaint)}</div>
             <div className="mt-1 text-[11px] text-muted-foreground">
               {new Date(next.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
             </div>
@@ -249,7 +251,7 @@ export default function Today() {
                         <div className="truncate text-sm font-semibold">{c?.name}</div>
                         <Badge variant="secondary" className="shrink-0 text-[10px]">{statusLabel(j.status)}</Badge>
                       </div>
-                      <div className="truncate text-[11px] text-muted-foreground">{j.complaint}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">{tx(j.complaint)}</div>
                       {p && (
                         <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                           <MapPin className="h-3 w-3" /> {p.address.split(",")[0]}

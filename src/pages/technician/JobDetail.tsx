@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import type { JobStage, PauseReason } from "@/lib/types";
 import { useStatusLabel } from "@/i18n/status";
+import { useDynamicText } from "@/i18n/dynamic";
 
 function fmtClock(iso?: string) {
   if (!iso) return "—";
@@ -42,6 +43,7 @@ export default function JobDetail() {
   const { state, setJobStatus, startPause, endPause, setArrival, setArrivalDetected, updateJob } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
 
@@ -137,13 +139,13 @@ export default function JobDetail() {
           <div>
             <div className="text-xs text-muted-foreground">{new Date(job.scheduledFor).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</div>
             <h1 className="text-lg font-semibold leading-tight">{c?.name}</h1>
-            <div className="mt-1 text-sm text-foreground/90">{job.complaint}</div>
+            <div className="mt-1 text-sm text-foreground/90">{tx(job.complaint)}</div>
           </div>
           <Badge>{statusLabel(job.status)}</Badge>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
           <div className="inline-flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {p?.address}</div>
-          {p?.accessNotes && <div className="rounded-md bg-muted px-2 py-1 text-xs">{t("jobDetail.accessLabel", { notes: p.accessNotes })}</div>}
+          {p?.accessNotes && <div className="rounded-md bg-muted px-2 py-1 text-xs">{t("jobDetail.accessLabel", { notes: tx(p.accessNotes) })}</div>}
           <div className="flex gap-2">
             <a href={`tel:${c?.phone}`} className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Phone className="mr-1 h-4 w-4" /> {t("jobDetail.call")}</Button></a>
             <a href={`https://maps.google.com/?q=${encodeURIComponent(p?.address ?? "")}`} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.directions")}</Button></a>
@@ -242,7 +244,7 @@ export default function JobDetail() {
         <section className="card-elev p-4">
           <div className="mb-2 inline-flex items-center gap-1 text-sm font-semibold"><History className="h-4 w-4" /> {t("jobDetail.serviceHistory")}</div>
           <div className="space-y-1 text-xs text-muted-foreground">
-            {history.map((h) => (<div key={h.id}>· {new Date(h.scheduledFor).toLocaleDateString()} — {h.complaint}</div>))}
+            {history.map((h) => (<div key={h.id}>· {new Date(h.scheduledFor).toLocaleDateString()} — {tx(h.complaint)}</div>))}
           </div>
         </section>
       )}
