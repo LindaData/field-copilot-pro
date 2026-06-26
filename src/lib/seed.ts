@@ -144,7 +144,7 @@ function buildCustomers(): Customer[] {
   const rng = makeRng(0xC0FFEE);
   const list: Customer[] = [];
   // Keep c-1 stable for the verified Goodman demo scenario
-  list.push({ id: "c-1", name: "Linda Hayes", phone: "(704) 555-0188", email: "linda.demo@example.com", city: "Charlotte", maintenancePlan: true, commPreference: "Text", isDemo: true });
+  list.push({ id: "c-1", name: "Linda Hayes", phone: "(239) 555-0188", email: "linda.demo@example.com", city: "Estero", maintenancePlan: true, commPreference: "Text", isDemo: true });
   for (let i = 2; i <= 31; i++) {
     const first = FIRST[rng.int(0, FIRST.length - 1)];
     const last = LAST[rng.int(0, LAST.length - 1)];
