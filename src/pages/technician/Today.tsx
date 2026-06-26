@@ -182,7 +182,7 @@ export default function Today() {
           <div className="card-elev p-4">
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.nextJob")}</div>
             <div className="mt-1 text-base font-semibold">{customerOf(next.customerId)?.name}</div>
-            <div className="text-sm text-muted-foreground line-clamp-2">{next.complaint}</div>
+            <div className="text-sm text-muted-foreground line-clamp-2">{tx(next.complaint)}</div>
             <div className="mt-1 text-[11px] text-muted-foreground">
               {new Date(next.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
             </div>
