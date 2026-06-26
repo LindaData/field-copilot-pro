@@ -72,7 +72,7 @@ export default function Report() {
 
         <section>
           <div className="text-sm font-semibold">{t("report.complaint")}</div>
-          <div className="text-sm">{job.complaint}</div>
+          <div className="text-sm">{tx(job.complaint)}</div>
         </section>
 
         <section>
