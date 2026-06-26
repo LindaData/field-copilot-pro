@@ -145,7 +145,7 @@ export default function JobDetail() {
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
           <div className="inline-flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {p?.address}</div>
-          {p?.accessNotes && <div className="rounded-md bg-muted px-2 py-1 text-xs">{t("jobDetail.accessLabel", { notes: p.accessNotes })}</div>}
+          {p?.accessNotes && <div className="rounded-md bg-muted px-2 py-1 text-xs">{t("jobDetail.accessLabel", { notes: tx(p.accessNotes) })}</div>}
           <div className="flex gap-2">
             <a href={`tel:${c?.phone}`} className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Phone className="mr-1 h-4 w-4" /> {t("jobDetail.call")}</Button></a>
             <a href={`https://maps.google.com/?q=${encodeURIComponent(p?.address ?? "")}`} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.directions")}</Button></a>
