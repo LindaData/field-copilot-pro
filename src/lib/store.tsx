@@ -42,6 +42,8 @@ export interface StoreState {
   techFeedback: import("./types").TechFeedback[];
   serviceReports: import("./types").ServiceReport[];
   photos: import("./types").Photo[];
+  demoDataVersion: string;
+  demoAnchor: string;
 }
 
 const initialState = (): StoreState => ({
