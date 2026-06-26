@@ -18,6 +18,7 @@ export default function OwnerJobs() {
   const { state } = useStore();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const { filters, patch, reset } = useJobFilters("owner");
   const [q, setQ] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
