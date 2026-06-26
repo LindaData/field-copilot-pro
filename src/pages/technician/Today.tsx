@@ -64,6 +64,7 @@ export default function Today() {
   const user = useCurrentUser();
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
+  const tx = useDynamicText();
   const [range, setRange] = useState<RangeKey>("day");
 
   const RANGE_LABEL: Record<RangeKey, string> = {
