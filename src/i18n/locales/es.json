@@ -141,7 +141,7 @@
     "equipmentNotIdentified": "Equipo no identificado",
     "identifyEquipment": "Identificar equipo",
     "previousWork": "Trabajo previo en esta propiedad",
-    "noJobsRange": "Sin órdenes programadas en {{range}}",
+    "noJobsRange": "Sin órdenes programadas {{range}}",
     "noMatch": "Ninguna orden coincide. Intenta limpiar el filtro.",
     "noMatchFilters": "Ninguna orden coincide con estos filtros.",
     "resetFilters": "Reiniciar filtros"
