@@ -123,7 +123,7 @@
     "nextJob": "Next job",
     "allCaughtUp": "You're all caught up. Nice work.",
     "scheduleHeader": "{{label}} ({{count}})",
-    "noJobsInRange": "No jobs scheduled in {{label}}.",
+    "noJobsInRange": "No jobs scheduled {{label}}.",
     "recentlyViewed": "Recently viewed equipment",
     "serial": "Serial {{value}}",
     "scanEquipment": "Scan Equipment",
@@ -141,7 +141,7 @@
     "equipmentNotIdentified": "Equipment not identified",
     "identifyEquipment": "Identify equipment",
     "previousWork": "Previous work at this property",
-    "noJobsRange": "No jobs scheduled in {{range}}",
+    "noJobsRange": "No jobs scheduled {{range}}",
     "noMatch": "No jobs match. Try clearing the filter.",
     "noMatchFilters": "No jobs match these filters.",
     "resetFilters": "Reset filters"

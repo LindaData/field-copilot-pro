@@ -123,7 +123,7 @@
     "nextJob": "Siguiente orden",
     "allCaughtUp": "Estás al día. Buen trabajo.",
     "scheduleHeader": "{{label}} ({{count}})",
-    "noJobsInRange": "Sin órdenes programadas en {{label}}.",
+    "noJobsInRange": "Sin órdenes programadas {{label}}.",
     "recentlyViewed": "Equipos vistos recientemente",
     "serial": "Serie {{value}}",
     "scanEquipment": "Escanear equipo",
@@ -141,7 +141,7 @@
     "equipmentNotIdentified": "Equipo no identificado",
     "identifyEquipment": "Identificar equipo",
     "previousWork": "Trabajo previo en esta propiedad",
-    "noJobsRange": "Sin órdenes programadas en {{range}}",
+    "noJobsRange": "Sin órdenes programadas {{range}}",
     "noMatch": "Ninguna orden coincide. Intenta limpiar el filtro.",
     "noMatchFilters": "Ninguna orden coincide con estos filtros.",
     "resetFilters": "Reiniciar filtros"
