@@ -28,13 +28,13 @@ export async function testDatabase(cfg: AwsConfig): Promise<TestOutcome> {
 export async function testS3Upload(cfg: AwsConfig): Promise<TestOutcome> {
   const r = validateRegion(cfg.region); if (!r.ok) return friendly(false, `Connection failed. ${r.message}`);
   const b = validateBucket(cfg.s3Bucket); if (!b.ok) return friendly(false, `Connection failed. ${b.message}`);
-  return friendly(false, "Simulated test only. Real uploads require the AWS S3 connection to be linked in Lovable. Ask your administrator to link the S3 connector, then try again.");
+  return friendly(false, "Simulated test only. Real uploads require the AWS S3 connection and backend services to be deployed. Ask your administrator to complete the storage integration, then try again.");
 }
 
 export async function testS3Download(cfg: AwsConfig): Promise<TestOutcome> {
   const r = validateRegion(cfg.region); if (!r.ok) return friendly(false, `Connection failed. ${r.message}`);
   const b = validateBucket(cfg.s3Bucket); if (!b.ok) return friendly(false, `Connection failed. ${b.message}`);
-  return friendly(false, "Simulated test only. Real downloads require the AWS S3 connection to be linked in Lovable.");
+  return friendly(false, "Simulated test only. Real downloads require the AWS S3 connection and backend services to be deployed.");
 }
 
 export async function testCognito(cfg: AwsConfig): Promise<TestOutcome> {

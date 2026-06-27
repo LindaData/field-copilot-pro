@@ -248,8 +248,8 @@ export default function AwsStorage() {
         <h2 className="text-base font-semibold">What ships next</h2>
         <p className="text-sm text-muted-foreground">
           The data layer is now ready to switch from Demo to AWS without rewriting any feature. Once you complete the
-          checklist and your administrator links the AWS S3 connection in Lovable, the real upload, download, database,
-          and migration paths turn on. Until then, the app stays on the demo database — nothing is lost.
+          checklist and your administrator deploys the AWS S3 connection and backend services, the real upload, download,
+          database, and migration paths turn on. Until then, the app stays on demo/localStorage data.
         </p>
       </Card>
     </div>

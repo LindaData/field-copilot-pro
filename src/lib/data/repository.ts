@@ -1,8 +1,8 @@
-// Repository abstraction so the app can target Demo, Lovable Cloud, or AWS
+// Repository abstraction so the app can target Demo, a hosted API, or AWS
 // (EC2 + RDS + S3) without rewriting feature code.
 //
 // Phase A1 ships the interface and the Demo adapter (a thin wrapper around the
-// existing in-memory store). LovableCloudRepository and AwsApiRepository are
+// existing in-memory store). HostedApiRepository and AwsApiRepository are
 // declared here as stubs so callers can already program against the interface;
 // they will be filled in by phases A4 and A6.
 
