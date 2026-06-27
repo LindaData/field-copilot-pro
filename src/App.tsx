@@ -35,6 +35,7 @@ import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+const routerBasename = import.meta.env.BASE_URL === "/" ? undefined : import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -42,7 +43,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner position="top-center" />
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/signin" element={<SignIn />} />
