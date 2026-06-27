@@ -1,6 +1,6 @@
 # Field Copilot Pro
 
-Field Copilot Pro is the Codex-managed baseline for the Caloosa Cooling HVAC Field Copilot prototype. It preserves the Lovable-generated demo behavior while moving future development into an independent private GitHub repository.
+Field Copilot Pro is the Codex-managed baseline for the Caloosa Cooling HVAC Field Copilot prototype. It preserves the Lovable-generated demo behavior while moving future development into an independent GitHub repository.
 
 ## Current Status
 
@@ -26,7 +26,7 @@ This application is a working prototype, not a production multi-user system.
 
 ## Repository Remotes
 
-This repository was cloned from the Lovable-controlled demo repository with history preserved.
+This repository was cloned from the Lovable-controlled demo repository with history preserved. It is public so the static prototype can be published on GitHub Pages.
 
 - `origin`: `https://github.com/LindaData/field-copilot-pro.git`
 - `upstream-lovable`: `https://github.com/LindaData/field-copilot-buddy.git`
@@ -129,7 +129,11 @@ The app initializes i18next from `src/i18n`. English and Spanish resources are p
 
 The app builds to static files in `dist`.
 
-For GitHub Pages, the Vite base path must be `/field-copilot-pro/`, and the deployment must provide an SPA fallback so direct refreshes of nested React Router routes return the app shell instead of a 404.
+GitHub Pages is published at:
+
+`https://lindadata.github.io/field-copilot-pro/`
+
+The Vite base path is `/field-copilot-pro/`, and the deployment workflow writes `dist/404.html` as an SPA fallback so direct refreshes of nested React Router routes return the app shell.
 
 ## Known Limitations
 

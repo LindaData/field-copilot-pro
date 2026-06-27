@@ -2,12 +2,13 @@
 
 ## Summary
 
-Field Copilot Pro was migrated from the Lovable-controlled demo repository into an independent private GitHub repository for Codex-managed development.
+Field Copilot Pro was migrated from the Lovable-controlled demo repository into an independent GitHub repository for Codex-managed development.
 
 ## Repositories
 
 - Source: `https://github.com/LindaData/field-copilot-buddy.git`
 - Target: `https://github.com/LindaData/field-copilot-pro.git`
+- Published demo: `https://lindadata.github.io/field-copilot-pro/`
 
 The source repository remains the Lovable-controlled demo and must not receive Codex changes.
 
@@ -63,7 +64,9 @@ June 27, 2026
 
 ## Deployment Status
 
-GitHub Pages deployment workflow is prepared. Pages availability depends on repository/account settings for this private repository.
+GitHub Pages deployment is enabled through the Actions workflow in `.github/workflows/pages.yml`.
+
+The repository was made public on June 27, 2026 after explicit owner approval so GitHub Pages could publish the client demo.
 
 ## Known Defects and Gaps
 
