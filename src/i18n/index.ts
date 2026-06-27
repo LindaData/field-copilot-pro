@@ -32,7 +32,6 @@ if (!i18n.isInitialized) {
       saveMissing: import.meta.env.DEV,
       missingKeyHandler: (lngs, ns, key) => {
         if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
           console.warn(`[i18n] missing key "${key}" for ${lngs.join(",")}`);
         }
       },

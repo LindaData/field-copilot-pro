@@ -88,7 +88,7 @@ export function validateRegion(v: string): FieldValidation {
 }
 export function validateBucket(v: string): FieldValidation {
   if (!v) return { ok: false, message: "Required. The name of your private S3 bucket." };
-  if (!/^[a-z0-9.\-]{3,63}$/.test(v)) return { ok: false, message: "Bucket names use lowercase letters, numbers, dots, and dashes (3–63 chars)." };
+  if (!/^[a-z0-9.-]{3,63}$/.test(v)) return { ok: false, message: "Bucket names use lowercase letters, numbers, dots, and dashes (3–63 chars)." };
   const secret = looksLikeSecret(v); if (secret) return { ok: false, message: secret };
   return { ok: true };
 }
@@ -113,7 +113,7 @@ export function validateCognitoClient(v: string): FieldValidation {
 }
 export function validateCognitoDomain(v: string): FieldValidation {
   if (!v) return { ok: false, message: "Required. Your Cognito hosted-UI domain." };
-  if (!/^[a-z0-9.\-]+$/i.test(v)) return { ok: false, message: "Use the domain only (no https://)." };
+  if (!/^[a-z0-9.-]+$/i.test(v)) return { ok: false, message: "Use the domain only (no https://)." };
   return { ok: true };
 }
 export function validateCompanyId(v: string): FieldValidation {

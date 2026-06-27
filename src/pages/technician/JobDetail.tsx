@@ -261,7 +261,7 @@ export default function JobDetail() {
         </Button>
         {diag?.results?.length ? (
           <div className="grid grid-cols-2 gap-2">
-            <Link to={`/app/jobs/${job.id}/diagnostics?review=1`}>
+            <Link to={`/app/jobs/${job.id}/diagnose?review=1`}>
               <Button variant="outline" className="touch-target h-10 w-full">{t("jobDetail.reviewCompletedSteps")}</Button>
             </Link>
             <Link to={`/app/equipment/${job.equipmentId ?? ""}#specs`}>
