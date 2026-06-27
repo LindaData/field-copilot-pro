@@ -7,7 +7,7 @@ import type {
   SystemRecord, UserProfile,
 } from "./types";
 
-const KEY = "hvac-copilot-store-v11";
+export const DEMO_STORE_KEY = "hvac-copilot-store-v11";
 export const DEMO_DATA_VERSION = "2026-06-26-v1";
 
 function todayKey() {
@@ -121,7 +121,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const fresh = initialState();
     if (typeof window === "undefined") return fresh;
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(DEMO_STORE_KEY);
       if (!raw) return fresh;
       const parsed = JSON.parse(raw) as Partial<StoreState>;
       // Reseed if demo version changed or anchor day rolled over so that
@@ -137,7 +137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ }
+    try { localStorage.setItem(DEMO_STORE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
   }, [state]);
 
   const setState = useCallback((updater: (s: StoreState) => StoreState) => {
