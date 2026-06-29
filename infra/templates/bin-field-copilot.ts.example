@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+import * as cdk from "aws-cdk-lib";
+import { FieldCopilotFoundationStack } from "../lib/foundation-stack";
+
+const app = new cdk.App();
+const stage = app.node.tryGetContext("stage") ?? "dev";
+const allowedStages = ["dev", "staging", "prod"];
+
+if (!allowedStages.includes(stage)) {
+  throw new Error(`Invalid stage "${stage}". Use dev, staging, or prod.`);
+}
+
+new FieldCopilotFoundationStack(app, `FieldCopilot-${stage}-Foundation`, {
+  stageName: stage,
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION ?? "us-east-1",
+  },
+});
