@@ -8,79 +8,34 @@ For each HVAC unit in Field Copilot Pro, find the best available documentation a
 
 This is demo-phase work. Matches do not have to be perfect, but confidence must be clear.
 
-## Constraints
+## Rules
 
-- Do not add paid AI calls.
-- Do not use Bedrock, embeddings, OCR, or vector databases yet.
-- Prefer official manufacturer PDFs and pages.
-- Third-party manual sites are allowed only as fallback and must be labeled as fallback.
-- Keep all uncertainty visible to the end user.
-- Do not mark anything as exact unless the model number clearly matches.
+- No paid AI.
+- No AWS deployment.
+- Prefer manufacturer PDFs/pages.
+- Third-party manual sites are fallback only.
+- Show uncertainty to the user.
+- Do not mark exact unless the model number clearly matches.
 
-## Target units from current demo screenshot
+## Target units
 
-Start with:
+- Goodman GSXN3N2410A*
+- Goodman GOO-ACX850
+- Goodman GOO-GASC45
+- Rheem RHE-ACS520
+- Lennox LEN-AHB83
+- Carrier CAR-TSB44
 
-1. Goodman GSXN3N2410A*
-2. Goodman GOO-ACX850
-3. Goodman GOO-GASC45
-4. Rheem RHE-ACS520
-5. Lennox LEN-AHB83
-6. Carrier CAR-TSB44
-
-The first Goodman unit already has a good example document:
-
+Goodman example source:
 https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf?view=true&mobiledevice=true
 
-## Search terms to try
+## Search variations
 
-For each unit, search multiple model variations:
+For each unit, try exact model, no-hyphen model, model with spaces, manufacturer plus model, and manufacturer plus equipment type.
 
-- Exact visible model
-- Model without hyphens
-- Model with spaces inserted by product family
-- Manufacturer + model
-- Manufacturer + model + pdf
-- Manufacturer + model + spec sheet
-- Manufacturer + model + installation manual
-- Manufacturer + model + service manual
-- Manufacturer + model + wiring diagram
-- Manufacturer + model + product data
-- Manufacturer + model + submittal
-- Manufacturer + model + IOM
-- Manufacturer + equipment type + model family
-
-Also use equipment wording variations:
-
-- HVAC unit
-- AC unit
-- air conditioner
-- condenser
-- condensing unit
-- outdoor unit
-- split system air conditioner
-- heat pump
-- gas furnace
-- air handler
-- evaporator coil
-- package unit
-
-## Official-source priority
-
-Prefer sources in this order:
-
-1. Manufacturer official PDF or product page.
-2. Manufacturer document library.
-3. Manufacturer dealer/partner library if public.
-4. AHRI reference only for matching/rating context.
-5. Supply house product page with linked manufacturer PDF.
-6. Third-party manual mirror, clearly labeled fallback.
-
-Avoid using blog posts, forum answers, SEO pages, scraped AI summaries, or unsupported spec snippets as primary sources.
+Also try words like HVAC unit, AC unit, air conditioner, condenser, outdoor unit, split system air conditioner, heat pump, gas furnace, air handler, installation manual, service manual, spec sheet, wiring diagram, product data, submittal, and IOM.
 
 ## Match statuses
-
-Use these statuses:
 
 - verified_exact_match
 - best_effort_demo_match
@@ -90,80 +45,43 @@ Use these statuses:
 - needs_owner_review
 - rejected_mismatch
 
-## Output format
-
-Update or create a data file with one row per candidate document:
+## Output CSV columns
 
 ```csv
 equipment_model,manufacturer,equipment_type,document_title,document_type,document_url,canonical_url,match_status,source_priority,confidence,needs_review,notes
 ```
 
-Recommended `document_type` values:
-
-- spec_sheet
-- installation_manual
-- service_manual
-- owner_manual
-- wiring_diagram
-- product_data
-- submittal
-- parts_list
-- warranty
-- unknown
-
-## Extraction targets
-
-When a document is found, capture:
+## Capture when available
 
 - Document title
 - Manufacturer
 - Product family
-- Exact model(s) listed
+- Exact models listed
 - Equipment type
-- Nominal capacity if available
-- Voltage if available
-- MCA / MOCP if available
-- Refrigerant info if available
-- Wiring diagram pages if available
-- Dimensions page if available
+- Capacity
+- Voltage
+- MCA and MOCP
+- Refrigerant info
+- Wiring diagram pages
+- Dimensions page
 - Source URL
 - Confidence notes
 
-Do not overfit the app to extracted values yet. Store the research first.
+## Next implementation PR after research
 
-## Goodman GSXN3 example handling
+- Add equipment-document status helper.
+- Show labels on owner equipment cards.
+- Show labels on equipment profile headers.
+- Show labels on job detail equipment cards.
+- Add a demo disclaimer near documentation links.
+- Keep AI disabled.
 
-Treat the user-provided Goodman GSXN3 spec sheet as the example pattern.
+## Validation commands
 
-For `GSXN3N2410A*`:
-
-- Manufacturer: Goodman
-- Product family: GSXN3
-- Visible app model: GSXN3N2410A*
-- Source model formatting: GSXN3 N2410A*
-- Document type: spec_sheet
-- Match status: best_effort_demo_match
-- Notes: strong official family/model match, but exact nameplate should be confirmed before exact verification
-
-## Implementation work after research
-
-After the research file is updated, prepare a separate implementation PR that:
-
-1. Adds an equipment-document status helper.
-2. Adds visible labels on owner equipment cards.
-3. Adds visible labels on equipment profile headers.
-4. Adds visible labels on job detail equipment cards.
-5. Adds a demo disclaimer near document links.
-6. Keeps all AI features disabled.
-
-## PR requirements
-
-Every PR must include:
-
-- Mobile review link
-- What changed
-- What Sergio should check first
-- Feedback space
-- Commands run
-- Confirmation that no paid AI calls were added
-- Confirmation that no AWS resources were deployed
+```bash
+npm run lint
+npm test
+npx tsc -p tsconfig.app.json --noEmit
+npx tsc -p tsconfig.node.json --noEmit
+npm run build
+```
