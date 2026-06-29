@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
-import { FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare } from "lucide-react";
+import { FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ export default function More() {
   const { state, reset } = useStore();
   const { t } = useTranslation();
   const items: { to: string; label: string; icon: typeof FileText; sub?: string }[] = [
+    { to: "/app/demo-walkthrough", label: "Demo walkthrough", icon: ClipboardList, sub: "Reset, perfect maintenance, active repair, owner review." },
     { to: "/app/documents", label: t("more.documents"), icon: FileText, sub: t("more.documentsSub", { count: state.docs.length }) },
     { to: "/app/parts", label: t("more.parts"), icon: Package, sub: t("more.partsSub", { count: state.parts.length }) },
     { to: "/app/knowledge", label: t("more.knowledge"), icon: Book, sub: t("more.knowledgeSub", { count: state.knowledge.length }) },
