@@ -1,7 +1,7 @@
-equipment_model,manufacturer,equipment_type,document_title,document_url,match_status,needs_review,notes
-GSXN3N2410A*,Goodman,Air Conditioner,Goodman GSXN3 Specification Sheet,https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf?view=true&mobiledevice=true,best_effort_demo_match,true,User confirmed this as the right example; good enough for demo; verify nameplate spacing before exact match
-GOO-ACX850,Goodman,Air Conditioner,,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
-GOO-GASC45,Goodman,Gas Furnace,,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
-RHE-ACS520,Rheem,Heat Pump,,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
-LEN-AHB83,Lennox,Air Handler,,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
-CAR-TSB44,Carrier,Unknown,,,needs_owner_review,true,Partially visible; need full row or nameplate
+equipment_model,manufacturer,equipment_type,search_variations,document_title,document_url,match_status,needs_review,notes
+GSXN3N2410A*,Goodman,Air Conditioner,"GSXN3N2410A*; GSXN3 N2410A*; Goodman GSXN3 spec sheet; Goodman GSXN3 installation manual; Goodman split system air conditioner GSXN3",Goodman GSXN3 Specification Sheet,https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf?view=true&mobiledevice=true,best_effort_demo_match,true,User confirmed this as the right example; good enough for demo; verify nameplate spacing before exact match
+GOO-ACX850,Goodman,Air Conditioner,"GOO-ACX850; GOO ACX850; Goodman ACX850; Goodman air conditioner ACX850; Goodman condenser ACX850; Goodman AC unit ACX850",,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
+GOO-GASC45,Goodman,Gas Furnace,"GOO-GASC45; GOO GASC45; Goodman GASC45; Goodman gas furnace GASC45; Goodman furnace GASC45; Goodman HVAC unit GASC45",,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
+RHE-ACS520,Rheem,Heat Pump,"RHE-ACS520; RHE ACS520; Rheem ACS520; Rheem heat pump ACS520; Rheem AC unit ACS520; Rheem HVAC unit ACS520",,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
+LEN-AHB83,Lennox,Air Handler,"LEN-AHB83; LEN AHB83; Lennox AHB83; Lennox air handler AHB83; Lennox HVAC unit AHB83",,,needs_owner_review,true,Demo-looking placeholder; no exact result from visible text; collect real nameplate/model later
+CAR-TSB44,Carrier,Unknown,"CAR-TSB44; CAR TSB44; Carrier TSB44; Carrier HVAC unit TSB44; Carrier AC unit TSB44",,,needs_owner_review,true,Partially visible; need full row or nameplate
