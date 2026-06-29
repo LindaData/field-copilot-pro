@@ -19,6 +19,10 @@ GitHub Pages deploys from `main` after CI passes:
 
 On iPhone, open the demo in Safari, tap Share, then tap **Add to Home Screen**. This installs the PWA-style demo shell while the native TestFlight build is prepared.
 
+Phone test guide:
+
+- https://lindadata.github.io/field-copilot-pro/phone-test.html
+
 ## AWS Start
 
 Use these docs next:

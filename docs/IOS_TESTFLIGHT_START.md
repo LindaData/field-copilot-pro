@@ -43,10 +43,11 @@ GitHub Pages continues to use `VITE_BASE_PATH=/field-copilot-pro/` from the Page
 
 After `main` deploys to GitHub Pages:
 
-1. Open `https://lindadata.github.io/field-copilot-pro/` in Safari on iPhone.
-2. Tap Share.
-3. Tap **Add to Home Screen**.
-4. Launch **Field Copilot** from the home screen.
+1. Open `https://lindadata.github.io/field-copilot-pro/phone-test.html` in Safari on iPhone.
+2. Tap **Launch technician test**.
+3. Tap Share.
+4. Tap **Add to Home Screen**.
+5. Launch **Field Copilot** from the home screen.
 
 This is the fastest downloadable iPhone test path from Windows. It is not the same as TestFlight, but it exercises the same shared app screens.
 

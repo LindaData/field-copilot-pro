@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useStore } from "@/lib/store";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Bot, Building2, CheckCircle2, Clock3, Play, ShieldCheck, Sparkles, Wrench } from "lucide-react";
@@ -11,10 +11,6 @@ export default function Landing() {
   const { t } = useTranslation();
   const [showTour, setShowTour] = useState(false);
   const owner = state.users.find((u) => u.role === "Owner");
-
-  useEffect(() => {
-    if (!state.tourSeen) setShowTour(true);
-  }, [state.tourSeen]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary to-primary-soft text-primary-foreground">
@@ -31,7 +27,7 @@ export default function Landing() {
         </div>
 
         <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground/90">
-          Built for HVAC field teams
+          Phone test build
         </div>
 
         <h1 className="text-3xl font-bold leading-tight">
@@ -42,11 +38,11 @@ export default function Landing() {
         <div className="grid gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 text-sm backdrop-blur">
           <div className="flex items-start gap-2">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            <span>Guide technicians through the job before they leave the driveway.</span>
+            <span>Open on iPhone Safari and test the technician workflow from Today, Jobs, Scan, and Reports.</span>
           </div>
           <div className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            <span>Capture diagnostics, approvals, parts, reports, and follow-up notes in one flow.</span>
+            <span>Use Share, then Add to Home Screen after opening the technician view for an app-like test shell.</span>
           </div>
         </div>
 
