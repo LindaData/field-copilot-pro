@@ -1,0 +1,7 @@
+equipment_model,manufacturer,equipment_type,document_title,document_url,match_status,needs_review,notes
+GSXN3N2410A*,Goodman,Air Conditioner,Goodman GSXN3 Specification Sheet,https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf?view=true&mobiledevice=true,likely_model_family_match,true,User confirmed this as the right example; verify nameplate spacing before exact match
+GOO-ACX850,Goodman,Air Conditioner,,,needs_owner_review,true,Demo-looking placeholder; need real nameplate/model
+GOO-GASC45,Goodman,Gas Furnace,,,needs_owner_review,true,Demo-looking placeholder; need real nameplate/model
+RHE-ACS520,Rheem,Heat Pump,,,needs_owner_review,true,Demo-looking placeholder; need real nameplate/model
+LEN-AHB83,Lennox,Air Handler,,,needs_owner_review,true,Demo-looking placeholder; need real nameplate/model
+CAR-TSB44,Carrier,Unknown,,,needs_owner_review,true,Partially visible; need full row or nameplate
