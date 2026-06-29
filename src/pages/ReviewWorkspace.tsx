@@ -5,6 +5,8 @@ import {
   CheckCircle2,
   Clock,
   ClipboardCopy,
+  Eye,
+  EyeOff,
   ExternalLink,
   Loader2,
   Maximize2,
@@ -186,6 +188,7 @@ export default function ReviewWorkspace() {
   const [actions, setActions] = useState<ReviewAction[]>(() => loadActions());
   const [drafts, setDrafts] = useState<ReviewDrafts>(() => loadDrafts());
   const [chatDraft, setChatDraft] = useState("");
+  const [isTrailVisible, setIsTrailVisible] = useState(true);
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
@@ -232,6 +235,7 @@ export default function ReviewWorkspace() {
   const pendingNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sending");
   const sendingCount = openNotes.filter((note) => note.syncState === "sending").length;
   const actionTrail = actions.slice(0, 80);
+  const reviewContextAction = actions.find((action) => !["note", "chat"].includes(action.kind)) ?? null;
   const pendingActions = actions.filter((action) => !action.syncedAt && action.syncState !== "sending");
   const sendingActionCount = actions.filter((action) => action.syncState === "sending").length;
 
@@ -646,6 +650,22 @@ export default function ReviewWorkspace() {
               {endpointConfigured ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : null}
             </div>
 
+            <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/10 p-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-100">
+                <MousePointerClick className="h-3.5 w-3.5" />
+                Reviewing now
+              </div>
+              <div className="mt-2 text-sm font-medium leading-snug text-slate-100">
+                {reviewContextAction ? reviewContextAction.label : pageLabel}
+              </div>
+              <div className="mt-1 break-all text-[11px] leading-relaxed text-slate-400">
+                {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${framePath}`}
+              </div>
+              {reviewContextAction?.target ? (
+                <div className="mt-1 break-all text-[10px] text-slate-500">{reviewContextAction.target}</div>
+              ) : null}
+            </div>
+
             <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
               {REVIEW_KINDS.map((kind) => (
                 <button
@@ -678,7 +698,11 @@ export default function ReviewWorkspace() {
               <span className="text-[11px] text-slate-500">{currentDraft.text ? `Draft ${formatWhen(currentDraft.updatedAt)}` : "Ready"}</span>
             </div>
 
+            <label htmlFor="review-note-text" className="mt-3 block text-xs font-semibold uppercase tracking-normal text-slate-400">
+              Your note
+            </label>
             <textarea
+              id="review-note-text"
               value={currentDraft.text}
               onChange={(event) => updateDraft({ text: event.target.value })}
               onKeyDown={(event) => {
@@ -687,8 +711,8 @@ export default function ReviewWorkspace() {
                   addNote();
                 }
               }}
-              placeholder="Write the UI note for the centered screen. Enter captures; Shift+Enter adds a line."
-              className="mt-3 min-h-[132px] w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-cyan-300"
+              placeholder={reviewContextAction ? `Write your note about: ${reviewContextAction.label}` : "Write your note for the centered screen."}
+              className="mt-1.5 min-h-[132px] w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-cyan-300"
             />
 
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -745,10 +769,26 @@ export default function ReviewWorkspace() {
                 <div className="text-sm font-semibold">Session trail</div>
                 <div className="mt-1 text-xs text-slate-400">Routes, buttons, controls, notes, and chat messages.</div>
               </div>
-              <button type="button" onClick={() => setActions(loadActions())} className="inline-flex items-center gap-1 text-xs text-cyan-200">
-                <RefreshCw className="h-3 w-3" /> Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setActions(loadActions())} className="inline-flex items-center gap-1 text-xs text-cyan-200">
+                  <RefreshCw className="h-3 w-3" /> Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsTrailVisible((visible) => !visible)}
+                  className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs text-slate-200 hover:bg-white/10"
+                  aria-label={isTrailVisible ? "Hide session trail" : "Show session trail"}
+                >
+                  {isTrailVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  {isTrailVisible ? "Hide" : "Show"}
+                </button>
+              </div>
             </div>
+            {!isTrailVisible ? (
+              <div className="rounded-md border border-dashed border-white/15 p-3 text-xs text-slate-400">
+                Trail hidden. {actions.length} actions are still being tracked.
+              </div>
+            ) : (
             <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
               {actionTrail.length === 0 ? (
                 <div className="rounded-md border border-dashed border-white/15 p-3 text-xs text-slate-400">No tracked actions yet. Open the canvas and start reviewing.</div>
@@ -780,6 +820,7 @@ export default function ReviewWorkspace() {
                 );
               })}
             </div>
+            )}
           </section>
         </aside>
       </main>

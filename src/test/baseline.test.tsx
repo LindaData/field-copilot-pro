@@ -258,7 +258,7 @@ describe("migration baseline", () => {
     expect(screen.getByTitle("Field Copilot review canvas")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Review layer,/i })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText(/Write the UI note/i), {
+    fireEvent.change(screen.getByLabelText("Your note"), {
       target: { value: "Centered review canvas needs to stay easy to scan." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Capture/i }));
@@ -286,6 +286,10 @@ describe("migration baseline", () => {
     expect(await screen.findByText("Review workspace")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Owner equipment" }));
+    expect(screen.getByText("Reviewing now")).toBeInTheDocument();
+    expect(screen.getAllByText("Opened Owner equipment").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByPlaceholderText("Write your note about: Opened Owner equipment")).toBeInTheDocument();
+
     fireEvent.change(screen.getByPlaceholderText(/Message to Codex while reviewing/i), {
       target: { value: "The owner equipment filters feel crowded on mobile." },
     });
@@ -315,5 +319,12 @@ describe("migration baseline", () => {
       method: "POST",
       body: expect.stringContaining("\"event\":\"review_action\""),
     }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide session trail" }));
+    expect(screen.getByText(/Trail hidden/i)).toBeInTheDocument();
+    expect(screen.getByText(/actions are still being tracked/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show session trail" }));
+    expect(screen.queryByText(/Trail hidden/i)).not.toBeInTheDocument();
   });
 });
