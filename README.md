@@ -17,6 +17,8 @@ GitHub Pages deploys from `main` after CI passes:
 - https://lindadata.github.io/field-copilot-pro/
 - Owner equipment review route: https://lindadata.github.io/field-copilot-pro/app/owner/equipment
 
+On iPhone, open the demo in Safari, tap Share, then tap **Add to Home Screen**. This installs the PWA-style demo shell while the native TestFlight build is prepared.
+
 ## AWS Start
 
 Use these docs next:
@@ -38,10 +40,23 @@ npm run dev
 ```bash
 npm run dev
 npm run build
+npm run build:ios
+npm run sync:ios
 npm run lint
 npm test
 npm run preview
 ```
+
+## iOS TestFlight Start
+
+The current iOS path uses Capacitor to wrap the same React/Vite app that powers the website. The first iOS build is for smoke testing the mobile field workflow with demo/local state.
+
+- Installable iPhone web shell: `public/manifest.webmanifest` and `public/icons/`
+- Native config: `capacitor.config.ts`
+- iOS project: `ios/App/App.xcodeproj`
+- TestFlight handoff: [docs/IOS_TESTFLIGHT_START.md](docs/IOS_TESTFLIGHT_START.md)
+
+Windows can build the web bundle and sync Capacitor assets. Signing, archiving, and TestFlight upload require Xcode on macOS or a cloud macOS build service.
 
 ## Production Roadmap
 

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { FileText, Package, Book, Settings as SettingsIcon, Cloud, MessageSquare
 export default function OwnerMore() {
   const { state, reset } = useStore();
   const { t } = useTranslation();
+  const nav = useNavigate();
   const items = [
     { to: "/app/owner/demo-walkthrough", label: "Demo walkthrough", icon: ClipboardList, sub: "Reset, perfect maintenance, active repair, owner review." },
     { to: "/app/owner/integrations/aws", label: t("more.awsStorage"), icon: Cloud, sub: t("more.awsStorageSub") },
@@ -36,7 +37,7 @@ export default function OwnerMore() {
       <Card className="p-4">
         <div className="text-sm font-semibold">{t("more.demoControls")}</div>
         <p className="mt-1 text-xs text-muted-foreground">{t("more.demoControlsDesc")}</p>
-        <Button variant="destructive" className="mt-3" onClick={() => { if (confirm(t("more.confirmReset"))) { reset(); window.location.href = "/"; } }}>{t("nav.resetDemo")}</Button>
+        <Button variant="destructive" className="mt-3" onClick={() => { if (confirm(t("more.confirmReset"))) { reset(); nav("/"); } }}>{t("nav.resetDemo")}</Button>
       </Card>
     </div>
   );

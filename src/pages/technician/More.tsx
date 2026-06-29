@@ -1,13 +1,27 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { FileText, Package, Book, Settings, ShieldAlert, Play, GraduationCap, Share2, MessageSquare, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { shareOrCopyUrl, shareableCurrentUrl } from "@/lib/native";
 
 export default function More() {
   const { state, reset } = useStore();
   const { t } = useTranslation();
+  const nav = useNavigate();
+  const shareDemo = async () => {
+    try {
+      await shareOrCopyUrl({
+        title: "Field Copilot Pro demo",
+        text: "Open the Field Copilot Pro demo.",
+        url: shareableCurrentUrl(),
+      });
+      toast.success(t("more.demoUrlCopied"));
+    } catch {
+      toast.error("Unable to share demo link.");
+    }
+  };
   const items: { to: string; label: string; icon: typeof FileText; sub?: string }[] = [
     { to: "/app/demo-walkthrough", label: "Demo walkthrough", icon: ClipboardList, sub: "Reset, perfect maintenance, active repair, owner review." },
     { to: "/app/documents", label: t("more.documents"), icon: FileText, sub: t("more.documentsSub", { count: state.docs.length }) },
@@ -43,9 +57,9 @@ export default function More() {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" className="touch-target" onClick={() => { toast.success(t("more.tourReset")); window.location.href = "/"; }}><Play className="mr-1 h-4 w-4" /> {t("more.replayTour")}</Button>
-        <Button variant="outline" className="touch-target" onClick={async () => { try { await navigator.clipboard.writeText(window.location.origin); toast.success(t("more.demoUrlCopied")); } catch { /* */ } }}><Share2 className="mr-1 h-4 w-4" /> {t("more.shareDemo")}</Button>
-        <Button variant="destructive" className="touch-target col-span-2" onClick={() => { if (confirm(t("more.confirmReset"))) { reset(); window.location.href = "/"; } }}>{t("nav.resetDemo")}</Button>
+        <Button variant="outline" className="touch-target" onClick={() => { toast.success(t("more.tourReset")); nav("/"); }}><Play className="mr-1 h-4 w-4" /> {t("more.replayTour")}</Button>
+        <Button variant="outline" className="touch-target" onClick={shareDemo}><Share2 className="mr-1 h-4 w-4" /> {t("more.shareDemo")}</Button>
+        <Button variant="destructive" className="touch-target col-span-2" onClick={() => { if (confirm(t("more.confirmReset"))) { reset(); nav("/"); } }}>{t("nav.resetDemo")}</Button>
       </div>
     </div>
   );

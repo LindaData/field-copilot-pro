@@ -7,6 +7,7 @@ import { SourceBadge } from "@/components/SourceBadge";
 import { toast } from "sonner";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
+import { shareOrCopyUrl, shareableCurrentUrl } from "@/lib/native";
 
 export default function Report() {
   const { id = "" } = useParams();
@@ -25,7 +26,14 @@ export default function Report() {
   const jparts = state.jobParts.filter((jp) => jp.jobId === job.id);
 
   const share = async () => {
-    try { await navigator.clipboard.writeText(window.location.href); toast.success(t("report.shareToast")); } catch { /* */ }
+    try {
+      await shareOrCopyUrl({
+        title: t("report.title"),
+        text: t("report.title"),
+        url: shareableCurrentUrl(),
+      });
+      toast.success(t("report.shareToast"));
+    } catch { /* */ }
   };
 
   return (

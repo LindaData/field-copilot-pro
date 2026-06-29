@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, ChevronLeft, LayoutDashboard, Users, Wrench, MoreVertical, RotateCcw, HelpCircle, LogOut, MessageSquare } from "lucide-react";
 import { useStore, useCurrentUser } from "@/lib/store";
@@ -7,6 +8,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { DemoBanner } from "@/components/DemoBanner";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { isNativeApp, subscribeNetworkStatus } from "@/lib/native";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -52,16 +54,38 @@ function OverflowMenu({ onReset, onHelp, onFeedback }: { onReset: () => void; on
 }
 
 function SyncPill() {
-  const { state, toggleOnline } = useStore();
+  const { state, setState, toggleOnline } = useStore();
   const { t } = useTranslation();
+  const native = isNativeApp();
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void subscribeNetworkStatus((connected) => {
+      setState((current) => current.online === connected ? current : { ...current, online: connected });
+    }).then((dispose) => {
+      if (cancelled) dispose();
+      else cleanup = dispose;
+    });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [setState]);
+
   return (
     <button
-      onClick={toggleOnline}
+      type="button"
+      onClick={native ? undefined : toggleOnline}
       className={cn(
         "stat-pill border whitespace-nowrap",
+        native && "cursor-default",
         state.online ? "border-white/30 bg-white/10" : "border-accent/60 bg-accent/20 text-accent",
       )}
-      aria-label={t("nav.toggleSync")}
+      aria-label={native ? (state.online ? t("status.synced") : t("status.offline")) : t("nav.toggleSync")}
+      title={native ? "Device network status" : "Toggle simulated sync status"}
     >
       {state.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
       {state.online ? t("status.synced") : t("status.offline")}

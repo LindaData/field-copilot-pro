@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
@@ -174,7 +174,7 @@ export default function Diagnostics() {
                     })}
                     <div className="flex gap-2">
                       <Button asChild variant="outline" size="sm" className="flex-1">
-                        <a href={`/app/equipment/${equipment.id}#specs`} target="_blank" rel="noreferrer"><FileText className="mr-1 h-3 w-3" /> {t("diagnostics.openFullProfile")}</a>
+                        <Link to={`/app/equipment/${equipment.id}#specs`}><FileText className="mr-1 h-3 w-3" /> {t("diagnostics.openFullProfile")}</Link>
                       </Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground">{t("diagnostics.noSession")}</p>

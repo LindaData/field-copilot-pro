@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { JobStage, PauseReason } from "@/lib/types";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
+import { watchFieldPosition } from "@/lib/native";
 
 function fmtClock(iso?: string) {
   if (!iso) return "—";
@@ -62,10 +63,9 @@ export default function JobDetail() {
 
   useEffect(() => {
     if (!job || !hasCoords || job.arrivedAt || job.status !== "En Route") return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) { setLocStatus("unavailable"); return; }
     setLocStatus("asking");
     let triggered = false;
-    const watchId = navigator.geolocation.watchPosition(
+    const stopWatching = watchFieldPosition(
       (pos) => {
         const d = distanceFt({ lat: pos.coords.latitude, lng: pos.coords.longitude }, { lat: p!.lat!, lng: p!.lng! });
         setLocDist(d);
@@ -80,12 +80,13 @@ export default function JobDetail() {
         else setLocStatus("en-route");
       },
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) setLocStatus("denied");
+        const denied = err.code === 1 || err.code === "PERMISSION_DENIED" || /denied/i.test(err.message ?? "");
+        if (denied) setLocStatus("denied");
         else setLocStatus("unavailable");
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
-    return () => navigator.geolocation.clearWatch(watchId);
+    return stopWatching;
   }, [job?.id, job?.status, job?.arrivedAt, hasCoords, p, radius, setArrivalDetected]);
 
   if (!job) return <div className="p-6">{t("common.jobNotFound")} <Link className="underline" to="/app/jobs">{t("common.back")}</Link></div>;
