@@ -6,13 +6,16 @@ Related: #14, #19
 
 Collect manufacturer documentation for equipment shown in the Owner Equipment screen before any paid AI/RAG work.
 
-This is a cheap-first data step. Do not add Bedrock, embeddings, OCR, or AI calls yet.
+This is a cheap-first data step. Do not add Bedrock, embeddings, OCR, AWS deployment, or paid AI calls yet.
 
 For Codex execution, use: [Codex HVAC Document Search Prompt](CODEX_HVAC_DOCUMENT_SEARCH_PROMPT.md).
 
-## Codex handoff status
+## Research run
 
-Ready for Codex. The search target CSV now includes model variations and equipment-wording variations so Codex can search for HVAC unit, AC unit, air conditioner, condenser, heat pump, gas furnace, air handler, manual, spec sheet, wiring diagram, IOM, and related terms.
+- Date: 2026-06-29
+- Scope: Issue #19 target units
+- Output table: [HVAC_UNIT_DOCUMENT_RESEARCH.csv](HVAC_UNIT_DOCUMENT_RESEARCH.csv)
+- Mobile review link: https://lindadata.github.io/field-copilot-pro/app/owner/equipment
 
 ## Demo-phase confidence policy
 
@@ -30,38 +33,68 @@ Use this approach:
 4. Never hide uncertainty from the technician or owner.
 5. Future AI should only use documents that are approved or clearly labeled with confidence.
 
-## Visible equipment from screenshot
+## Research summary
 
-| Unit shown in app | Type shown | Current status | Next action |
-| --- | --- | --- | --- |
-| Goodman `GSXN3N2410A*` | Air Conditioner | Best-effort demo match to Goodman `GSXN3 N2410A*` spec-sheet family from user-provided Goodman PDF | Link now as best-effort, upgrade later after nameplate review |
-| Goodman `GOO-ACX850` | Air Conditioner | Demo placeholder; no exact source found from the visible model text | Keep as needs review, collect real nameplate when available |
-| Goodman `GOO-GASC45` | Gas Furnace | Demo placeholder; no exact source found from the visible model text | Keep as needs review, collect real nameplate when available |
-| Rheem `RHE-ACS520` | Heat Pump | Demo placeholder; no exact source found from the visible model text | Keep as needs review, collect real nameplate when available |
-| Lennox `LEN-AHB83` | Air Handler | Demo placeholder; no exact source found from the visible model text | Keep as needs review, collect real nameplate when available |
-| Carrier `CAR-TSB44` | Partially visible | Demo placeholder or incomplete row; no exact source found from visible text | Need full row/model/nameplate |
+| Unit shown in app | Type shown | Source found | Match status | Confidence | Needs review |
+| --- | --- | --- | --- | --- | --- |
+| Goodman `GSXN3N2410A*` | Air Conditioner | [Goodman GSXN3 Specification Sheet](https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf) | `best_effort_demo_match` | High | Yes |
+| Goodman `GOO-ACX850` | Air Conditioner | [Goodman Air Conditioners Product Library](https://www.goodmanmfg.com/products/air-conditioners) | `manufacturer_generic` | Low | Yes |
+| Goodman `GOO-GASC45` | Gas Furnace | [Goodman Gas Furnaces Product Library](https://www.goodmanmfg.com/products/gas-furnaces) | `manufacturer_generic` | Low | Yes |
+| Rheem `RHE-ACS520` | Heat Pump | [Rheem Residential Heat Pumps Product Library](https://www.rheem.com/products/residential/heating-and-cooling/heat-pumps/) | `manufacturer_generic` | Low | Yes |
+| Lennox `LEN-AHB83` | Air Handler | [Lennox Residential Air Handlers Product Library](https://www.lennox.com/residential/products/heating-cooling/air-handlers) | `manufacturer_generic` | Low | Yes |
+| Carrier `CAR-TSB44` | Unknown / partially visible | [Carrier Residential Air Conditioners Product Library](https://www.carrier.com/us/en/residential/air-conditioners/) | `manufacturer_generic` | Low | Yes |
 
-## Confirmed example source
+## Findings by unit
 
-### Goodman GSXN3 / GSXN3 N2410A*
+### Goodman `GSXN3N2410A*`
 
-User-provided document:
+- Official source: https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf
+- Supporting manufacturer page: https://www.goodmanmfg.com/products/air-conditioners
+- Result: The Goodman air-conditioner page lists `GSXN3`, and the Goodman literature library lists `GSXN3 - ProductSpecs`.
+- Match status: `best_effort_demo_match`
+- Confidence: High for the GSXN3 family, still not exact until the app model formatting and installed nameplate are confirmed.
+- Notes: The app model appears to correspond to `GSXN3 N2410A*`, but keep the demo label until an owner/admin confirms the exact nameplate.
 
-https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf?view=true&mobiledevice=true
+### Goodman `GOO-ACX850`
 
-Canonical source URL:
+- Official source: https://www.goodmanmfg.com/products/air-conditioners
+- Result: Exact searches for `GOO-ACX850`, `GOO ACX850`, and Goodman `ACX850` did not produce a public official model result.
+- Match status: `manufacturer_generic`
+- Confidence: Low
+- Notes: Treat this as a demo placeholder. The official Goodman AC library is a useful starting point, not a specific match.
 
-https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf
+### Goodman `GOO-GASC45`
 
-Source classification:
+- Official source: https://www.goodmanmfg.com/products/gas-furnaces
+- Supporting literature library: https://www.goodmanmfg.com/support/literature-library
+- Result: Exact searches for `GOO-GASC45`, `GOO GASC45`, and Goodman `GASC45` did not produce a public official model result.
+- Match status: `manufacturer_generic`
+- Confidence: Low
+- Notes: Goodman publishes current gas-furnace family pages and product-spec PDFs, but no source should be treated as matching `GOO-GASC45` until the real furnace model is captured from a nameplate.
 
-- Manufacturer: Goodman
-- Product family: GSXN3
-- Document code: SS-GSXN3
-- Document type: Specification sheet
-- Equipment type: Split system air conditioner
-- App match: Goodman `GSXN3N2410A*` appears to correspond to PDF model column `GSXN3 N2410A*`
-- Match status: `best_effort_demo_match` now; later upgrade to `verified_exact_match` after owner/admin confirms the nameplate
+### Rheem `RHE-ACS520`
+
+- Official source: https://www.rheem.com/products/residential/heating-and-cooling/heat-pumps/
+- Result: Exact searches for `RHE-ACS520`, `RHE ACS520`, and Rheem `ACS520` did not produce a public official model result.
+- Match status: `manufacturer_generic`
+- Confidence: Low
+- Notes: The Rheem heat-pump library lists current RP/RD residential heat-pump families. Use it only as a source pointer until the installed model is known.
+
+### Lennox `LEN-AHB83`
+
+- Official source: https://www.lennox.com/residential/products/heating-cooling/air-handlers
+- Result: Exact searches for `LEN-AHB83` and Lennox `AHB83` did not produce a public official model result.
+- Match status: `manufacturer_generic`
+- Confidence: Low
+- Notes: The Lennox air-handler library lists current CBK/CBA air handlers. This is not an exact match or a likely model-family match for `LEN-AHB83`.
+
+### Carrier `CAR-TSB44`
+
+- Official source: https://www.carrier.com/us/en/residential/air-conditioners/
+- Result: Exact searches for `CAR-TSB44`, `CAR TSB44`, and Carrier `TSB44` did not produce a public official HVAC equipment result.
+- Match status: `manufacturer_generic`
+- Confidence: Low
+- Notes: The app row appears incomplete or placeholder-like. The source is generic until the owner captures equipment type, full model, and nameplate.
 
 ## Required app statuses
 
@@ -86,12 +119,21 @@ Use plain-language labels in the UI:
 5. Store source URL, document title, document type, match confidence, review status, and reviewer notes.
 6. Future AI should only retrieve from approved or clearly labeled documents, with the confidence shown to the user.
 
+## AI/document-reader direction for a later PR
+
+The current demo can expose these rows as source pointers, but it should not claim that generic manufacturer pages contain exact service values for placeholder models.
+
+A later non-paid prototype can add a local, deterministic document-status helper that:
+
+- Shows whether each unit has an exact, best-effort, generic, missing, or rejected source.
+- Lets the owner mark a link as approved or rejected.
+- Allows the demo copilot to answer only from approved exact/spec rows, or to abstain with a source-review warning.
+- Keeps paid AI, embeddings, OCR, AWS, and Bedrock out of this phase.
+
 ## Next collection tasks
 
-1. Run the Codex prompt in `docs/CODEX_HVAC_DOCUMENT_SEARCH_PROMPT.md`.
+1. Replace placeholder demo model IDs with realistic sample model/nameplate IDs or mark them clearly as demo placeholders.
 2. Add equipment-document status helper to the app.
-3. Add the Goodman GSXN3 PDF link to the Goodman `GSXN3N2410A*` demo record.
-4. Add a visible demo disclaimer near documentation links.
-5. Replace placeholder demo model IDs with realistic sample model/nameplate IDs or mark them clearly as demo placeholders.
-6. Add owner review queue for equipment with missing or likely-match documentation.
-7. Do not add paid AI until document matching is stable.
+3. Add a visible demo disclaimer near documentation links.
+4. Add owner review queue for equipment with missing or generic documentation.
+5. Keep AI disabled until document matching and approval workflows are stable.
