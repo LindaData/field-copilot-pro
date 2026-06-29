@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect } from "react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import vm from "node:vm";
 
 import App from "@/App";
 import i18n, { LANGS } from "@/i18n";
@@ -40,6 +43,30 @@ function StoreProbe({ onState }: { onState: (state: StoreState) => void }) {
   );
 }
 
+function runIndexRedirect(search: string) {
+  const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+  const script = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/)?.[1];
+  if (!script) throw new Error("index redirect script not found");
+
+  let replacedPath = "";
+  vm.runInNewContext(script, {
+    URLSearchParams,
+    window: {
+      location: {
+        search,
+        pathname: "/field-copilot-pro/",
+        hash: "",
+      },
+      history: {
+        replaceState: (_state: unknown, _title: string, path: string) => {
+          replacedPath = path;
+        },
+      },
+    },
+  });
+  return replacedPath;
+}
+
 describe("migration baseline", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -57,6 +84,16 @@ describe("migration baseline", () => {
 
     expect(await screen.findByText("Enter Demo as Technician")).toBeInTheDocument();
     expect(screen.getByText("Field Copilot")).toBeInTheDocument();
+  });
+
+  it("preserves review endpoint parameters during the GitHub Pages SPA redirect", () => {
+    const redirected = runIndexRedirect(
+      "?p=%2Freview&reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note&cacheBust=123",
+    );
+
+    expect(redirected).toBe(
+      "/field-copilot-pro/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note&cacheBust=123",
+    );
   });
 
   it("renders the technician diagnostic route from the main route configuration", async () => {
