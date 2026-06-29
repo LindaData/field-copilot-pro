@@ -8,8 +8,22 @@ This application is a working prototype, not a production multi-user system.
 
 - Authentication is a demo stub.
 - Jobs, customers, equipment, diagnostics, reports, and owner metrics are generated from TypeScript seed data and persisted in browser `localStorage`.
-- Supabase is configured as a client dependency, but the generated database types currently contain no application tables.
+- Supabase is configured as a client dependency from the original prototype, but production planning has moved AWS-first.
 - Real database persistence, role-based permissions, file storage, and production authentication are not implemented yet.
+
+## AWS-First Direction
+
+Field Copilot Pro should use AWS as the production backbone.
+
+Start here:
+
+1. [AWS Architecture Plan](docs/AWS_ARCHITECTURE.md)
+2. [AWS Beginner Setup Checklist](docs/AWS_BEGINNER_SETUP.md)
+3. [AWS Deployment Runbook](docs/AWS_DEPLOYMENT_RUNBOOK.md)
+4. [Codex AWS Prompts](docs/CODEX_AWS_PROMPTS.md)
+5. [Infrastructure Scaffold Notes](infra/README.md)
+
+Do not deploy backend infrastructure until an AWS account exists, root MFA is enabled, admin access exists, and budget alerts are configured.
 
 ## Technology Stack
 
@@ -21,8 +35,9 @@ This application is a working prototype, not a production multi-user system.
 - TanStack React Query
 - i18next with English and Spanish resources
 - Vitest and Testing Library
-- Supabase JavaScript client
+- Supabase JavaScript client currently present from the prototype
 - Browser `localStorage` for demo state
+- Planned AWS production stack: Amplify Hosting, Cognito, AppSync/API Gateway, Lambda, DynamoDB, S3, Bedrock, Textract, EventBridge/SQS, CloudWatch, CloudTrail, and CDK v2
 
 ## Repository Remotes
 
@@ -57,7 +72,7 @@ npm ci
 
 ## Environment Variables
 
-Create `.env` from `.env.example`.
+Create `.env` from `.env.example` for the current demo.
 
 ```bash
 VITE_SUPABASE_PROJECT_ID=your-supabase-project-id
@@ -65,7 +80,9 @@ VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 ```
 
-Only browser-safe `VITE_` values belong in this frontend. Do not commit `.env`, service-role keys, access tokens, passwords, or private credentials.
+For future AWS mode, see `.env.aws.example`.
+
+Only browser-safe `VITE_` values belong in this frontend. Do not commit `.env`, service-role keys, access tokens, passwords, AWS secret keys, session tokens, or private credentials.
 
 ## Development Commands
 
@@ -133,13 +150,22 @@ GitHub Pages is published at:
 
 `https://lindadata.github.io/field-copilot-pro/`
 
-The Vite base path is `/field-copilot-pro/`, and the deployment workflow writes `dist/404.html` as an SPA fallback so direct refreshes of nested React Router routes return the app shell.
+The Vite base path is `/field-copilot-pro/` for GitHub Pages, and the deployment workflow writes `dist/404.html` as an SPA fallback so direct refreshes of nested React Router routes return the app shell.
+
+For AWS Amplify Hosting, use:
+
+```bash
+VITE_BASE_PATH=/
+npm ci && npm run build
+```
+
+Output directory: `dist`.
 
 ## Known Limitations
 
 - Demo authentication only.
 - No production role-based access control.
-- No Supabase application tables or migrations yet.
+- No AWS production backend yet.
 - No server-side persistence for jobs, customers, equipment, diagnostics, approvals, or reports.
 - AWS integration screens are placeholders and simulated.
 - Some localization coverage is incomplete.
@@ -147,8 +173,8 @@ The Vite base path is `/field-copilot-pro/`, and the deployment workflow writes 
 
 ## Security Warning
 
-Do not enter real customer operational data, secrets, service-role keys, credentials, or production tokens into this prototype. The current app is browser-only and stores demo state locally.
+Do not enter real customer operational data, secrets, service-role keys, credentials, AWS access keys, session tokens, or production tokens into this prototype. The current app is browser-only and stores demo state locally.
 
 ## Production Roadmap
 
-See [docs/ROADMAP.md](docs/ROADMAP.md). The first production work should establish real authentication, database schema, row-level permissions, and a migration path from seeded demo data to Supabase-backed records.
+See [docs/ROADMAP.md](docs/ROADMAP.md). The first production work should establish AWS-backed authentication, data access, storage, authorization, auditability, and a migration path from seeded demo data to AWS-backed records.
