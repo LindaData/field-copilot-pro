@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 
 const REVIEW_NOTES_KEY = "field-copilot-review-notes-v1";
 const REVIEW_SESSION_KEY = "field-copilot-review-session-v1";
-const REVIEW_ENDPOINT = String(import.meta.env.VITE_REVIEW_ENDPOINT ?? "").trim();
+const REVIEW_ENDPOINT_KEY = "field-copilot-review-endpoint-v1";
+const BUILD_REVIEW_ENDPOINT = String(import.meta.env.VITE_REVIEW_ENDPOINT ?? "").trim();
 const REVIEW_INBOX_ISSUE = 30;
 
 type ReviewStatus = "open" | "resolved";
@@ -92,6 +93,17 @@ function getReviewSessionId() {
   return id;
 }
 
+function getReviewEndpoint() {
+  if (typeof window === "undefined") return BUILD_REVIEW_ENDPOINT;
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get("reviewEndpoint")?.trim();
+  if (fromQuery) {
+    window.localStorage.setItem(REVIEW_ENDPOINT_KEY, fromQuery);
+    return fromQuery;
+  }
+  return window.localStorage.getItem(REVIEW_ENDPOINT_KEY)?.trim() || BUILD_REVIEW_ENDPOINT;
+}
+
 function makeExport(notes: ReviewNote[]) {
   const openNotes = notes.filter((note) => note.status !== "resolved");
   const grouped = openNotes.reduce<Record<string, ReviewNote[]>>((acc, note) => {
@@ -120,9 +132,9 @@ function makeExport(notes: ReviewNote[]) {
   return lines.join("\n");
 }
 
-async function postReviewNote(sessionId: string, note: ReviewNote) {
-  if (!REVIEW_ENDPOINT) return false;
-  const response = await fetch(REVIEW_ENDPOINT, {
+async function postReviewNote(endpoint: string, sessionId: string, note: ReviewNote) {
+  if (!endpoint) return false;
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -145,11 +157,12 @@ export function ReviewLayer() {
   const [draft, setDraft] = useState("");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
   const [sessionId] = useState(() => getReviewSessionId());
+  const [reviewEndpoint] = useState(() => getReviewEndpoint());
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const pageLabel = pageLabelFor(location.pathname);
   const path = `${location.pathname}${location.search}${location.hash}`;
-  const endpointConfigured = REVIEW_ENDPOINT.length > 0;
+  const endpointConfigured = reviewEndpoint.length > 0;
 
   useEffect(() => {
     saveNotes(notes);
@@ -175,7 +188,7 @@ export function ReviewLayer() {
     setSyncState("sending");
     setLastSyncError(null);
     try {
-      const sent = await postReviewNote(sessionId, note);
+      const sent = await postReviewNote(reviewEndpoint, sessionId, note);
       if (sent) {
         markSynced(note.id);
         setSyncState("sent");
@@ -218,7 +231,7 @@ export function ReviewLayer() {
     setSyncState("sending");
     for (const note of unsyncedNotes) {
       try {
-        const sent = await postReviewNote(sessionId, note);
+        const sent = await postReviewNote(reviewEndpoint, sessionId, note);
         if (sent) markSynced(note.id);
       } catch (error) {
         setSyncState("error");
@@ -300,7 +313,7 @@ export function ReviewLayer() {
             <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
               {endpointConfigured
                 ? `Enter saves and submits to review inbox #${REVIEW_INBOX_ISSUE}. Session: ${sessionId}`
-                : "Enter saves locally now. Add VITE_REVIEW_ENDPOINT to submit notes automatically to GitHub for ChatGPT follow-up."}
+                : "Enter saves locally now. Open once with ?reviewEndpoint=<worker-url> to submit notes automatically to GitHub for ChatGPT follow-up."}
               {lastSyncError ? <div className="mt-1 text-destructive">{lastSyncError}</div> : null}
             </div>
 
