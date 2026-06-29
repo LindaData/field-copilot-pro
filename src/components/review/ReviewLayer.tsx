@@ -20,6 +20,9 @@ interface ReviewNote {
 }
 
 const PAGE_LABELS: Record<string, string> = {
+  "/": "Main demo landing",
+  "/signin": "Sign in",
+  "/app": "Main technician demo",
   "/app/demo-walkthrough": "Demo walkthrough",
   "/app/owner/demo-walkthrough": "Owner demo walkthrough",
   "/app/today": "Technician today",
