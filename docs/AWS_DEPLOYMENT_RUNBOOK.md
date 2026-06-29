@@ -72,24 +72,9 @@ Validation:
 
 Goal: prepare AWS backend infrastructure as code without deploying blindly.
 
-Use the templates under `infra/templates` to create a real CDK app after AWS CLI access exists.
+Use `docs/CODEX_AWS_PROMPTS.md` Prompt 3 after AWS CLI access exists. The implementation PR should create the real CDK app under `infra/`, install dependencies, commit the lockfile, build, and synthesize the dev stack.
 
-First commands on a laptop, cloud VM, or Codespace:
-
-```bash
-cd infra
-cp templates/package.json.example package.json
-cp templates/tsconfig.json.example tsconfig.json
-cp templates/cdk.json.example cdk.json
-mkdir -p bin lib
-cp templates/bin-field-copilot.ts.example bin/field-copilot.ts
-cp templates/lib-foundation-stack.ts.example lib/foundation-stack.ts
-npm install
-npm run build
-npm run synth -- --context stage=dev
-```
-
-Do not run `deploy` until `synth` succeeds and the generated resources are reviewed.
+Do not run deploy until synth succeeds and the generated resources are reviewed.
 
 ## Phase 4 — First Backend Resources
 
