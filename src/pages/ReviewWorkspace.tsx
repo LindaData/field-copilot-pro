@@ -61,6 +61,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type DeviceMode = "phone" | "tablet" | "desktop";
+type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
 
 const DEVICE_MODES: Array<{ value: DeviceMode; label: string; icon: typeof Smartphone; width: number; height: number }> = [
   { value: "phone", label: "Phone", icon: Smartphone, width: 390, height: 760 },
@@ -109,6 +110,14 @@ function shortText(value: string | null | undefined, max = 140) {
   const clean = String(value ?? "").replace(/\s+/g, " ").trim();
   if (!clean) return "";
   return clean.length > max ? `${clean.slice(0, max - 1)}...` : clean;
+}
+
+function liveDraftLabel(state: LiveDraftState, savedAt: string | null) {
+  if (state === "waiting") return "Live draft queued";
+  if (state === "sending") return "Sending live draft";
+  if (state === "sent") return savedAt ? `Live draft sent ${formatWhen(savedAt)}` : "Live draft sent";
+  if (state === "error") return "Live draft failed";
+  return "Live draft ready";
 }
 
 function closestTrackable(target: EventTarget | null) {
@@ -175,6 +184,8 @@ export default function ReviewWorkspace() {
   const frameCleanupRef = useRef<(() => void) | null>(null);
   const framePathRef = useRef("/app/today");
   const lastRouteRef = useRef("/app/today");
+  const lastLiveNoteDraftRef = useRef("");
+  const lastLiveChatDraftRef = useRef("");
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("phone");
   const [targetPath, setTargetPath] = useState("/app/today");
   const [framePath, setFramePath] = useState("/app/today");
@@ -188,6 +199,10 @@ export default function ReviewWorkspace() {
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [liveNoteDraftState, setLiveNoteDraftState] = useState<LiveDraftState>("idle");
+  const [liveNoteDraftAt, setLiveNoteDraftAt] = useState<string | null>(null);
+  const [liveChatDraftState, setLiveChatDraftState] = useState<LiveDraftState>("idle");
+  const [liveChatDraftAt, setLiveChatDraftAt] = useState<string | null>(null);
 
   const activeMode = DEVICE_MODES.find((mode) => mode.value === deviceMode) ?? DEVICE_MODES[0];
   const frameSrc = useMemo(() => appUrlFor(targetPath), [targetPath]);
@@ -348,6 +363,128 @@ export default function ReviewWorkspace() {
       return false;
     }
   }, [endpointConfigured, patchAction, reviewEndpoint, sessionId]);
+
+  useEffect(() => {
+    const text = currentDraft.text;
+    if (!text.trim()) {
+      setLiveNoteDraftState("idle");
+      return undefined;
+    }
+
+    if (!endpointConfigured) {
+      setLiveNoteDraftState("waiting");
+      return undefined;
+    }
+
+    setLiveNoteDraftState("waiting");
+    const timer = window.setTimeout(() => {
+      const key = [
+        "note",
+        sessionId,
+        framePath,
+        currentDraft.kind,
+        currentDraft.priority,
+        text,
+      ].join("\u001f");
+
+      if (lastLiveNoteDraftRef.current === key) {
+        setLiveNoteDraftState("sent");
+        return;
+      }
+
+      lastLiveNoteDraftRef.current = key;
+      const action: ReviewAction = {
+        id: makeActionId(),
+        kind: "input",
+        path: framePath,
+        pageLabel,
+        label: "Live note draft",
+        target: "review-note-text",
+        detail: text.slice(0, 4000),
+        createdAt: new Date().toISOString(),
+        syncState: "local",
+        viewport: currentViewport(),
+      };
+
+      setActions((existing) => [action, ...existing].slice(0, 300));
+      setLiveNoteDraftState("sending");
+      void submitAction(action).then((sent) => {
+        if (sent) {
+          setLiveNoteDraftAt(new Date().toISOString());
+          setLiveNoteDraftState("sent");
+        } else {
+          setLiveNoteDraftState("error");
+        }
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    currentDraft.kind,
+    currentDraft.priority,
+    currentDraft.text,
+    endpointConfigured,
+    framePath,
+    pageLabel,
+    sessionId,
+    submitAction,
+  ]);
+
+  useEffect(() => {
+    const text = chatDraft;
+    if (!text.trim()) {
+      setLiveChatDraftState("idle");
+      return undefined;
+    }
+
+    if (!endpointConfigured) {
+      setLiveChatDraftState("waiting");
+      return undefined;
+    }
+
+    setLiveChatDraftState("waiting");
+    const timer = window.setTimeout(() => {
+      const key = ["chat", sessionId, framePath, text].join("\u001f");
+      if (lastLiveChatDraftRef.current === key) {
+        setLiveChatDraftState("sent");
+        return;
+      }
+
+      lastLiveChatDraftRef.current = key;
+      const action: ReviewAction = {
+        id: makeActionId(),
+        kind: "input",
+        path: framePath,
+        pageLabel,
+        label: "Live chat draft",
+        target: "review-chat",
+        detail: text.slice(0, 4000),
+        createdAt: new Date().toISOString(),
+        syncState: "local",
+        viewport: currentViewport(),
+      };
+
+      setActions((existing) => [action, ...existing].slice(0, 300));
+      setLiveChatDraftState("sending");
+      void submitAction(action).then((sent) => {
+        if (sent) {
+          setLiveChatDraftAt(new Date().toISOString());
+          setLiveChatDraftState("sent");
+        } else {
+          setLiveChatDraftState("error");
+        }
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    chatDraft,
+    endpointConfigured,
+    framePath,
+    pageLabel,
+    sessionId,
+    submitAction,
+  ]);
 
   const readCurrentFrameRoute = useCallback(() => {
     const frame = iframeRef.current;
@@ -629,6 +766,12 @@ export default function ReviewWorkspace() {
               placeholder="Message to Codex while reviewing. Example: the button I just clicked feels unclear."
               className="mt-3 min-h-[96px] w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-cyan-300"
             />
+            <div className={cn(
+              "mt-1 text-[11px]",
+              liveChatDraftState === "error" ? "text-red-300" : liveChatDraftState === "sent" ? "text-emerald-300" : "text-slate-500",
+            )}>
+              {liveDraftLabel(liveChatDraftState, liveChatDraftAt)}
+            </div>
             <Button className="mt-2 h-9 w-full" onClick={sendChatMessage} disabled={!chatDraft.trim()}>
               <Send className="mr-1 h-4 w-4" /> Send to Codex
             </Button>
@@ -756,7 +899,12 @@ export default function ReviewWorkspace() {
                   </button>
                 ))}
               </div>
-              <span className="text-[11px] text-slate-500">{currentDraft.text ? `Draft ${formatWhen(currentDraft.updatedAt)}` : "Ready"}</span>
+              <span className={cn(
+                "text-[11px]",
+                liveNoteDraftState === "error" ? "text-red-300" : liveNoteDraftState === "sent" ? "text-emerald-300" : "text-slate-500",
+              )}>
+                {currentDraft.text ? `${formatWhen(currentDraft.updatedAt)} - ${liveDraftLabel(liveNoteDraftState, liveNoteDraftAt)}` : "Ready"}
+              </span>
             </div>
 
             <label htmlFor="review-note-text" className="mt-3 block text-xs font-semibold uppercase tracking-normal text-slate-400">
