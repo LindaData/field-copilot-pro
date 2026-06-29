@@ -13,6 +13,7 @@
     "doctor:ios": "cap doctor ios",
     "lint": "eslint .",
     "preview": "vite preview",
+    "review:server": "node scripts/review-local-server.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

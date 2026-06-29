@@ -35,6 +35,7 @@ import AwsStorage from "./pages/owner/integrations/AwsStorage";
 import Feedback from "./pages/technician/Feedback";
 import Today from "./pages/technician/Today";
 import NotFound from "./pages/NotFound";
+import ReviewWorkspace from "./pages/ReviewWorkspace";
 
 const queryClient = new QueryClient();
 const routerBasename = import.meta.env.BASE_URL === "/" ? undefined : import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -49,6 +50,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/signin" element={<SignIn />} />
+            <Route path="/review" element={<ReviewWorkspace />} />
 
             <Route path="/app" element={<MobileShell />}>
               <Route index element={<Navigate to="/app/today" replace />} />
