@@ -46,6 +46,14 @@ https://lindadata.github.io/field-copilot-pro/?reviewEndpoint=<WORKER_URL>
 
 The app saves that endpoint in browser localStorage. After that, any note added with Enter should sync to issue #30.
 
+For guided UI review, use the dedicated review workspace:
+
+```text
+https://lindadata.github.io/field-copilot-pro/review?reviewEndpoint=<WORKER_OR_LOCAL_ENDPOINT_URL>
+```
+
+The workspace keeps the app centered and places prompts, endpoint status, note capture, and chat handoff around it.
+
 ## Review workflow
 
 1. Open the live demo.

@@ -242,4 +242,33 @@ describe("migration baseline", () => {
       headers: { "content-type": "application/json" },
     }));
   });
+
+  it("renders the centered review workspace and captures notes for the framed app route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Fcapture",
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Review workspace")).toBeInTheDocument();
+    expect(screen.getByTitle("Field Copilot review canvas")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Review layer,/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/Write the UI note/i), {
+      target: { value: "Centered review canvas needs to stay easy to scan." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Capture/i }));
+
+    await waitFor(() => {
+      const notes = JSON.parse(window.localStorage.getItem("field-copilot-review-notes-v1") ?? "[]");
+      expect(notes[0].note).toBe("Centered review canvas needs to stay easy to scan.");
+      expect(notes[0].path).toBe("/app/today");
+      expect(notes[0].pageLabel).toBe("Technician today");
+      expect(notes[0].syncState).toBe("sent");
+    });
+  });
 });
