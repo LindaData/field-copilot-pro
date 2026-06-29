@@ -1,5 +1,5 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect } from "react";
 
 import App from "@/App";
@@ -48,6 +48,7 @@ describe("migration baseline", () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     window.localStorage.clear();
   });
 
@@ -186,5 +187,59 @@ describe("migration baseline", () => {
 
     const mappedEquipment = EQUIPMENT.filter((item) => documentationResearchForEquipment(item).length > 0);
     expect(mappedEquipment.length).toBeGreaterThan(50);
+  });
+
+  it("autosaves review-layer drafts while the reviewer types", async () => {
+    window.history.pushState({}, "", "/app/today");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "Today page cards need stronger scan hierarchy." },
+    });
+
+    await waitFor(() => {
+      const drafts = JSON.parse(window.localStorage.getItem("field-copilot-review-drafts-v1") ?? "{}");
+      expect(drafts["/app/today"].text).toBe("Today page cards need stronger scan hierarchy.");
+      expect(drafts["/app/today"].kind).toBe("ux");
+      expect(drafts["/app/today"].priority).toBe("medium");
+    });
+
+    expect(screen.getByText(/Draft saved/i)).toBeInTheDocument();
+  });
+
+  it("captures review-layer notes with live endpoint sync metadata", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/owner/equipment?reviewEndpoint=https%3A%2F%2Freviews.example%2Fcapture&cacheBust=123&view=list",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "Owner equipment source cards need clearer scan hierarchy." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Capture/i }));
+
+    await waitFor(() => {
+      const notes = JSON.parse(window.localStorage.getItem("field-copilot-review-notes-v1") ?? "[]");
+      expect(notes[0].note).toBe("Owner equipment source cards need clearer scan hierarchy.");
+      expect(notes[0].path).toBe("/app/owner/equipment?view=list");
+      expect(notes[0].pageLabel).toBe("Owner equipment");
+      expect(notes[0].kind).toBe("ux");
+      expect(notes[0].priority).toBe("medium");
+      expect(notes[0].syncState).toBe("sent");
+      expect(notes[0].syncedAt).toBeTruthy();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/capture", expect.objectContaining({
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    }));
   });
 });

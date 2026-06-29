@@ -6,11 +6,21 @@ Goal: let Sergio use the live demo like an end user, type review notes, press En
 
 The Review layer is visible on top of the main demo. It always saves notes locally in the browser.
 
-When a review endpoint is configured, pressing Enter also submits the note to the GitHub review inbox:
+The layer now supports live review capture:
+
+- Draft notes autosave per route while the reviewer types.
+- Each note can be tagged as UX, Bug, Copy, Data, or Flow.
+- Each note can be marked Low, Med, or High priority.
+- The panel shows the current page queue and the full open-note queue.
+- Each note shows local, sending, sent, or retry-needed state.
+- Notes can be retried individually or synced in bulk.
+- The saved review path strips `reviewEndpoint` and `cacheBust` query parameters so review data stays tied to the real product route.
+
+When a review endpoint is configured, pressing Enter or Capture submits the note to the GitHub review inbox:
 
 - Review inbox issue: https://github.com/LindaData/field-copilot-pro/issues/30
 
-Each submitted note includes page label, route, full URL, session id, note text, and timestamp.
+Each submitted note includes page label, route, full URL, session id, note text, timestamp, type, priority, and viewport size.
 
 ## Why an endpoint is required
 

@@ -30,14 +30,20 @@ function noteBody(payload) {
   const sessionId = String(payload.sessionId || "unknown-session");
   const createdAt = String(note.createdAt || new Date().toISOString());
   const url = String(payload.url || "");
+  const kind = String(note.kind || "ux");
+  const priority = String(note.priority || "medium");
+  const viewport = String(note.viewport || payload.viewport || "");
 
   return [
     "## Review note",
     "",
     `**Page:** ${pageLabel}`,
     `**Route:** \`${path}\``,
+    `**Type:** ${kind}`,
+    `**Priority:** ${priority}`,
     `**Session:** \`${sessionId}\``,
     `**Created:** ${createdAt}`,
+    viewport ? `**Viewport:** ${viewport}` : "",
     url ? `**URL:** ${url}` : "",
     "",
     safeText,
