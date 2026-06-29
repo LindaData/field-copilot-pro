@@ -1,37 +1,18 @@
 # Field Copilot Pro AWS Infrastructure
 
-This directory is intentionally template-first until an AWS account exists.
+This directory is template-first until an AWS account exists.
 
-Do not deploy from this directory until:
-
-- AWS account exists.
-- Root MFA is enabled.
-- Admin access exists.
-- Budget alerts are configured.
-- `docs/AWS_BEGINNER_SETUP.md` is complete.
+Do not deploy from this directory until the AWS account is created, root MFA is enabled, admin access exists, budget alerts are configured, and `docs/AWS_BEGINNER_SETUP.md` is complete.
 
 ## Why Templates First
 
-The project should not add active infrastructure code that cannot be installed, synthesized, and reviewed. The files under `infra/templates` are safe starting points for Codex or a developer to convert into a real AWS CDK v2 TypeScript app after AWS access exists.
+Active infrastructure should not be merged before it can be installed, synthesized, and reviewed. The files under `infra/templates` are starting points for the later CDK implementation PR.
 
-## First Real Infra Step
+## Next Step
 
-After the AWS account is ready, run this on a laptop, cloud VM, Codespace, or Codex environment with Node.js and AWS CLI configured:
+After the AWS account is ready, use `docs/CODEX_AWS_PROMPTS.md` Prompt 3 to create the real CDK app under this directory.
 
-```bash
-cd infra
-cp templates/package.json.example package.json
-cp templates/tsconfig.json.example tsconfig.json
-cp templates/cdk.json.example cdk.json
-mkdir -p bin lib
-cp templates/bin-field-copilot.ts.example bin/field-copilot.ts
-cp templates/lib-foundation-stack.ts.example lib/foundation-stack.ts
-npm install
-npm run build
-npm run synth -- --context stage=dev
-```
-
-Review the generated CloudFormation before deployment.
+The implementation PR should add the final infra package, lockfile, compiler config, foundation stack, build results, and synth results.
 
 ## First Stack Target
 
@@ -53,5 +34,3 @@ The first foundation stack should create only low-complexity MVP resources:
 - NAT Gateway.
 - Production VPC.
 - Any real customer data.
-
-These come later only if the product needs them.
