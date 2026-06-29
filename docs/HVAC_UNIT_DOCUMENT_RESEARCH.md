@@ -59,26 +59,6 @@ Source classification:
 - App match: Goodman `GSXN3N2410A*` appears to correspond to PDF model column `GSXN3 N2410A*`
 - Match status: `best_effort_demo_match` now; later upgrade to `verified_exact_match` after owner/admin confirms the nameplate
 
-Suggested app document record:
-
-```json
-{
-  "equipmentModelInApp": "GSXN3N2410A*",
-  "manufacturer": "Goodman",
-  "normalizedModel": "GSXN3 N2410A*",
-  "equipmentType": "Air Conditioner",
-  "documentTitle": "Goodman GSXN3 Specification Sheet",
-  "documentCode": "SS-GSXN3",
-  "documentType": "spec_sheet",
-  "url": "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf?view=true&mobiledevice=true",
-  "canonicalUrl": "https://www.goodmanmfg.com/docs/librariesprovider6/default-document-library/ss-gsxn3.pdf",
-  "matchStatus": "best_effort_demo_match",
-  "sourceStatus": "manufacturer_source",
-  "requiresOwnerReview": true,
-  "notes": "User identified this as the correct example source. Good enough for demo as best-effort. Confirm exact model from nameplate before marking verified_exact_match."
-}
-```
-
 ## Required app statuses
 
 Use plain-language labels in the UI:
@@ -100,7 +80,7 @@ Use plain-language labels in the UI:
 3. Exact model/nameplate match is still the long-term goal.
 4. Do not mark demo IDs as exact verified unless a real source confirms the exact model.
 5. Store source URL, document title, document type, match confidence, review status, and reviewer notes.
-6. Future AI should only retrieve from `verified_exact_match`, `best_effort_demo_match`, or owner-approved documents, with the confidence shown to the user.
+6. Future AI should only retrieve from approved or clearly labeled documents, with the confidence shown to the user.
 
 ## Next collection tasks
 
