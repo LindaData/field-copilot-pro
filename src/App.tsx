@@ -7,6 +7,7 @@ import { StoreProvider } from "@/lib/store";
 import { MobileShell, OwnerShell } from "@/components/layout/Shells";
 import Landing from "./pages/Landing";
 import SignIn from "./pages/SignIn";
+import DemoWalkthrough from "./pages/DemoWalkthrough";
 import JobsHome from "./pages/technician/JobsHome";
 import JobDetail from "./pages/technician/JobDetail";
 import Scan from "./pages/technician/Scan";
@@ -50,6 +51,7 @@ const App = () => (
 
             <Route path="/app" element={<MobileShell />}>
               <Route index element={<Navigate to="/app/today" replace />} />
+              <Route path="demo-walkthrough" element={<DemoWalkthrough />} />
               <Route path="today" element={<Today />} />
               <Route path="jobs" element={<JobsHome />} />
               <Route path="jobs/:id" element={<JobDetail />} />
@@ -73,6 +75,7 @@ const App = () => (
 
             <Route path="/app/owner" element={<OwnerShell />}>
               <Route index element={<OwnerDashboard />} />
+              <Route path="demo-walkthrough" element={<DemoWalkthrough />} />
               <Route path="jobs" element={<OwnerJobs />} />
               <Route path="customers" element={<OwnerCustomers />} />
               <Route path="equipment" element={<OwnerEquipment />} />
