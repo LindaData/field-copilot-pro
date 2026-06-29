@@ -3,7 +3,7 @@ import { useStore } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Bot, Building2, Play, ShieldCheck, Sparkles, Wrench } from "lucide-react";
+import { ArrowRight, Bot, Building2, CheckCircle2, Clock3, Play, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 import { LanguageSelector } from "@/components/LanguageSelector";
 
 export default function Landing() {
@@ -30,10 +30,25 @@ export default function Landing() {
           <LanguageSelector />
         </div>
 
+        <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground/90">
+          Built for HVAC field teams
+        </div>
+
         <h1 className="text-3xl font-bold leading-tight">
           {t("landing.title")} <span className="text-accent">{t("landing.titleAccent")}</span>
         </h1>
         <p className="text-sm opacity-90">{t("app.tagline")}</p>
+
+        <div className="grid gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 text-sm backdrop-blur">
+          <div className="flex items-start gap-2">
+            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <span>Guide technicians through the job before they leave the driveway.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <span>Capture diagnostics, approvals, parts, reports, and follow-up notes in one flow.</span>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-3">
           <Link to="/app/today" onClick={() => setRole("guest-tech", "u-alex")}>
