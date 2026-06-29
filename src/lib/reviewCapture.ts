@@ -1,5 +1,6 @@
 export const REVIEW_NOTES_KEY = "field-copilot-review-notes-v1";
 export const REVIEW_DRAFTS_KEY = "field-copilot-review-drafts-v1";
+export const REVIEW_ACTIONS_KEY = "field-copilot-review-actions-v1";
 export const REVIEW_SESSION_KEY = "field-copilot-review-session-v1";
 export const REVIEW_ENDPOINT_KEY = "field-copilot-review-endpoint-v1";
 export const REVIEW_INBOX_ISSUE = 30;
@@ -11,6 +12,7 @@ export type NoteSyncState = "local" | "sending" | "sent" | "error";
 export type ReviewPriority = "low" | "medium" | "high";
 export type ReviewKind = "ux" | "bug" | "copy" | "data" | "workflow";
 export type ReviewView = "page" | "all";
+export type ReviewActionKind = "route" | "click" | "input" | "submit" | "shortcut" | "device" | "chat" | "note";
 
 export interface ReviewNote {
   id: string;
@@ -37,6 +39,21 @@ export interface ReviewDraft {
 }
 
 export type ReviewDrafts = Record<string, ReviewDraft>;
+
+export interface ReviewAction {
+  id: string;
+  kind: ReviewActionKind;
+  path: string;
+  pageLabel: string;
+  label: string;
+  target?: string;
+  detail?: string;
+  createdAt: string;
+  syncedAt?: string;
+  syncState?: NoteSyncState;
+  lastError?: string;
+  viewport?: string;
+}
 
 export interface ReviewLocationLike {
   pathname: string;
@@ -178,6 +195,35 @@ function normalizeNote(raw: unknown): ReviewNote | null {
   };
 }
 
+function normalizeAction(raw: unknown): ReviewAction | null {
+  if (!raw || typeof raw !== "object") return null;
+  const action = raw as Partial<ReviewAction>;
+  if (
+    typeof action.id !== "string"
+    || typeof action.kind !== "string"
+    || typeof action.path !== "string"
+    || typeof action.label !== "string"
+    || typeof action.createdAt !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id: action.id,
+    kind: action.kind as ReviewActionKind,
+    path: action.path,
+    pageLabel: typeof action.pageLabel === "string" ? action.pageLabel : pageLabelFor(action.path),
+    label: action.label,
+    target: typeof action.target === "string" ? action.target : undefined,
+    detail: typeof action.detail === "string" ? action.detail : undefined,
+    createdAt: action.createdAt,
+    syncedAt: typeof action.syncedAt === "string" ? action.syncedAt : undefined,
+    syncState: isNoteSyncState(action.syncState) ? action.syncState : action.syncedAt ? "sent" : "local",
+    lastError: typeof action.lastError === "string" ? action.lastError : undefined,
+    viewport: typeof action.viewport === "string" ? action.viewport : undefined,
+  };
+}
+
 export function loadNotes(): ReviewNote[] {
   if (typeof window === "undefined") return [];
   try {
@@ -194,6 +240,24 @@ export function loadNotes(): ReviewNote[] {
 export function saveNotes(notes: ReviewNote[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(REVIEW_NOTES_KEY, JSON.stringify(notes));
+}
+
+export function loadActions(): ReviewAction[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(REVIEW_ACTIONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeAction).filter((action): action is ReviewAction => Boolean(action));
+  } catch {
+    return [];
+  }
+}
+
+export function saveActions(actions: ReviewAction[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REVIEW_ACTIONS_KEY, JSON.stringify(actions.slice(0, 300)));
 }
 
 export function loadDrafts(): ReviewDrafts {
@@ -252,6 +316,13 @@ export function makeNoteId() {
   return `rn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+export function makeActionId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `ra-${crypto.randomUUID()}`;
+  }
+  return `ra-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function currentViewport() {
   if (typeof window === "undefined") return undefined;
   return `${window.innerWidth}x${window.innerHeight}`;
@@ -292,6 +363,27 @@ export function makeExport(notes: ReviewNote[]) {
   return lines.join("\n");
 }
 
+export function makeSessionExport(notes: ReviewNote[], actions: ReviewAction[]) {
+  const lines = [
+    "# Field Copilot review session",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    `Open notes: ${notes.filter((note) => note.status !== "resolved").length}`,
+    `Tracked actions: ${actions.length}`,
+    "",
+    "## Timeline",
+  ];
+
+  [...actions]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .forEach((action) => {
+      lines.push(`- [${action.createdAt}] ${action.kind.toUpperCase()} ${action.pageLabel} (${action.path}) - ${action.label}${action.detail ? ` - ${action.detail}` : ""}`);
+    });
+
+  lines.push("", makeExport(notes));
+  return lines.join("\n");
+}
+
 export async function postReviewNote(endpoint: string, sessionId: string, note: ReviewNote) {
   if (!endpoint) return false;
   const response = await fetch(endpoint, {
@@ -313,16 +405,36 @@ export async function postReviewNote(endpoint: string, sessionId: string, note: 
   return true;
 }
 
-export function syncLabel(note: ReviewNote) {
-  if (note.syncState === "sending") return "sending";
-  if (note.syncState === "error") return "needs retry";
-  if (note.syncedAt || note.syncState === "sent") return "sent";
+export async function postReviewAction(endpoint: string, sessionId: string, action: ReviewAction) {
+  if (!endpoint) return false;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      event: "review_action",
+      repo: "LindaData/field-copilot-pro",
+      inboxIssue: REVIEW_INBOX_ISSUE,
+      sessionId,
+      action,
+      routePath: action.path,
+      viewport: action.viewport,
+      userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
+    }),
+  });
+  if (!response.ok) throw new Error(`Review action sync failed: ${response.status}`);
+  return true;
+}
+
+export function syncLabel(item: Pick<ReviewNote, "syncState" | "syncedAt">) {
+  if (item.syncState === "sending") return "sending";
+  if (item.syncState === "error") return "needs retry";
+  if (item.syncedAt || item.syncState === "sent") return "sent";
   return "local";
 }
 
-export function syncClass(note: ReviewNote) {
-  if (note.syncState === "sending") return "border-blue-200 bg-blue-50 text-blue-700";
-  if (note.syncState === "error") return "border-destructive/30 bg-destructive/10 text-destructive";
-  if (note.syncedAt || note.syncState === "sent") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+export function syncClass(item: Pick<ReviewNote, "syncState" | "syncedAt">) {
+  if (item.syncState === "sending") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (item.syncState === "error") return "border-destructive/30 bg-destructive/10 text-destructive";
+  if (item.syncedAt || item.syncState === "sent") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   return "border-muted-foreground/20 bg-muted text-muted-foreground";
 }

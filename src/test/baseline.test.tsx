@@ -271,4 +271,49 @@ describe("migration baseline", () => {
       expect(notes[0].syncState).toBe("sent");
     });
   });
+
+  it("tracks review workspace route shortcuts and messages to Codex", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Fcapture",
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Review workspace")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Owner equipment" }));
+    fireEvent.change(screen.getByPlaceholderText(/Message to Codex while reviewing/i), {
+      target: { value: "The owner equipment filters feel crowded on mobile." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send to Codex/i }));
+
+    await waitFor(() => {
+      const actions = JSON.parse(window.localStorage.getItem("field-copilot-review-actions-v1") ?? "[]") as Array<{
+        kind: string;
+        path: string;
+        label: string;
+        detail?: string;
+      }>;
+
+      expect(actions.some((action) => (
+        action.kind === "shortcut"
+        && action.path === "/app/owner/equipment"
+        && action.label === "Opened Owner equipment"
+      ))).toBe(true);
+      expect(actions.some((action) => (
+        action.kind === "chat"
+        && action.label === "Message to Codex"
+        && action.detail === "The owner equipment filters feel crowded on mobile."
+      ))).toBe(true);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/capture", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining("\"event\":\"review_action\""),
+    }));
+  });
 });

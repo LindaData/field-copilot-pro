@@ -8,9 +8,9 @@ The review workspace is a dedicated UI review page:
 
 It keeps the Field Copilot app centered in a device-sized canvas and puts the review system around it:
 
-- left side: review prompts, route shortcuts, and chat handoff
+- left side: review prompts, route shortcuts, and a message-to-Codex lane
 - center: the live app canvas
-- right side: feedback capture, endpoint sync, and live note queue
+- right side: feedback capture, endpoint sync, live note queue, and session trail
 
 This is inspired by review/learning surfaces such as Storybook's canvas-plus-tools model, user-feedback widgets, session-review tools, and coding-learning layouts where instructions sit beside the live experience.
 
@@ -51,22 +51,25 @@ GET  http://127.0.0.1:8787/notes.json
 POST http://127.0.0.1:8787/review-note
 ```
 
-Generated notes are ignored by git and saved under:
+Generated review notes and action events are ignored by git and saved under:
 
 ```text
 data/review-notes/
 ```
+
+The Markdown feed records both `Review note` and `Review action` sections. The JSON feed keeps the same records as newline-delimited events.
 
 ## Reviewer Workflow
 
 1. Open the review URL.
 2. Use the route shortcuts or navigate inside the centered app.
 3. The review workspace follows the current app route while you move.
-4. Type notes in the right panel.
-5. Press `Enter` or `Capture`.
-6. Notes save locally in browser storage and sync to the endpoint when configured.
-7. Use `Copy chat handoff` or the `/notes` URL to bring feedback back into ChatGPT/Codex.
+4. Button/link clicks, route changes, committed control changes, notes, device-mode changes, and messages to Codex are added to the session trail.
+5. Type notes in the right panel, then press `Enter` or `Capture`.
+6. Type quick context in the left `Message to Codex` box when the note depends on what you just clicked.
+7. Notes and actions save locally in browser storage and sync to the endpoint when configured.
+8. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
 
 ## Safety
 
-The review workspace does not put secrets in browser code. The local endpoint writes plain text on the laptop. The Cloudflare Worker path can still be used later to post review notes to GitHub issue #30.
+The review workspace does not put secrets in browser code. The local endpoint writes plain text on the laptop. Click and route tracking intentionally avoids recording free-text field values from the framed app. The Cloudflare Worker path can still be used later to post review notes to GitHub issue #30.

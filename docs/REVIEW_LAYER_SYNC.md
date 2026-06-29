@@ -16,11 +16,21 @@ The layer now supports live review capture:
 - Notes can be retried individually or synced in bulk.
 - The saved review path strips `reviewEndpoint` and `cacheBust` query parameters so review data stays tied to the real product route.
 
+The dedicated `/review` workspace adds session tracking around the centered app canvas:
+
+- Route shortcuts and iframe route changes are recorded.
+- Button/link clicks inside the framed app are recorded with route, label, target, timestamp, and viewport.
+- Select, checkbox, radio, range, textarea, and text-input changes are recorded as committed actions. Free-text field values from the framed app are not copied into the action detail.
+- Reviewer notes and `Message to Codex` entries are recorded into the same timeline.
+- Copy/export includes both open notes and the action trail so Codex can understand what the reviewer was doing when feedback was written.
+
 When a review endpoint is configured, pressing Enter or Capture submits the note to the GitHub review inbox:
 
 - Review inbox issue: https://github.com/LindaData/field-copilot-pro/issues/30
 
 Each submitted note includes page label, route, full URL, session id, note text, timestamp, type, priority, and viewport size.
+
+Each submitted review action includes action type, page label, route, UI label, target metadata, optional detail, timestamp, session id, and viewport size.
 
 ## Why an endpoint is required
 
@@ -52,7 +62,7 @@ For guided UI review, use the dedicated review workspace:
 https://lindadata.github.io/field-copilot-pro/review?reviewEndpoint=<WORKER_OR_LOCAL_ENDPOINT_URL>
 ```
 
-The workspace keeps the app centered and places prompts, endpoint status, note capture, and chat handoff around it.
+The workspace keeps the app centered and places prompts, endpoint status, note capture, session trail, and chat handoff around it.
 
 ## Review workflow
 

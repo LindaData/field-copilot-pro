@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   Bot,
   CheckCircle2,
+  Clock,
   ClipboardCopy,
   ExternalLink,
   Loader2,
   Maximize2,
   MessageSquarePlus,
   Monitor,
+  MousePointerClick,
   RefreshCw,
   Send,
   Smartphone,
@@ -22,12 +25,16 @@ import {
   formatWhen,
   getReviewEndpoint,
   getReviewSessionId,
+  loadActions,
   loadDrafts,
   loadNotes,
-  makeExport,
+  makeActionId,
   makeNoteId,
+  makeSessionExport,
   pageLabelFor,
+  postReviewAction,
   postReviewNote,
+  REVIEW_ACTIONS_KEY,
   REVIEW_DRAFTS_KEY,
   REVIEW_KINDS,
   REVIEW_NOTES_KEY,
@@ -35,10 +42,13 @@ import {
   REVIEW_PROMPTS,
   REVIEW_ROUTE_SHORTCUTS,
   reviewPathFor,
+  saveActions,
   saveDrafts,
   saveNotes,
   syncClass,
   syncLabel,
+  type ReviewAction,
+  type ReviewActionKind,
   type ReviewDraft,
   type ReviewDrafts,
   type ReviewNote,
@@ -99,13 +109,83 @@ function chatBridgeText(notesUrl: string) {
   ].join("\n");
 }
 
+function shortText(value: string | null | undefined, max = 140) {
+  const clean = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  return clean.length > max ? `${clean.slice(0, max - 1)}...` : clean;
+}
+
+function closestTrackable(target: EventTarget | null) {
+  const element = target as Element | null;
+  if (!element || typeof element.closest !== "function") return null;
+  return element.closest("button,a,input,select,textarea,[role='button'],[role='link'],[data-review-track],form");
+}
+
+function elementLabel(element: Element) {
+  const tag = element.tagName.toLowerCase();
+  const inputType = element.getAttribute("type")?.toLowerCase() ?? "";
+  const safeValue = tag === "button" || ["button", "submit", "reset"].includes(inputType)
+    ? element.getAttribute("value")
+    : "";
+
+  return shortText(
+    element.getAttribute("data-review-label")
+      || element.getAttribute("aria-label")
+      || element.getAttribute("title")
+      || safeValue
+      || element.textContent
+      || element.getAttribute("placeholder")
+      || element.getAttribute("name")
+      || element.getAttribute("id")
+      || tag,
+  ) || tag;
+}
+
+function elementTarget(element: Element) {
+  const tag = element.tagName.toLowerCase();
+  const id = element.getAttribute("id");
+  const role = element.getAttribute("role");
+  const type = element.getAttribute("type");
+  const href = tag === "a" ? element.getAttribute("href") : "";
+  return [tag, role ? `role=${role}` : "", type ? `type=${type}` : "", id ? `#${id}` : "", href ? `href=${href}` : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function inputDetail(element: Element) {
+  const tag = element.tagName.toLowerCase();
+  const input = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+  const type = (input as HTMLInputElement).type?.toLowerCase?.() ?? "";
+
+  if (tag === "select") {
+    const select = element as HTMLSelectElement;
+    const selected = select.selectedOptions?.[0]?.textContent || select.value;
+    return `selected=${shortText(selected, 80)}`;
+  }
+
+  if (tag === "input" && ["checkbox", "radio"].includes(type)) {
+    return `checked=${(input as HTMLInputElement).checked ? "true" : "false"}`;
+  }
+
+  if (tag === "input" && type === "range") {
+    return `value=${shortText((input as HTMLInputElement).value, 40)}`;
+  }
+
+  return "value changed";
+}
+
 export default function ReviewWorkspace() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const frameCleanupRef = useRef<(() => void) | null>(null);
+  const framePathRef = useRef("/app/today");
+  const lastRouteRef = useRef("/app/today");
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("phone");
   const [targetPath, setTargetPath] = useState("/app/today");
   const [framePath, setFramePath] = useState("/app/today");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
+  const [actions, setActions] = useState<ReviewAction[]>(() => loadActions());
   const [drafts, setDrafts] = useState<ReviewDrafts>(() => loadDrafts());
+  const [chatDraft, setChatDraft] = useState("");
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
@@ -118,6 +198,10 @@ export default function ReviewWorkspace() {
   const notesUrl = endpointNotesUrl(reviewEndpoint);
 
   useEffect(() => {
+    framePathRef.current = framePath;
+  }, [framePath]);
+
+  useEffect(() => {
     setReviewEndpoint(getReviewEndpoint(window.location.search));
   }, []);
 
@@ -126,12 +210,17 @@ export default function ReviewWorkspace() {
   }, [notes]);
 
   useEffect(() => {
+    saveActions(actions);
+  }, [actions]);
+
+  useEffect(() => {
     saveDrafts(drafts);
   }, [drafts]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === REVIEW_NOTES_KEY) setNotes(loadNotes());
+      if (event.key === REVIEW_ACTIONS_KEY) setActions(loadActions());
       if (event.key === REVIEW_DRAFTS_KEY) setDrafts(loadDrafts());
     };
     window.addEventListener("storage", handleStorage);
@@ -142,6 +231,9 @@ export default function ReviewWorkspace() {
   const currentPageNotes = openNotes.filter((note) => note.path === framePath);
   const pendingNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sending");
   const sendingCount = openNotes.filter((note) => note.syncState === "sending").length;
+  const actionTrail = actions.slice(0, 80);
+  const pendingActions = actions.filter((action) => !action.syncedAt && action.syncState !== "sending");
+  const sendingActionCount = actions.filter((action) => action.syncState === "sending").length;
 
   const updateDraft = (patch: Partial<ReviewDraft>) => {
     const updatedAt = new Date().toISOString();
@@ -167,6 +259,12 @@ export default function ReviewWorkspace() {
   const patchNote = useCallback((id: string, patch: Partial<ReviewNote>) => {
     setNotes((existing) => existing.map((note) => (
       note.id === id ? { ...note, ...patch, updatedAt: new Date().toISOString() } : note
+    )));
+  }, []);
+
+  const patchAction = useCallback((id: string, patch: Partial<ReviewAction>) => {
+    setActions((existing) => existing.map((action) => (
+      action.id === id ? { ...action, ...patch } : action
     )));
   }, []);
 
@@ -196,6 +294,74 @@ export default function ReviewWorkspace() {
     }
   }, [endpointConfigured, patchNote, reviewEndpoint, sessionId]);
 
+  const submitAction = useCallback(async (action: ReviewAction) => {
+    if (!endpointConfigured) return false;
+
+    patchAction(action.id, {
+      syncState: "sending",
+      lastError: undefined,
+    });
+    setLastSyncError(null);
+
+    try {
+      const sent = await postReviewAction(reviewEndpoint, sessionId, action);
+      if (sent) {
+        const syncedAt = new Date().toISOString();
+        patchAction(action.id, { syncedAt, syncState: "sent", lastError: undefined });
+      }
+      return sent;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Review action submit failed";
+      patchAction(action.id, { syncState: "error", lastError: message });
+      setLastSyncError(message);
+      return false;
+    }
+  }, [endpointConfigured, patchAction, reviewEndpoint, sessionId]);
+
+  const readCurrentFrameRoute = useCallback(() => {
+    const frame = iframeRef.current;
+    const win = frame?.contentWindow;
+    if (!win) return framePathRef.current;
+
+    try {
+      const frameLocation = win.location;
+      return reviewPathFor({
+        pathname: stripBasePath(frameLocation.pathname),
+        search: frameLocation.search,
+        hash: frameLocation.hash,
+      });
+    } catch {
+      return framePathRef.current;
+    }
+  }, []);
+
+  const recordAction = useCallback((
+    kind: ReviewActionKind,
+    label: string,
+    detail?: string,
+    target?: string,
+    pathOverride?: string,
+  ) => {
+    const path = pathOverride || framePathRef.current;
+    const cleanPath = path.split("?")[0].split("#")[0] || path;
+    const action: ReviewAction = {
+      id: makeActionId(),
+      kind,
+      path,
+      pageLabel: pageLabelFor(cleanPath),
+      label: shortText(label, 180) || kind,
+      target: target ? shortText(target, 180) : undefined,
+      detail: detail ? shortText(detail, 240) : undefined,
+      createdAt: new Date().toISOString(),
+      syncState: "local",
+      viewport: currentViewport(),
+    };
+
+    setActions((existing) => [action, ...existing].slice(0, 300));
+    void submitAction(action);
+    return action;
+  }, [submitAction]);
+
   const addNote = () => {
     const text = currentDraft.text.trim();
     if (!text) return;
@@ -217,6 +383,7 @@ export default function ReviewWorkspace() {
     };
 
     setNotes((existing) => [note, ...existing]);
+    recordAction("note", "Captured review note", text, "review-note", framePath);
     clearCurrentDraft();
     toast.success("Review note captured", {
       description: endpointConfigured ? "Syncing live now." : "Saved locally in this browser.",
@@ -233,50 +400,97 @@ export default function ReviewWorkspace() {
       const sent = await submitNote(note);
       if (!sent) return;
     }
-    toast.success("Review notes synced");
+    for (const action of pendingActions) {
+      const sent = await submitAction(action);
+      if (!sent) return;
+    }
+    toast.success("Review session synced");
   };
 
   const copyExport = async () => {
     try {
-      await navigator.clipboard.writeText(makeExport(notes));
-      toast.success("Copied review notes");
+      await navigator.clipboard.writeText(makeSessionExport(notes, actions));
+      toast.success("Copied review session");
     } catch {
-      toast.error("Could not copy notes");
+      toast.error("Could not copy session");
     }
   };
 
   const copyChatBridge = async () => {
     try {
-      await navigator.clipboard.writeText(`${chatBridgeText(notesUrl)}\n\n${makeExport(notes)}`);
+      await navigator.clipboard.writeText(`${chatBridgeText(notesUrl)}\n\n${makeSessionExport(notes, actions)}`);
       toast.success("Copied chat handoff");
     } catch {
       toast.error("Could not copy chat handoff");
     }
   };
 
+  const sendChatMessage = () => {
+    const text = chatDraft.trim();
+    if (!text) return;
+    recordAction("chat", "Message to Codex", text, "review-chat", framePath);
+    setChatDraft("");
+    toast.success("Message saved to review session", {
+      description: endpointConfigured ? "Also syncing to the local endpoint." : "Use Copy chat handoff when ready.",
+    });
+  };
+
   const syncFramePath = useCallback(() => {
-    const frame = iframeRef.current;
-    const win = frame?.contentWindow;
-    if (!win) return;
-    try {
-      const frameLocation = win.location;
-      const route = reviewPathFor({
-        pathname: stripBasePath(frameLocation.pathname),
-        search: frameLocation.search,
-        hash: frameLocation.hash,
-      });
-      setFramePath(route);
-    } catch {
-      // If the iframe ever becomes cross-origin, keep the last route instead of breaking capture.
+    const route = readCurrentFrameRoute();
+    setFramePath(route);
+    if (route !== lastRouteRef.current) {
+      lastRouteRef.current = route;
+      recordAction("route", "Route changed", undefined, "review-iframe", route);
     }
-  }, []);
+  }, [readCurrentFrameRoute, recordAction]);
+
+  const attachFrameListeners = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+
+    frameCleanupRef.current?.();
+
+    const handleClick = (event: MouseEvent) => {
+      const element = closestTrackable(event.target);
+      if (!element) return;
+      const tag = element.tagName.toLowerCase();
+      if (["input", "select", "textarea", "option", "form"].includes(tag)) return;
+      recordAction("click", elementLabel(element), undefined, elementTarget(element), readCurrentFrameRoute());
+    };
+
+    const handleChange = (event: Event) => {
+      const element = closestTrackable(event.target);
+      if (!element) return;
+      const tag = element.tagName.toLowerCase();
+      if (!["input", "select", "textarea"].includes(tag)) return;
+      recordAction("input", elementLabel(element), inputDetail(element), elementTarget(element), readCurrentFrameRoute());
+    };
+
+    const handleSubmit = (event: SubmitEvent) => {
+      const element = closestTrackable(event.target);
+      if (!element || element.tagName.toLowerCase() !== "form") return;
+      recordAction("submit", elementLabel(element), undefined, elementTarget(element), readCurrentFrameRoute());
+    };
+
+    doc.addEventListener("click", handleClick, true);
+    doc.addEventListener("change", handleChange, true);
+    doc.addEventListener("submit", handleSubmit, true);
+    frameCleanupRef.current = () => {
+      doc.removeEventListener("click", handleClick, true);
+      doc.removeEventListener("change", handleChange, true);
+      doc.removeEventListener("submit", handleSubmit, true);
+    };
+  }, [readCurrentFrameRoute, recordAction]);
 
   useEffect(() => {
     const interval = window.setInterval(syncFramePath, 600);
     return () => window.clearInterval(interval);
   }, [syncFramePath]);
 
+  useEffect(() => () => frameCleanupRef.current?.(), []);
+
   const openCanvasInNewTab = () => {
+    recordAction("click", "Opened canvas in new tab", framePath, "open-canvas", framePath);
     window.open(appUrlFor(framePath), "_blank", "noopener,noreferrer");
   };
 
@@ -292,11 +506,12 @@ export default function ReviewWorkspace() {
                 {endpointConfigured ? "Endpoint live" : "Local only"}
               </Badge>
             </div>
-            <div className="mt-1 text-xs text-slate-400">Centered app canvas with review prompts, capture, notes, and chat handoff around it.</div>
+            <div className="mt-1 text-xs text-slate-400">Centered app canvas with live action tracking, review prompts, notes, and chat handoff around it.</div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-md border border-white/10 px-2 py-1 text-slate-300">{openNotes.length} open</span>
-            <span className="rounded-md border border-white/10 px-2 py-1 text-slate-300">{pendingNotes.length + sendingCount} to sync</span>
+            <span className="rounded-md border border-white/10 px-2 py-1 text-slate-300">{actions.length} actions</span>
+            <span className="rounded-md border border-white/10 px-2 py-1 text-slate-300">{pendingNotes.length + pendingActions.length + sendingCount + sendingActionCount} to sync</span>
             {notesUrl ? (
               <a href={notesUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-cyan-300/30 px-2 py-1 text-cyan-100 hover:bg-cyan-300/10">
                 Notes feed <ExternalLink className="h-3 w-3" />
@@ -330,6 +545,7 @@ export default function ReviewWorkspace() {
                   onClick={() => {
                     setTargetPath(route.path);
                     setFramePath(route.path);
+                    recordAction("shortcut", `Opened ${route.label}`, route.path, "route-shortcut", route.path);
                   }}
                   className={cn(
                     "rounded-md border px-2 py-2 text-left text-xs hover:bg-white/10",
@@ -345,8 +561,23 @@ export default function ReviewWorkspace() {
           <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
             <div className="text-sm font-semibold">Chat bridge</div>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              Notes save as browser review data and, when the local endpoint is running, as plain text this chat can read from the laptop.
+              Notes, clicks, route moves, and messages save as browser review data. With the local endpoint running, they also save as plain text this chat can read from the laptop.
             </p>
+            <textarea
+              value={chatDraft}
+              onChange={(event) => setChatDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  sendChatMessage();
+                }
+              }}
+              placeholder="Message to Codex while reviewing. Example: the button I just clicked feels unclear."
+              className="mt-3 min-h-[96px] w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-cyan-300"
+            />
+            <Button className="mt-2 h-9 w-full" onClick={sendChatMessage} disabled={!chatDraft.trim()}>
+              <Send className="mr-1 h-4 w-4" /> Send to Codex
+            </Button>
             <Button variant="secondary" className="mt-3 h-9 w-full" onClick={copyChatBridge}>
               <ClipboardCopy className="mr-1 h-4 w-4" /> Copy chat handoff
             </Button>
@@ -367,7 +598,12 @@ export default function ReviewWorkspace() {
                     <button
                       key={mode.value}
                       type="button"
-                      onClick={() => setDeviceMode(mode.value)}
+                      onClick={() => {
+                        if (deviceMode !== mode.value) {
+                          setDeviceMode(mode.value);
+                          recordAction("device", `Switched to ${mode.label}`, undefined, "device-toggle", framePath);
+                        }
+                      }}
                       className={cn("inline-flex h-8 items-center gap-1 rounded px-2 text-xs", deviceMode === mode.value ? "bg-cyan-300 text-slate-950" : "text-slate-300 hover:bg-white/10")}
                     >
                       <Icon className="h-3.5 w-3.5" /> {mode.label}
@@ -390,7 +626,10 @@ export default function ReviewWorkspace() {
                 ref={iframeRef}
                 title="Field Copilot review canvas"
                 src={frameSrc}
-                onLoad={syncFramePath}
+                onLoad={() => {
+                  syncFramePath();
+                  attachFrameListeners();
+                }}
                 className="h-full w-full border-0 bg-background"
               />
             </div>
@@ -460,9 +699,9 @@ export default function ReviewWorkspace() {
                 <ClipboardCopy className="mr-1 h-4 w-4" /> Copy
               </Button>
             </div>
-            <Button variant="secondary" className="mt-2 w-full" onClick={submitAllUnsynced} disabled={sendingCount > 0}>
-              {sendingCount > 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-              {endpointConfigured ? "Sync pending notes" : "Local/export mode"}
+            <Button variant="secondary" className="mt-2 w-full" onClick={submitAllUnsynced} disabled={sendingCount + sendingActionCount > 0}>
+              {sendingCount + sendingActionCount > 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+              {endpointConfigured ? "Sync pending session" : "Local/export mode"}
             </Button>
             {lastSyncError ? <div className="mt-2 text-xs text-red-300">{lastSyncError}</div> : null}
           </section>
@@ -497,6 +736,49 @@ export default function ReviewWorkspace() {
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Session trail</div>
+                <div className="mt-1 text-xs text-slate-400">Routes, buttons, controls, notes, and chat messages.</div>
+              </div>
+              <button type="button" onClick={() => setActions(loadActions())} className="inline-flex items-center gap-1 text-xs text-cyan-200">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+            <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              {actionTrail.length === 0 ? (
+                <div className="rounded-md border border-dashed border-white/15 p-3 text-xs text-slate-400">No tracked actions yet. Open the canvas and start reviewing.</div>
+              ) : actionTrail.map((action) => {
+                const ActionIcon = action.kind === "click"
+                  ? MousePointerClick
+                  : action.kind === "route" || action.kind === "shortcut"
+                    ? Activity
+                    : action.kind === "chat"
+                      ? Bot
+                      : Clock;
+                return (
+                  <div key={action.id} className="rounded-md border border-white/10 bg-slate-950 p-2 text-xs">
+                    <div className="flex items-start gap-2">
+                      <ActionIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-200" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="border-white/15 text-[10px] uppercase text-slate-200">{action.kind}</Badge>
+                          <Badge variant="outline" className={cn("text-[10px] uppercase", syncClass(action))}>{syncLabel(action)}</Badge>
+                          <span className="text-[11px] text-slate-500">{formatWhen(action.createdAt)}</span>
+                        </div>
+                        <div className="mt-1 break-words text-sm leading-snug text-slate-100">{action.label}</div>
+                        {action.detail ? <div className="mt-1 break-words text-[11px] leading-relaxed text-slate-400">{action.detail}</div> : null}
+                        <div className="mt-1 break-all text-[11px] text-slate-500">{action.pageLabel} - {action.path}</div>
+                        {action.target ? <div className="mt-1 break-all text-[10px] text-slate-600">{action.target}</div> : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </aside>
