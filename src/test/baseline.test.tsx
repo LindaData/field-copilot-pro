@@ -277,6 +277,41 @@ describe("migration baseline", () => {
     });
   });
 
+  it("streams live review drafts before the reviewer presses Capture", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Review workspace")).toBeInTheDocument();
+    const exactPhrase = "Codex notetaker phrase: copper spiral 742.";
+    fireEvent.change(screen.getByLabelText("Your note"), {
+      target: { value: exactPhrase },
+    });
+
+    await waitFor(() => {
+      const draftCall = fetchMock.mock.calls.find((call) => {
+        const body = String((call[1] as RequestInit | undefined)?.body ?? "");
+        return body.includes("\"label\":\"Live note draft\"");
+      });
+      expect(draftCall).toBeTruthy();
+      const body = String((draftCall?.[1] as RequestInit | undefined)?.body ?? "");
+      expect(body).toContain(exactPhrase);
+      expect(body).toContain("\"target\":\"review-note-text\"");
+      expect(body).toContain("\"path\":\"/app/today\"");
+    }, { timeout: 2500 });
+  });
+
   it("tracks review workspace route shortcuts and messages to Codex", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
