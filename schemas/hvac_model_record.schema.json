@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lindadata.com/schemas/hvac_model_record.schema.json",
+  "title": "Normalized HVAC model record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "model_id",
+    "manufacturer",
+    "model_number",
+    "model_number_normalized",
+    "unit_type",
+    "source_url",
+    "source_type",
+    "confidence",
+    "lineage"
+  ],
+  "properties": {
+    "model_id": {
+      "type": "string"
+    },
+    "manufacturer": {
+      "type": "string"
+    },
+    "model_number": {
+      "type": "string"
+    },
+    "model_number_normalized": {
+      "type": "string"
+    },
+    "series": {
+      "type": "string"
+    },
+    "unit_type": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "document_title": {
+      "type": "string"
+    },
+    "document_date": {
+      "type": "string"
+    },
+    "retrieved_at": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "lineage": {
+      "type": "object",
+      "required": ["raw_row_number", "cleaner_version"],
+      "properties": {
+        "raw_row_number": {
+          "type": "integer"
+        },
+        "cleaner_version": {
+          "type": "string"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
