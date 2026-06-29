@@ -28,6 +28,22 @@
 </head>
 
   <body>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var routePath = params.get("p");
+
+        if (!routePath) {
+          return;
+        }
+
+        var query = params.get("q");
+        var basePath = window.location.pathname.replace(/\/$/, "");
+        var nextPath = basePath + routePath + (query ? "?" + query : "") + window.location.hash;
+
+        window.history.replaceState(null, "", nextPath);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
