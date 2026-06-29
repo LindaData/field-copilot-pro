@@ -9,7 +9,10 @@ const port = Number(process.env.REVIEW_PORT || 8787);
 const outputDir = resolve(repoRoot, "data", "review-notes");
 const ndjsonPath = resolve(outputDir, "live-review-notes.ndjson");
 const markdownPath = resolve(outputDir, "live-review-notes.md");
+const messagesNdjsonPath = resolve(outputDir, "live-review-messages.ndjson");
+const messagesMarkdownPath = resolve(outputDir, "live-review-messages.md");
 const maxBodyBytes = 1024 * 1024;
+const bridgeKey = String(process.env.REVIEW_BRIDGE_KEY || "").trim();
 
 function corsHeaders(origin = "") {
   const allowed = [
@@ -26,7 +29,7 @@ function corsHeaders(origin = "") {
   return {
     "access-control-allow-origin": allowOrigin,
     "access-control-allow-methods": "GET, POST, OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type, x-review-bridge-key",
     "access-control-allow-private-network": "true",
     "access-control-max-age": "86400",
   };
@@ -87,6 +90,39 @@ function actionMarkdown(record) {
     record.viewport ? `- Viewport: ${record.viewport}` : "",
     "",
   ].filter(Boolean).join("\n");
+}
+
+function messageMarkdown(record) {
+  return [
+    "## Review bridge message",
+    "",
+    `- Author: ${record.author}`,
+    `- Session: \`${record.sessionId}\``,
+    record.pageLabel ? `- Page: ${record.pageLabel}` : "",
+    record.routePath ? `- Route: \`${record.routePath}\`` : "",
+    `- Created: ${record.createdAt}`,
+    `- Received: ${record.receivedAt}`,
+    "",
+    record.text,
+    "",
+  ].filter(Boolean).join("\n");
+}
+
+function normalizeMessagePayload(payload) {
+  const text = safeString(payload?.text).slice(0, 4000);
+  if (!text) throw new Error("empty_message");
+
+  return {
+    id: safeString(payload.id, `message-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    event: "review_message",
+    sessionId: safeString(payload.sessionId, "broadcast"),
+    author: ["codex", "reviewer", "system"].includes(payload.author) ? payload.author : "codex",
+    text,
+    routePath: safeString(payload.routePath),
+    pageLabel: safeString(payload.pageLabel),
+    createdAt: safeString(payload.createdAt, new Date().toISOString()),
+    receivedAt: new Date().toISOString(),
+  };
 }
 
 function normalizePayload(payload) {
@@ -158,6 +194,11 @@ async function ensureFiles() {
   } catch {
     await writeFile(markdownPath, "# Field Copilot live review notes\n\n", "utf8");
   }
+  try {
+    await readFile(messagesMarkdownPath, "utf8");
+  } catch {
+    await writeFile(messagesMarkdownPath, "# Field Copilot live review messages\n\n", "utf8");
+  }
 }
 
 async function getJsonNotes() {
@@ -169,6 +210,25 @@ async function getJsonNotes() {
       .map((line) => JSON.parse(line));
   } catch {
     return [];
+  }
+}
+
+async function getJsonMessages() {
+  try {
+    const raw = await readFile(messagesNdjsonPath, "utf8");
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  } catch {
+    return [];
+  }
+}
+
+function assertBridgeWriteAllowed(req) {
+  if (!bridgeKey) return;
+  if (req.headers["x-review-bridge-key"] !== bridgeKey) {
+    throw new Error("unauthorized_bridge_write");
   }
 }
 
@@ -186,7 +246,12 @@ const server = createServer(async (req, res) => {
 
   try {
     if (req.method === "GET" && url.pathname === "/health") {
-      json(res, 200, { ok: true, notesUrl: `http://127.0.0.1:${port}/notes` }, origin);
+      json(res, 200, {
+        ok: true,
+        notesUrl: `http://127.0.0.1:${port}/notes`,
+        messagesUrl: `http://127.0.0.1:${port}/messages`,
+        bridgeKeyRequired: Boolean(bridgeKey),
+      }, origin);
       return;
     }
 
@@ -201,6 +266,31 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/messages") {
+      const markdown = await readFile(messagesMarkdownPath, "utf8");
+      text(res, 200, markdown, origin);
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/messages.json") {
+      json(res, 200, { ok: true, messages: await getJsonMessages() }, origin);
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/review-feed") {
+      json(res, 200, { ok: true, notes: await getJsonNotes(), messages: await getJsonMessages() }, origin);
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/review-messages") {
+      const sessionId = safeString(url.searchParams.get("sessionId"));
+      const messages = (await getJsonMessages())
+        .filter((message) => !sessionId || message.sessionId === sessionId || message.sessionId === "broadcast")
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      json(res, 200, { ok: true, messages }, origin);
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/review-note") {
       const body = await readBody(req);
       const record = normalizePayload(JSON.parse(body));
@@ -210,10 +300,25 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/review-message") {
+      assertBridgeWriteAllowed(req);
+      const body = await readBody(req);
+      const record = normalizeMessagePayload(JSON.parse(body));
+      await appendFile(messagesNdjsonPath, `${JSON.stringify(record)}\n`, "utf8");
+      await appendFile(messagesMarkdownPath, `${messageMarkdown(record)}\n`, "utf8");
+      json(res, 200, { ok: true, id: record.id, messagesUrl: `http://127.0.0.1:${port}/messages` }, origin);
+      return;
+    }
+
     json(res, 404, { ok: false, error: "not_found" }, origin);
   } catch (error) {
     const message = error instanceof Error ? error.message : "server_error";
-    json(res, message === "empty_note" || message === "empty_action" ? 400 : 500, { ok: false, error: message }, origin);
+    const status = message === "unauthorized_bridge_write"
+      ? 401
+      : message === "empty_note" || message === "empty_action" || message === "empty_message"
+        ? 400
+        : 500;
+    json(res, status, { ok: false, error: message }, origin);
   }
 });
 

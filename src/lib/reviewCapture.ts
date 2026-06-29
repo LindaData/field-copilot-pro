@@ -55,6 +55,16 @@ export interface ReviewAction {
   viewport?: string;
 }
 
+export interface ReviewBridgeMessage {
+  id: string;
+  sessionId: string;
+  author: "codex" | "reviewer" | "system";
+  text: string;
+  createdAt: string;
+  routePath?: string;
+  pageLabel?: string;
+}
+
 export interface ReviewLocationLike {
   pathname: string;
   search: string;
@@ -423,6 +433,62 @@ export async function postReviewAction(endpoint: string, sessionId: string, acti
   });
   if (!response.ok) throw new Error(`Review action sync failed: ${response.status}`);
   return true;
+}
+
+export function reviewEndpointUrl(endpoint: string, pathname: string) {
+  if (!endpoint) return "";
+  try {
+    const url = new URL(endpoint);
+    url.pathname = /\/review-note\/?$/.test(url.pathname)
+      ? url.pathname.replace(/\/review-note\/?$/, pathname)
+      : pathname;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function normalizeBridgeMessage(raw: unknown): ReviewBridgeMessage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const message = raw as Partial<ReviewBridgeMessage>;
+  if (
+    typeof message.id !== "string"
+    || typeof message.sessionId !== "string"
+    || typeof message.text !== "string"
+    || typeof message.createdAt !== "string"
+  ) {
+    return null;
+  }
+
+  const author = message.author === "reviewer" || message.author === "system" ? message.author : "codex";
+
+  return {
+    id: message.id,
+    sessionId: message.sessionId,
+    author,
+    text: message.text,
+    createdAt: message.createdAt,
+    routePath: typeof message.routePath === "string" ? message.routePath : undefined,
+    pageLabel: typeof message.pageLabel === "string" ? message.pageLabel : undefined,
+  };
+}
+
+export async function fetchReviewMessages(endpoint: string, sessionId: string) {
+  const messagesUrl = reviewEndpointUrl(endpoint, "/review-messages");
+  if (!messagesUrl) return [];
+  const url = new URL(messagesUrl);
+  url.searchParams.set("sessionId", sessionId);
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: { "content-type": "application/json" },
+  });
+  if (!response.ok) throw new Error(`Review messages failed: ${response.status}`);
+  const payload = await response.json() as { messages?: unknown[] };
+  return Array.isArray(payload.messages)
+    ? payload.messages.map(normalizeBridgeMessage).filter((message): message is ReviewBridgeMessage => Boolean(message))
+    : [];
 }
 
 export function syncLabel(item: Pick<ReviewNote, "syncState" | "syncedAt">) {

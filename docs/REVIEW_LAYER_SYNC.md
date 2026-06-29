@@ -24,6 +24,7 @@ The dedicated `/review` workspace adds session tracking around the centered app 
 - Reviewer notes and `Message to Codex` entries are recorded into the same timeline.
 - Copy/export includes both open notes and the action trail so Codex can understand what the reviewer was doing when feedback was written.
 - The workspace shows `Reviewing now` above the note box, and the session trail can be hidden on mobile while tracking continues in the background.
+- The local review server also exposes a two-way review bridge. Phone notes/actions post to `/review-note`; Codex replies post to `/review-message`; the review workspace polls `/review-messages` and shows responses in the `Codex replies` panel.
 
 When a review endpoint is configured, pressing Enter or Capture submits the note to the GitHub review inbox:
 

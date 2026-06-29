@@ -48,7 +48,12 @@ The endpoint provides:
 GET  http://127.0.0.1:8787/health
 GET  http://127.0.0.1:8787/notes
 GET  http://127.0.0.1:8787/notes.json
+GET  http://127.0.0.1:8787/messages
+GET  http://127.0.0.1:8787/messages.json
+GET  http://127.0.0.1:8787/review-messages?sessionId=<SESSION_ID>
+GET  http://127.0.0.1:8787/review-feed
 POST http://127.0.0.1:8787/review-note
+POST http://127.0.0.1:8787/review-message
 ```
 
 Generated review notes and action events are ignored by git and saved under:
@@ -57,7 +62,15 @@ Generated review notes and action events are ignored by git and saved under:
 data/review-notes/
 ```
 
-The Markdown feed records both `Review note` and `Review action` sections. The JSON feed keeps the same records as newline-delimited events.
+The Markdown feed records both `Review note` and `Review action` sections. The JSON feed keeps the same records as newline-delimited events. `review-message` records Codex replies, and the review workspace polls `review-messages` so replies appear on the reviewer device.
+
+For phone testing, expose the local endpoint through a temporary HTTPS tunnel and open:
+
+```text
+https://lindadata.github.io/field-copilot-pro/?p=%2Freview&reviewEndpoint=<HTTPS_TUNNEL_URL>/review-note
+```
+
+Do not put GitHub tokens, API keys, or production secrets in the browser. The bridge is a temporary review tool for demo feedback.
 
 ## Reviewer Workflow
 
@@ -69,8 +82,9 @@ The Markdown feed records both `Review note` and `Review action` sections. The J
 6. Type notes in `Your note`, then press `Enter` or `Capture`.
 7. Type quick context in the left `Message to Codex` box when the note depends on what you just clicked.
 8. Hide the session trail on smaller screens when it gets in the way; tracking continues while hidden.
-9. Notes and actions save locally in browser storage and sync to the endpoint when configured.
-10. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
+9. Keep the `Codex replies` panel open to see responses from the note taker during the review.
+10. Notes and actions save locally in browser storage and sync to the endpoint when configured.
+11. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
 
 ## Safety
 

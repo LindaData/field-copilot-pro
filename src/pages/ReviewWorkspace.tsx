@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import {
   currentViewport,
   EMPTY_REVIEW_DRAFT,
+  fetchReviewMessages,
   formatWhen,
   getReviewEndpoint,
   getReviewSessionId,
@@ -44,6 +45,7 @@ import {
   REVIEW_PROMPTS,
   REVIEW_ROUTE_SHORTCUTS,
   reviewPathFor,
+  reviewEndpointUrl,
   saveActions,
   saveDrafts,
   saveNotes,
@@ -51,6 +53,7 @@ import {
   syncLabel,
   type ReviewAction,
   type ReviewActionKind,
+  type ReviewBridgeMessage,
   type ReviewDraft,
   type ReviewDrafts,
   type ReviewNote,
@@ -91,16 +94,7 @@ function stripBasePath(pathname: string) {
 }
 
 function endpointNotesUrl(endpoint: string) {
-  if (!endpoint) return "";
-  try {
-    const url = new URL(endpoint);
-    url.pathname = url.pathname.replace(/\/review-note\/?$/, "/notes");
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return "";
-  }
+  return reviewEndpointUrl(endpoint, "/notes");
 }
 
 function chatBridgeText(notesUrl: string) {
@@ -189,6 +183,8 @@ export default function ReviewWorkspace() {
   const [drafts, setDrafts] = useState<ReviewDrafts>(() => loadDrafts());
   const [chatDraft, setChatDraft] = useState("");
   const [isTrailVisible, setIsTrailVisible] = useState(true);
+  const [bridgeMessages, setBridgeMessages] = useState<ReviewBridgeMessage[]>([]);
+  const [lastBridgeError, setLastBridgeError] = useState<string | null>(null);
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
@@ -199,6 +195,7 @@ export default function ReviewWorkspace() {
   const currentDraft = drafts[framePath] ?? EMPTY_REVIEW_DRAFT;
   const endpointConfigured = reviewEndpoint.length > 0;
   const notesUrl = endpointNotesUrl(reviewEndpoint);
+  const latestBridgeMessage = bridgeMessages[0] ?? null;
 
   useEffect(() => {
     framePathRef.current = framePath;
@@ -219,6 +216,36 @@ export default function ReviewWorkspace() {
   useEffect(() => {
     saveDrafts(drafts);
   }, [drafts]);
+
+  useEffect(() => {
+    if (!endpointConfigured) {
+      setBridgeMessages([]);
+      setLastBridgeError(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadMessages = async () => {
+      try {
+        const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
+        if (!cancelled) {
+          setBridgeMessages(messages);
+          setLastBridgeError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+        }
+      }
+    };
+
+    void loadMessages();
+    const interval = window.setInterval(loadMessages, 3500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [endpointConfigured, reviewEndpoint, sessionId]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -567,6 +594,29 @@ export default function ReviewWorkspace() {
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
               Notes, clicks, route moves, and messages save as browser review data. With the local endpoint running, they also save as plain text this chat can read from the laptop.
             </p>
+            <div className="mt-3 rounded-md border border-white/10 bg-slate-950 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-cyan-100">Codex replies</div>
+                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", latestBridgeMessage ? "text-emerald-100" : "text-slate-300")}>
+                  {latestBridgeMessage ? "live" : endpointConfigured ? "listening" : "offline"}
+                </Badge>
+              </div>
+              {latestBridgeMessage ? (
+                <div className="mt-2 space-y-2">
+                  {bridgeMessages.slice(0, 3).map((message) => (
+                    <div key={message.id} className="rounded border border-cyan-300/15 bg-cyan-300/10 p-2">
+                      <div className="text-[10px] uppercase text-cyan-100">{message.author} - {formatWhen(message.createdAt)}</div>
+                      <div className="mt-1 text-xs leading-relaxed text-slate-100">{message.text}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 text-xs leading-relaxed text-slate-400">
+                  {endpointConfigured ? "I can reply here once the bridge receives your session." : "Open with a review endpoint to enable live replies."}
+                </div>
+              )}
+              {lastBridgeError ? <div className="mt-2 text-[11px] text-amber-200">{lastBridgeError}</div> : null}
+            </div>
             <textarea
               value={chatDraft}
               onChange={(event) => setChatDraft(event.target.value)}
@@ -620,6 +670,17 @@ export default function ReviewWorkspace() {
               </Button>
             </div>
           </div>
+
+          {latestBridgeMessage ? (
+            <div className="mb-3 rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase text-cyan-100">
+                <Bot className="h-3.5 w-3.5" />
+                Codex reply
+                <span className="text-slate-400">{formatWhen(latestBridgeMessage.createdAt)}</span>
+              </div>
+              <div className="mt-2 text-sm leading-relaxed text-slate-100">{latestBridgeMessage.text}</div>
+            </div>
+          ) : null}
 
           <div className="flex min-h-[720px] items-start justify-center overflow-auto rounded-lg border border-white/10 bg-slate-950 p-4">
             <div
