@@ -195,8 +195,8 @@ export function ReviewLayer() {
       }
     } catch (error) {
       setSyncState("error");
-      setLastSyncError(error instanceof Error ? error.message : "Review sync failed");
-      toast.error("Note saved locally. Sync failed.");
+      setLastSyncError(error instanceof Error ? error.message : "Review submit failed");
+      toast.error("Note saved locally. Submit failed.");
     }
   };
 
@@ -225,7 +225,7 @@ export function ReviewLayer() {
       return;
     }
     if (unsyncedNotes.length === 0) {
-      toast.success("All review notes are already synced");
+      toast.success("All review notes are already submitted");
       return;
     }
     setSyncState("sending");
@@ -235,13 +235,13 @@ export function ReviewLayer() {
         if (sent) markSynced(note.id);
       } catch (error) {
         setSyncState("error");
-        setLastSyncError(error instanceof Error ? error.message : "Review sync failed");
-        toast.error("Some review notes did not sync");
+        setLastSyncError(error instanceof Error ? error.message : "Review submit failed");
+        toast.error("Some review notes did not submit");
         return;
       }
     }
     setSyncState("sent");
-    toast.success("Review notes synced");
+    toast.success("Review notes submitted");
   };
 
   const resolveNote = (id: string) => {
@@ -295,25 +295,25 @@ export function ReviewLayer() {
                   addNote();
                 }
               }}
-              placeholder="Type note, press Enter to save for this exact page. Shift+Enter for a new line."
+              placeholder="Type note, press Enter to submit for this exact page. Shift+Enter for a new line."
               className="min-h-[88px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button onClick={addNote} disabled={!draft.trim()}>
-                <MessageSquarePlus className="mr-1 h-4 w-4" /> Add
-              </Button>
-              <Button variant="outline" onClick={submitAllUnsynced} disabled={syncState === "sending"}>
-                <Send className="mr-1 h-4 w-4" /> Sync
+                <MessageSquarePlus className="mr-1 h-4 w-4" /> Submit
               </Button>
               <Button variant="outline" onClick={copyExport}>
-                <ClipboardCopy className="mr-1 h-4 w-4" /> Copy
+                <ClipboardCopy className="mr-1 h-4 w-4" /> Copy fallback
               </Button>
             </div>
+            <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={syncState === "sending" || unsyncedNotes.length === 0}>
+              <Send className="mr-1 h-4 w-4" /> Submit saved notes
+            </Button>
 
             <div className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
               {endpointConfigured
-                ? `Enter saves and submits to review inbox #${REVIEW_INBOX_ISSUE}. Session: ${sessionId}`
-                : "Enter saves locally now. Open once with ?reviewEndpoint=<worker-url> to submit notes automatically to GitHub for ChatGPT follow-up."}
+                ? `Submit sends to review inbox #${REVIEW_INBOX_ISSUE}. Session: ${sessionId}`
+                : "Endpoint not connected yet. Submit saves notes locally only until the worker endpoint is deployed and opened once with ?reviewEndpoint=<worker-url>."}
               {lastSyncError ? <div className="mt-1 text-destructive">{lastSyncError}</div> : null}
             </div>
 
@@ -329,7 +329,7 @@ export function ReviewLayer() {
                   <div key={note.id} className="rounded-md border p-2 text-xs">
                     <div className="whitespace-pre-wrap text-sm">{note.note}</div>
                     <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                      <span>{note.syncedAt ? "synced" : "local"} · {new Date(note.createdAt).toLocaleString()}</span>
+                      <span>{note.syncedAt ? "submitted" : "local only"} · {new Date(note.createdAt).toLocaleString()}</span>
                       <div className="flex items-center gap-1">
                         <button className="underline underline-offset-2" onClick={() => resolveNote(note.id)}>resolve</button>
                         <button className="text-destructive underline underline-offset-2" onClick={() => deleteNote(note.id)}>delete</button>
@@ -341,7 +341,7 @@ export function ReviewLayer() {
             </div>
 
             <div className="flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
-              <span>{openCount} open · {unsyncedNotes.length} unsynced · {syncState}</span>
+              <span>{openCount} open · {unsyncedNotes.length} local only · {syncState}</span>
               <button className="inline-flex items-center gap-1 underline underline-offset-2" onClick={clearResolved}>
                 <Trash2 className="h-3 w-3" /> Clear resolved
               </button>
