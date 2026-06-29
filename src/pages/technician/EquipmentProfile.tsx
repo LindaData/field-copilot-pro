@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Bot, ChevronDown, ExternalLink, FileText, Search, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Bot, ChevronDown, ExternalLink, FileText, Library, Search, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { Spec, ErrorCode, BomItem } from "@/lib/types";
 import { resolveAnswer } from "@/lib/answers/resolver";
 import { findSimilarJobs } from "@/lib/answers/similarJobs";
@@ -16,8 +16,15 @@ import type { Answer } from "@/lib/answers/types";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
 import { manufacturerDocsForEquipment, sourceForManufacturerRecord } from "@/lib/manufacturerSources";
+import { documentationQualityLabel, documentationResearchForEquipment, documentationStatusLabel } from "@/lib/hvacTop50";
 
 const GROUP_ORDER: Spec["group"][] = ["Capacity", "Compressor", "Fan", "Refrigeration", "Electrical", "Physical", "Certifications"];
+
+function confidenceClass(confidence?: string) {
+  if (confidence === "high") return "bg-success/15 text-success";
+  if (confidence === "medium") return "bg-info/15 text-info";
+  return "bg-warning/15 text-warning";
+}
 
 export default function EquipmentProfile() {
   const { id = "" } = useParams();
@@ -40,6 +47,7 @@ export default function EquipmentProfile() {
 
   const eqJobs = useMemo(() => eq ? state.jobs.filter((j) => j.equipmentId === eq.id) : [], [eq, state.jobs]);
   const manufacturerDocs = useMemo(() => eq ? manufacturerDocsForEquipment(eq) : [], [eq]);
+  const researchDocs = useMemo(() => eq ? documentationResearchForEquipment(eq).slice(0, 5) : [], [eq]);
 
   if (!eq) return <div className="p-6">{t("equipmentProfile.notFound")}</div>;
 
@@ -126,6 +134,54 @@ export default function EquipmentProfile() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {researchDocs.length > 0 && (
+        <div className="card-elev p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1 text-sm font-semibold">
+                <Library className="h-4 w-4 text-primary" />
+                {t("equipmentProfile.researchMatches")}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t("equipmentProfile.researchMatchesDesc")}</p>
+            </div>
+            <span className="stat-pill bg-warning/15 text-warning">{t("equipmentProfile.reviewRequired")}</span>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {researchDocs.map((doc) => (
+              <a key={doc.id} href={doc.documentUrl} target="_blank" rel="noreferrer" className="rounded-lg border p-3 hover:bg-muted/40">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold">{doc.manufacturer} {doc.equipmentModel}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{doc.documentTitle}</div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="stat-pill bg-secondary text-secondary-foreground">{documentationQualityLabel(doc)}</span>
+                  <span className={`stat-pill ${confidenceClass(doc.confidence)}`}>{documentationStatusLabel(doc)}</span>
+                  {doc.rank ? <span className="stat-pill bg-muted text-muted-foreground">{t("equipmentProfile.top50Rank", { rank: doc.rank })}</span> : null}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground line-clamp-2">{doc.notes}</div>
+              </a>
+            ))}
+          </div>
+          <div className="mt-3 rounded-md border p-3 text-xs">
+            <div className="font-semibold">{t("equipmentProfile.relatedTickets")}</div>
+            {eqJobs.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {eqJobs.slice(0, 6).map((job) => (
+                  <Link key={job.id} to={`/app/jobs/${job.id}`} className="rounded-md border px-2 py-1 underline underline-offset-2">
+                    {job.id}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-1 text-muted-foreground">{t("equipmentProfile.noRelatedTickets")}</div>
+            )}
           </div>
         </div>
       )}
