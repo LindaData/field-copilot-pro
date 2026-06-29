@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ChevronDown, ExternalLink, FileText, Search, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Bot, ChevronDown, ExternalLink, FileText, Search, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { Spec, ErrorCode, BomItem } from "@/lib/types";
 import { resolveAnswer } from "@/lib/answers/resolver";
 import { findSimilarJobs } from "@/lib/answers/similarJobs";
 import type { Answer } from "@/lib/answers/types";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
+import { manufacturerDocsForEquipment, sourceForManufacturerRecord } from "@/lib/manufacturerSources";
 
 const GROUP_ORDER: Spec["group"][] = ["Capacity", "Compressor", "Fan", "Refrigeration", "Electrical", "Physical", "Certifications"];
 
@@ -38,6 +39,7 @@ export default function EquipmentProfile() {
   const similarCtx = useMemo(() => ({ equipment: eq, allEquipment: state.equipment, jobs: state.jobs, knowledge: state.knowledge }), [eq, state.equipment, state.jobs, state.knowledge]);
 
   const eqJobs = useMemo(() => eq ? state.jobs.filter((j) => j.equipmentId === eq.id) : [], [eq, state.jobs]);
+  const manufacturerDocs = useMemo(() => eq ? manufacturerDocsForEquipment(eq) : [], [eq]);
 
   if (!eq) return <div className="p-6">{t("equipmentProfile.notFound")}</div>;
 
@@ -56,6 +58,7 @@ export default function EquipmentProfile() {
     "Maximum overcurrent protection?",
     t("copilot.prompts.line"),
     t("copilot.prompts.voltage"),
+    t("equipmentProfile.docReaderPrompt"),
     "Error code 1F",
     t("copilot.prompts.wiring"),
   ];
@@ -90,6 +93,42 @@ export default function EquipmentProfile() {
           </div>
         )}
       </div>
+
+      {manufacturerDocs.length > 0 && (
+        <div className="card-elev p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1 text-sm font-semibold">
+                <Bot className="h-4 w-4 text-info" />
+                {t("equipmentProfile.docReader")}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t("equipmentProfile.docReaderDesc")}</p>
+            </div>
+            <span className="stat-pill bg-info/15 text-info">{t("equipmentProfile.simulatedReader")}</span>
+          </div>
+          <div className="mt-3 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-muted-foreground">
+            {t("equipmentProfile.exactModelWarning")}
+          </div>
+          <div className="mt-3 grid gap-2">
+            {manufacturerDocs.map((doc) => (
+              <div key={doc.id} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold">{doc.title}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{doc.aiIndexSummary}</div>
+                  </div>
+                  <a href={doc.url} target="_blank" rel="noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground" aria-label={t("documentViewer.openSource")}>
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+                <div className="mt-2">
+                  <SourceBadge source={sourceForManufacturerRecord(doc)} compact />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card-elev p-4">
         <div className="mb-2 text-sm font-semibold">{t("equipmentProfile.askAbout")}</div>

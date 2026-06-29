@@ -450,6 +450,11 @@
     "demoBanner": "Demo Equipment — Specifications Not Verified. No manufacturer specifications are displayed for this fictional demo identifier. Relationships, jobs, and service history remain available for workflow demonstration.",
     "askAbout": "Ask about this unit",
     "askPlaceholder": "e.g. What is the MCA?",
+    "docReader": "Document reader demo",
+    "docReaderDesc": "Official manufacturer source links are attached to this equipment. The current demo can summarize linked sources and answer only from reviewed specs or clearly labeled source pointers.",
+    "docReaderPrompt": "What official documents are linked?",
+    "simulatedReader": "Simulated",
+    "exactModelWarning": "Exact numeric specifications remain locked until a qualified user reviews the exact model document or nameplate. This prevents the demo from treating a generic product page as a verified service spec.",
     "errorCodes": "Approved error codes",
     "noErrorCodes": "No approved error-code reference is currently available for this equipment.",
     "bom": "Bill of Materials — Approved References",
@@ -716,9 +721,19 @@
   },
   "ownerEquipment": {
     "title": "Equipment",
+    "desc": "Installed units, verified specs, and manufacturer literature queued for review.",
+    "linkedLiterature": "Literature linked",
+    "linkedLiteratureSub": "units with official manufacturer source links",
+    "exactVerified": "Exact specs verified",
+    "exactVerifiedSub": "approved against model-specific literature",
+    "aiReader": "AI reader queue",
+    "aiReaderSub": "units still requiring document extraction review",
+    "sourceReviewNote": "Demo source links point to official manufacturer product libraries or product pages. Exact MCA, MOP, charge, wiring, part numbers, and diagnostics still require model-specific document review before becoming verified specs.",
     "serialType": "Serial {{serial}} · {{type}}",
     "verifiedSpecs": "{{count}} verified specs",
-    "noSpecs": "No specs on file"
+    "noSpecs": "No specs on file",
+    "docsLinked": "{{count}} docs linked",
+    "aiReady": "Reader demo ready"
   },
   "ownerMore": {
     "title": "More"

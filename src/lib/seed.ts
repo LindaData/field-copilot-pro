@@ -8,6 +8,7 @@ import { SYSTEM_TEMPLATES, ACCESSORY_OPTIONS } from "./systems";
 import type {
   EquipmentCategory, EquipmentRole, FuelType, ServiceClass, SystemTemplate,
 } from "./systems";
+import { manufacturerDocItems, manualLinksForEquipment } from "./manufacturerSources";
 
 // =============================================================================
 // Sources (the verified Goodman GSXN3 example, plus the company SOP source)
@@ -508,6 +509,7 @@ function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equip
         specs: [],
         manualUrls: [],
       };
+      eqRecord.manualUrls = manualLinksForEquipment(eqRecord);
       equipment.push(eqRecord);
       equipmentIds.push(id);
       if (member.role === "Outdoor" || member.role === "Packaged" || member.role === "Mini-Split Outdoor") parentId = id;
@@ -518,7 +520,7 @@ function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equip
     if (rng.chance(0.22)) {
       const acc = ACCESSORY_OPTIONS[rng.int(0, ACCESSORY_OPTIONS.length - 1)];
       const accId = `eq-${equipment.length + 1}`;
-      equipment.push({
+      const accessoryRecord: Equipment = {
         id: accId, manufacturer: rng.pick(["Aprilaire","Honeywell","Carrier","Lennox","Generic"]),
         model: `${acc.category.slice(0,3).toUpperCase()}-${rng.int(100,999)}`,
         serial: SERIAL(rng), family: acc.category, type: acc.category,
@@ -528,7 +530,9 @@ function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equip
         installDate: installDate.toISOString().slice(0, 10),
         location: "Mechanical closet",
         specs: [], manualUrls: [],
-      });
+      };
+      accessoryRecord.manualUrls = manualLinksForEquipment(accessoryRecord);
+      equipment.push(accessoryRecord);
       accessoryIds.push(accId);
     }
 
@@ -997,6 +1001,7 @@ export const TECH_FEEDBACK: TechFeedback[] = (() => {
 export const DOCS: DocItem[] = [
   { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanProductSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
   { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanPdfSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
+  ...manufacturerDocItems(),
   { id: "d-3", title: "Caloosa Cooling — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
   { id: "d-4", title: "Caloosa Cooling — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
   { id: "d-5", title: "Caloosa Cooling — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },

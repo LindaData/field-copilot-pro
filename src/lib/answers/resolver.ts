@@ -1,5 +1,6 @@
 import type { Equipment, Spec } from "@/lib/types";
 import type { Answer } from "./types";
+import { manufacturerDocsForEquipment, sourceForManufacturerRecord } from "@/lib/manufacturerSources";
 // Inline safety classifier (previously @/lib/qa/safety)
 function classifyPrompt(q: string): { allow: boolean; reason?: string; category?: string } {
   const s = q.toLowerCase();
@@ -53,6 +54,7 @@ function detectTopic(q: string): string {
   if (t.match(/capacitor|µf|uf|microfarad/)) return "capacitor";
   if (t.match(/error code|fault code|\b[0-9]+f\b/)) return "error-code";
   if (t.match(/wiring|diagram|schematic/)) return "wiring";
+  if (t.match(/document|manual|literature|source|spec sheet|submittal|product page|official/)) return "documentation";
   if (t.match(/what changed|since last|previous visit|last visit/)) return "delta";
   if (t.match(/what next|next step|verify next|what should i (verify|do|check)/)) return "next-step";
   if (t.match(/compress(or|ion)|rla|lra/)) return "compressor";
@@ -104,6 +106,38 @@ export function resolveAnswer(question: string, ctx: Ctx): Answer {
 
   // 3) Equipment required from here on.
   if (!eq) return abstain(q, undefined, "Open or link a piece of equipment to ask equipment-specific questions.");
+
+  if (topic === "documentation") {
+    const docs = manufacturerDocsForEquipment(eq);
+    const manualLinks = eq.manualUrls.filter((link) => link.url && link.url !== "#");
+    const linkedTitles = [
+      ...manualLinks.map((link) => `${link.label} (${link.url})`),
+      ...docs
+        .filter((doc) => !manualLinks.some((link) => link.url === doc.url))
+        .map((doc) => `${doc.manufacturer} - ${doc.title} (${doc.url})`),
+    ];
+    if (linkedTitles.length > 0) {
+      const source = docs[0]
+        ? sourceForManufacturerRecord(docs[0])
+        : {
+            kind: eq.verificationStatus === "Manufacturer Verified" ? "manufacturer_verified" as const : "verification_required" as const,
+            title: manualLinks[0].label,
+            url: manualLinks[0].url,
+          };
+      return {
+        answer: `Linked official source${linkedTitles.length === 1 ? "" : "s"}: ${linkedTitles.join("; ")}. In this demo, these are source pointers for review; exact service values still require model-specific extraction and approval unless already shown as verified specs.`,
+        equipmentRef: { manufacturer: eq.manufacturer, model: eq.model, serial: eq.serial },
+        source,
+        confidence: "medium",
+        isSimulated: true,
+        producer: "deterministic",
+        verificationNeeded: ["Confirm the exact installed model and nameplate.", "Review the model-specific manual or submittal before promoting numeric specs."],
+        nextSafeAction: "Open the linked manufacturer source, find the exact model document, then approve extracted values before use.",
+        topic,
+      };
+    }
+    return abstain(q, eq, "No official manufacturer source link is attached to this equipment yet.");
+  }
 
   // 4) Family-only equipment? warn and abstain on numeric specs.
   const hasSpecs = (eq.specs?.length ?? 0) > 0;

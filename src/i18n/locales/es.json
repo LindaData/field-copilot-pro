@@ -450,6 +450,11 @@
     "demoBanner": "Equipo de demo — Especificaciones no verificadas. No se muestran especificaciones del fabricante para este identificador ficticio. Las relaciones, órdenes e historial siguen disponibles para demostración del flujo.",
     "askAbout": "Preguntar sobre esta unidad",
     "askPlaceholder": "p. ej. ¿Cuál es el MCA?",
+    "docReader": "Demo del lector de documentos",
+    "docReaderDesc": "Los enlaces oficiales del fabricante están asociados a este equipo. La demo actual puede resumir fuentes vinculadas y responder solo desde especificaciones revisadas o punteros de fuente claramente etiquetados.",
+    "docReaderPrompt": "¿Qué documentos oficiales están vinculados?",
+    "simulatedReader": "Simulado",
+    "exactModelWarning": "Las especificaciones numéricas exactas permanecen bloqueadas hasta que un usuario calificado revise el documento exacto del modelo o la placa. Esto evita que la demo trate una página genérica como especificación de servicio verificada.",
     "errorCodes": "Códigos de error aprobados",
     "noErrorCodes": "No hay referencia de códigos de error aprobada para este equipo.",
     "bom": "Lista de materiales — Referencias aprobadas",
@@ -716,9 +721,19 @@
   },
   "ownerEquipment": {
     "title": "Equipos",
+    "desc": "Unidades instaladas, especificaciones verificadas y literatura del fabricante en cola para revisión.",
+    "linkedLiterature": "Literatura vinculada",
+    "linkedLiteratureSub": "unidades con enlaces oficiales del fabricante",
+    "exactVerified": "Especificaciones exactas",
+    "exactVerifiedSub": "aprobadas contra literatura específica del modelo",
+    "aiReader": "Cola del lector IA",
+    "aiReaderSub": "unidades que requieren revisión de extracción",
+    "sourceReviewNote": "Los enlaces de demo apuntan a bibliotecas o páginas oficiales del fabricante. MCA, MOP, carga, cableado, números de parte y diagnósticos exactos requieren revisión del documento específico del modelo antes de convertirse en especificaciones verificadas.",
     "serialType": "Serie {{serial}} · {{type}}",
     "verifiedSpecs": "{{count}} especificaciones verificadas",
-    "noSpecs": "Sin especificaciones registradas"
+    "noSpecs": "Sin especificaciones registradas",
+    "docsLinked": "{{count}} docs vinculados",
+    "aiReady": "Demo del lector lista"
   },
   "ownerMore": {
     "title": "Más"

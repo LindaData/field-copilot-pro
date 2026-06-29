@@ -4,8 +4,10 @@ import { useEffect } from "react";
 
 import App from "@/App";
 import i18n, { LANGS } from "@/i18n";
+import { resolveAnswer } from "@/lib/answers/resolver";
+import { manufacturerDocsForEquipment, MANUFACTURER_SOURCE_LIBRARY, manualLinksForEquipment } from "@/lib/manufacturerSources";
 import { getPrimaryAction } from "@/lib/primaryAction";
-import { INITIAL_DIAG, JOBS } from "@/lib/seed";
+import { DOCS, EQUIPMENT, INITIAL_DIAG, JOBS } from "@/lib/seed";
 import { DEMO_DATA_VERSION, DEMO_STORE_KEY, StoreProvider, useStore, type StoreState } from "@/lib/store";
 
 function todayKey() {
@@ -128,5 +130,44 @@ describe("migration baseline", () => {
     expect(action.kind).toBe("start-diagnosis");
     expect(action.to).toBe("/app/jobs/j-1/diagnose");
     expect(action.to).not.toContain("/diagnostics");
+  });
+
+  it("seeds official manufacturer source links onto matching demo equipment", () => {
+    expect(MANUFACTURER_SOURCE_LIBRARY.length).toBeGreaterThan(10);
+    expect(DOCS.some((doc) => doc.id === "mfg-carrier-ac")).toBe(true);
+
+    const linkedEquipment = EQUIPMENT.filter((item) => item.manualUrls.length > 0);
+    expect(linkedEquipment.length).toBeGreaterThan(10);
+
+    const carrierLike = { ...EQUIPMENT[0], manufacturer: "Carrier", type: "Air Conditioner", category: "Air Conditioner" as const };
+    expect(manufacturerDocsForEquipment(carrierLike).length).toBeGreaterThan(0);
+  });
+
+  it("answers document-reader questions from linked sources without promoting unverified specs", () => {
+    const carrier = {
+      ...EQUIPMENT[0],
+      id: "eq-test-carrier",
+      manufacturer: "Carrier",
+      model: "24SCA5",
+      serial: "TEST123",
+      family: "Carrier",
+      type: "Air Conditioner",
+      category: "Air Conditioner" as const,
+      verificationStatus: "Verification Required" as const,
+      specs: [],
+    };
+    carrier.manualUrls = manualLinksForEquipment(carrier);
+
+    const answer = resolveAnswer("What official documents are linked?", {
+      equipment: carrier,
+      allEquipment: EQUIPMENT,
+    });
+
+    expect(answer.isSimulated).toBe(true);
+    expect(answer.confidence).toBe("medium");
+    expect(answer.source?.kind).toBe("verification_required");
+    expect(answer.answer).toContain("Linked official source");
+    expect(answer.answer).not.toMatch(/\b(MCA|MOP):/);
+    expect(answer.verificationNeeded?.length).toBeGreaterThan(0);
   });
 });
