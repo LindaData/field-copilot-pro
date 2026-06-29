@@ -10,7 +10,7 @@ It keeps the Field Copilot app centered in a device-sized canvas and puts the re
 
 - left side: review prompts, route shortcuts, and a message-to-Codex lane
 - center: the live app canvas
-- right side: feedback capture, endpoint sync, live note queue, and session trail
+- right side: current click context, feedback capture, endpoint sync, live note queue, and a hideable session trail
 
 This is inspired by review/learning surfaces such as Storybook's canvas-plus-tools model, user-feedback widgets, session-review tools, and coding-learning layouts where instructions sit beside the live experience.
 
@@ -65,10 +65,12 @@ The Markdown feed records both `Review note` and `Review action` sections. The J
 2. Use the route shortcuts or navigate inside the centered app.
 3. The review workspace follows the current app route while you move.
 4. Button/link clicks, route changes, committed control changes, notes, device-mode changes, and messages to Codex are added to the session trail.
-5. Type notes in the right panel, then press `Enter` or `Capture`.
-6. Type quick context in the left `Message to Codex` box when the note depends on what you just clicked.
-7. Notes and actions save locally in browser storage and sync to the endpoint when configured.
-8. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
+5. Check `Reviewing now` above the note box to confirm what the next note is attached to.
+6. Type notes in `Your note`, then press `Enter` or `Capture`.
+7. Type quick context in the left `Message to Codex` box when the note depends on what you just clicked.
+8. Hide the session trail on smaller screens when it gets in the way; tracking continues while hidden.
+9. Notes and actions save locally in browser storage and sync to the endpoint when configured.
+10. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
 
 ## Safety
 

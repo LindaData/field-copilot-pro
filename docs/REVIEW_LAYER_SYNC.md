@@ -23,6 +23,7 @@ The dedicated `/review` workspace adds session tracking around the centered app 
 - Select, checkbox, radio, range, textarea, and text-input changes are recorded as committed actions. Free-text field values from the framed app are not copied into the action detail.
 - Reviewer notes and `Message to Codex` entries are recorded into the same timeline.
 - Copy/export includes both open notes and the action trail so Codex can understand what the reviewer was doing when feedback was written.
+- The workspace shows `Reviewing now` above the note box, and the session trail can be hidden on mobile while tracking continues in the background.
 
 When a review endpoint is configured, pressing Enter or Capture submits the note to the GitHub review inbox:
 
