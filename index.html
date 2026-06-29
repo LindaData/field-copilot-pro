@@ -44,9 +44,23 @@
           return;
         }
 
+        var routeParts = routePath.split("?");
+        var cleanRoutePath = routeParts[0];
+        var nextParams = new URLSearchParams(routeParts[1] || "");
         var query = params.get("q");
+        var queryParams = new URLSearchParams(query || "");
+        queryParams.forEach(function (value, key) {
+          nextParams.append(key, value);
+        });
+        params.forEach(function (value, key) {
+          if (key !== "p" && key !== "q") {
+            nextParams.append(key, value);
+          }
+        });
+
         var basePath = window.location.pathname.replace(/\/$/, "");
-        var nextPath = basePath + routePath + (query ? "?" + query : "") + window.location.hash;
+        var nextQuery = nextParams.toString();
+        var nextPath = basePath + cleanRoutePath + (nextQuery ? "?" + nextQuery : "") + window.location.hash;
 
         window.history.replaceState(null, "", nextPath);
       })();
