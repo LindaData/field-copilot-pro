@@ -62,6 +62,14 @@ import { cn } from "@/lib/utils";
 
 type DeviceMode = "phone" | "tablet" | "desktop";
 type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
+type ReviewerSubmission = {
+  text: string;
+  label: string;
+  pageLabel: string;
+  path: string;
+  target?: string;
+  createdAt: string;
+};
 
 const DEVICE_MODES: Array<{ value: DeviceMode; label: string; icon: typeof Smartphone; width: number; height: number }> = [
   { value: "phone", label: "Phone", icon: Smartphone, width: 390, height: 760 },
@@ -118,6 +126,25 @@ function liveDraftLabel(state: LiveDraftState, savedAt: string | null) {
   if (state === "sent") return savedAt ? `Live draft sent ${formatWhen(savedAt)}` : "Live draft sent";
   if (state === "error") return "Live draft failed";
   return "Live draft ready";
+}
+
+function actionToSubmission(action: ReviewAction): ReviewerSubmission | null {
+  const text = action.detail?.trim();
+  if (!text) return null;
+  const isReviewText = action.kind === "chat"
+    || action.kind === "note"
+    || (action.kind === "input" && (action.label === "Live note draft" || action.label === "Live chat draft"));
+
+  if (!isReviewText) return null;
+
+  return {
+    text,
+    label: action.label,
+    pageLabel: action.pageLabel,
+    path: action.path,
+    target: action.target,
+    createdAt: action.createdAt,
+  };
 }
 
 function closestTrackable(target: EventTarget | null) {
@@ -211,6 +238,12 @@ export default function ReviewWorkspace() {
   const endpointConfigured = reviewEndpoint.length > 0;
   const notesUrl = endpointNotesUrl(reviewEndpoint);
   const latestBridgeMessage = bridgeMessages[0] ?? null;
+  const latestReviewerSubmission = useMemo(() => (
+    actions
+      .map(actionToSubmission)
+      .filter((submission): submission is ReviewerSubmission => Boolean(submission))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
+  ), [actions]);
 
   useEffect(() => {
     framePathRef.current = framePath;
@@ -731,6 +764,49 @@ export default function ReviewWorkspace() {
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
               Notes, clicks, route moves, and messages save as browser review data. With the local endpoint running, they also save as plain text this chat can read from the laptop.
             </p>
+            <div className="mt-3 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-emerald-100">Live notetaker</div>
+                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", latestReviewerSubmission ? "text-emerald-100" : "text-slate-300")}>
+                  {latestReviewerSubmission ? "capturing" : endpointConfigured ? "ready" : "offline"}
+                </Badge>
+              </div>
+
+              <label htmlFor="latest-reviewer-submission" className="mt-3 block text-[10px] font-semibold uppercase tracking-normal text-emerald-100">
+                You sent
+              </label>
+              <textarea
+                id="latest-reviewer-submission"
+                aria-label="Latest thing you sent"
+                readOnly
+                value={latestReviewerSubmission?.text ?? ""}
+                placeholder={endpointConfigured ? "Your next note or message will appear here." : "Open with a review endpoint to show live notes here."}
+                className="mt-1 min-h-[74px] w-full resize-none rounded-md border border-emerald-300/20 bg-slate-950 px-2 py-2 text-xs leading-relaxed text-slate-100 outline-none placeholder:text-slate-500"
+              />
+              {latestReviewerSubmission ? (
+                <div className="mt-1 break-all text-[10px] text-emerald-100/80">
+                  {latestReviewerSubmission.label} - {latestReviewerSubmission.pageLabel} - {latestReviewerSubmission.path}
+                  {latestReviewerSubmission.target ? ` - ${latestReviewerSubmission.target}` : ""}
+                </div>
+              ) : null}
+
+              <label htmlFor="latest-codex-response" className="mt-3 block text-[10px] font-semibold uppercase tracking-normal text-cyan-100">
+                Codex replied
+              </label>
+              <textarea
+                id="latest-codex-response"
+                aria-label="Latest Codex response"
+                readOnly
+                value={latestBridgeMessage?.text ?? ""}
+                placeholder={endpointConfigured ? "Codex responses will appear here." : "Connect the review endpoint to receive replies here."}
+                className="mt-1 min-h-[86px] w-full resize-none rounded-md border border-cyan-300/20 bg-slate-950 px-2 py-2 text-xs leading-relaxed text-slate-100 outline-none placeholder:text-slate-500"
+              />
+              {latestBridgeMessage ? (
+                <div className="mt-1 break-all text-[10px] text-cyan-100/80">
+                  {latestBridgeMessage.pageLabel || "Codex"}{latestBridgeMessage.routePath ? ` - ${latestBridgeMessage.routePath}` : ""} - {formatWhen(latestBridgeMessage.createdAt)}
+                </div>
+              ) : null}
+            </div>
             <div className="mt-3 rounded-md border border-white/10 bg-slate-950 p-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-cyan-100">Codex replies</div>

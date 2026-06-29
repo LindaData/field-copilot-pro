@@ -346,6 +346,7 @@ describe("migration baseline", () => {
       expect(body).toContain(exactPhrase);
       expect(body).toContain("\"target\":\"review-note-text\"");
       expect(body).toContain("\"path\":\"/app/today\"");
+      expect(screen.getByLabelText("Latest thing you sent")).toHaveValue(exactPhrase);
     }, { timeout: 2500 });
   });
 
@@ -379,6 +380,7 @@ describe("migration baseline", () => {
 
     expect(await screen.findByText("Review workspace")).toBeInTheDocument();
     expect((await screen.findAllByText("I can see your review notes live.")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText("Latest Codex response")).toHaveValue("I can see your review notes live.");
 
     fireEvent.click(screen.getByRole("button", { name: "Owner equipment" }));
     expect(screen.getByText("Reviewing now")).toBeInTheDocument();
@@ -408,6 +410,7 @@ describe("migration baseline", () => {
         && action.label === "Message to Codex"
         && action.detail === "The owner equipment filters feel crowded on mobile."
       ))).toBe(true);
+      expect(screen.getByLabelText("Latest thing you sent")).toHaveValue("The owner equipment filters feel crowded on mobile.");
     });
 
     expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/review-note", expect.objectContaining({
