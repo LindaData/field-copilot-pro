@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, ChevronLeft, LayoutDashboard, Users, Wrench, ShieldCheck, MoreVertical, RotateCcw, HelpCircle, LogOut, MessageSquare } from "lucide-react";
+import { Briefcase, Camera, Bot, Home, MoreHorizontal, Wifi, WifiOff, ChevronLeft, LayoutDashboard, Users, Wrench, MoreVertical, RotateCcw, HelpCircle, LogOut, MessageSquare } from "lucide-react";
 import { useStore, useCurrentUser } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,23 @@ function SyncPill() {
   );
 }
 
+function HeaderResetButton({ onReset, compact = false }: { onReset: () => void; compact?: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      className={cn("h-8 shrink-0 text-destructive hover:text-destructive", compact ? "px-2" : "")}
+      onClick={onReset}
+      aria-label={t("nav.resetDemo")}
+    >
+      <RotateCcw className="h-3.5 w-3.5 sm:mr-1" />
+      <span className={compact ? "sr-only sm:not-sr-only" : ""}>{t("nav.resetDemo")}</span>
+    </Button>
+  );
+}
+
 const tabs = [
   { to: "/app/today", label: "today", icon: Home },
   { to: "/app/jobs", label: "jobs", icon: Briefcase },
@@ -127,6 +144,7 @@ export function MobileShell() {
             <div className="truncate text-[11px] opacity-80 leading-tight">{user.fullTitle ?? user.role}</div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            <HeaderResetButton onReset={doReset} compact />
             <SyncPill />
           </div>
         </div>
@@ -158,7 +176,11 @@ export function OwnerShell() {
   const { t } = useTranslation();
   const nav = useNavigate();
 
-  const doReset = () => { if (confirm(t("more.confirmReset"))) { reset(); nav("/"); } };
+  const doReset = () => {
+    if (confirm(t("more.confirmReset"))) {
+      reset(); nav("/"); toast.success(t("more.demoReset"));
+    }
+  };
   const doHelp = () => toast(t("nav.help"), { description: t("owner.helpDesc") });
   const visibleOwnerTabs = ownerTabs;
 
@@ -183,6 +205,7 @@ export function OwnerShell() {
             <div className="truncate text-[11px] opacity-80 leading-tight md:text-xs">{user.fullTitle ?? user.role}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <HeaderResetButton onReset={doReset} compact />
             <SyncPill />
             <Button variant="secondary" size="sm" className="h-8" onClick={() => nav("/app/today")}>
               {t("nav.switchToTech")}
