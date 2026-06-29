@@ -10,6 +10,13 @@ This application is a working prototype, not a production multi-user system.
 - Jobs, customers, equipment, diagnostics, reports, and owner metrics are generated from TypeScript seed data and persisted in browser `localStorage`.
 - Production direction is now AWS-first.
 
+## Live Demo
+
+GitHub Pages deploys from `main` after CI passes:
+
+- https://lindadata.github.io/field-copilot-pro/
+- Owner equipment review route: https://lindadata.github.io/field-copilot-pro/app/owner/equipment
+
 ## AWS Start
 
 Use these docs next:
