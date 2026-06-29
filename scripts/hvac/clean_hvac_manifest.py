@@ -87,14 +87,9 @@ def clean_row(row, row_number):
     }
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True)
-    parser.add_argument("--out-dir", default="data/hvac/normalized")
-    args = parser.parse_args()
-
-    input_path = Path(args.input)
-    out_dir = Path(args.out_dir)
+def main_from_paths(input_value, out_value):
+    input_path = Path(input_value)
+    out_dir = Path(out_value)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with input_path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -111,7 +106,15 @@ def main():
 
     (out_dir / "hvac_models.normalized.json").write_text(json.dumps(records, indent=2) + "\n")
     (out_dir / "hvac_cleaning_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    print(json.dumps(summary, indent=2))
+    return summary
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--out-dir", default="data/hvac/normalized")
+    args = parser.parse_args()
+    print(json.dumps(main_from_paths(args.input, args.out_dir), indent=2))
 
 
 if __name__ == "__main__":
