@@ -8,7 +8,7 @@ import type {
 } from "./types";
 
 export const DEMO_STORE_KEY = "hvac-copilot-store-v11";
-export const DEMO_DATA_VERSION = "2026-06-29-v2";
+export const DEMO_DATA_VERSION = "2026-06-29-v3";
 
 function todayKey() {
   const d = new Date();
