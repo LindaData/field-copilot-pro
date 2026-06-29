@@ -1,0 +1,30 @@
+{
+  "name": "@lindadata/field-copilot-pro-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK infrastructure scaffold for Field Copilot Pro.",
+  "bin": {
+    "field-copilot-pro-infra": "bin/field-copilot-pro.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "synth": "cdk synth",
+    "synth:dev": "FIELD_COPILOT_STAGE=dev cdk synth",
+    "synth:staging": "FIELD_COPILOT_STAGE=staging cdk synth",
+    "synth:prod": "FIELD_COPILOT_STAGE=prod cdk synth",
+    "diff:dev": "FIELD_COPILOT_STAGE=dev cdk diff",
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.0",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}
