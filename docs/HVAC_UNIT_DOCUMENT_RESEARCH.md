@@ -1,12 +1,14 @@
 # HVAC Unit Documentation Research
 
-Related: #14
+Related: #14, #19
 
 ## Purpose
 
 Collect manufacturer documentation for equipment shown in the Owner Equipment screen before any paid AI/RAG work.
 
 This is a cheap-first data step. Do not add Bedrock, embeddings, OCR, or AI calls yet.
+
+For Codex execution, use: [Codex HVAC Document Search Prompt](CODEX_HVAC_DOCUMENT_SEARCH_PROMPT.md).
 
 ## Demo-phase confidence policy
 
@@ -102,9 +104,10 @@ Use plain-language labels in the UI:
 
 ## Next collection tasks
 
-1. Add equipment-document status helper to the app.
-2. Add the Goodman GSXN3 PDF link to the Goodman `GSXN3N2410A*` demo record.
-3. Add a visible demo disclaimer near documentation links.
-4. Replace placeholder demo model IDs with realistic sample model/nameplate IDs or mark them clearly as demo placeholders.
-5. Add owner review queue for equipment with missing or likely-match documentation.
-6. Do not add paid AI until document matching is stable.
+1. Run the Codex prompt in `docs/CODEX_HVAC_DOCUMENT_SEARCH_PROMPT.md`.
+2. Add equipment-document status helper to the app.
+3. Add the Goodman GSXN3 PDF link to the Goodman `GSXN3N2410A*` demo record.
+4. Add a visible demo disclaimer near documentation links.
+5. Replace placeholder demo model IDs with realistic sample model/nameplate IDs or mark them clearly as demo placeholders.
+6. Add owner review queue for equipment with missing or likely-match documentation.
+7. Do not add paid AI until document matching is stable.
