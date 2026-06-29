@@ -9,6 +9,7 @@ import type {
   EquipmentCategory, EquipmentRole, FuelType, ServiceClass, SystemTemplate,
 } from "./systems";
 import { manufacturerDocItems, manualLinksForEquipment } from "./manufacturerSources";
+import { top50DocItems, top50ManualLinksForEquipment } from "./hvacTop50";
 
 // =============================================================================
 // Sources (the verified Goodman GSXN3 example, plus the company SOP source)
@@ -414,6 +415,16 @@ const MODEL = (brand: string, role: EquipmentRole, rng: ReturnType<typeof makeRn
 };
 const friendlyCategoryName = (cat: EquipmentCategory) => cat;
 
+function uniqueManualUrls(links: Equipment["manualUrls"]): Equipment["manualUrls"] {
+  const seen = new Set<string>();
+  return links.filter((link) => {
+    const key = `${link.label}|${link.url}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equipment[] } {
   const rng = makeRng(0xABCDE12);
   const systems: SystemRecord[] = [];
@@ -509,7 +520,10 @@ function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equip
         specs: [],
         manualUrls: [],
       };
-      eqRecord.manualUrls = manualLinksForEquipment(eqRecord);
+      eqRecord.manualUrls = uniqueManualUrls([
+        ...manualLinksForEquipment(eqRecord),
+        ...top50ManualLinksForEquipment(eqRecord),
+      ]);
       equipment.push(eqRecord);
       equipmentIds.push(id);
       if (member.role === "Outdoor" || member.role === "Packaged" || member.role === "Mini-Split Outdoor") parentId = id;
@@ -531,7 +545,10 @@ function buildSystemsAndEquipment(): { systems: SystemRecord[]; equipment: Equip
         location: "Mechanical closet",
         specs: [], manualUrls: [],
       };
-      accessoryRecord.manualUrls = manualLinksForEquipment(accessoryRecord);
+      accessoryRecord.manualUrls = uniqueManualUrls([
+        ...manualLinksForEquipment(accessoryRecord),
+        ...top50ManualLinksForEquipment(accessoryRecord),
+      ]);
       equipment.push(accessoryRecord);
       accessoryIds.push(accId);
     }
@@ -1002,6 +1019,7 @@ export const DOCS: DocItem[] = [
   { id: "d-1", title: "Goodman GSXN3 product page", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanProductSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
   { id: "d-2", title: "Goodman SS-GSXN3 specification sheet (06/23)", manufacturer: "Goodman", model: "GSXN3", category: "spec_sheet", url: goodmanPdfSource.url!, status: "Approved", uploadedAt: "2026-04-02" },
   ...manufacturerDocItems(),
+  ...top50DocItems(),
   { id: "d-3", title: "Caloosa Cooling — Capacitor replacement SOP", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-18" },
   { id: "d-4", title: "Caloosa Cooling — Customer arrival message script", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-21" },
   { id: "d-5", title: "Caloosa Cooling — Safety lockout/tagout policy", category: "company_sop", url: "#", status: "Approved", uploadedAt: "2026-03-22" },

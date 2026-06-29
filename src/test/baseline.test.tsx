@@ -6,6 +6,7 @@ import App from "@/App";
 import i18n, { LANGS } from "@/i18n";
 import { resolveAnswer } from "@/lib/answers/resolver";
 import { manufacturerDocsForEquipment, MANUFACTURER_SOURCE_LIBRARY, manualLinksForEquipment } from "@/lib/manufacturerSources";
+import { documentationResearchForEquipment, top50ResearchStats, US_HVAC_TOP_50_DOCUMENTATION_RESEARCH } from "@/lib/hvacTop50";
 import { getPrimaryAction } from "@/lib/primaryAction";
 import { DOCS, EQUIPMENT, INITIAL_DIAG, JOBS } from "@/lib/seed";
 import { DEMO_DATA_VERSION, DEMO_STORE_KEY, StoreProvider, useStore, type StoreState } from "@/lib/store";
@@ -169,5 +170,21 @@ describe("migration baseline", () => {
     expect(answer.answer).toContain("Linked official source");
     expect(answer.answer).not.toMatch(/\b(MCA|MOP):/);
     expect(answer.verificationNeeded?.length).toBeGreaterThan(0);
+  });
+
+  it("loads the national top-50 HVAC documentation research into equipment and documents", () => {
+    expect(US_HVAC_TOP_50_DOCUMENTATION_RESEARCH).toHaveLength(50);
+    expect(top50ResearchStats().officialPdfCount).toBeGreaterThanOrEqual(8);
+    expect(DOCS.some((doc) => doc.id === "top50-doc-01")).toBe(true);
+
+    const goodman = EQUIPMENT.find((item) => item.id === "eq-1");
+    expect(goodman).toBeDefined();
+
+    const goodmanResearch = documentationResearchForEquipment(goodman!);
+    expect(goodmanResearch.some((row) => row.documentUrl.includes("ss-gsxn3.pdf"))).toBe(true);
+    expect(goodman?.manualUrls.some((link) => link.url.includes("ss-gsxn3.pdf"))).toBe(true);
+
+    const mappedEquipment = EQUIPMENT.filter((item) => documentationResearchForEquipment(item).length > 0);
+    expect(mappedEquipment.length).toBeGreaterThan(50);
   });
 });

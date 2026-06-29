@@ -59,6 +59,12 @@ No row in this file should be used as final repair guidance until the installed 
 
 The CSV is ordered from most common/high-priority to less common/lower-priority. Each row was only saved after an official source was identified and classified. Rows with category pages are intentionally marked `manufacturer_generic` so future AI/document-reader work cannot treat them as exact repair manuals.
 
+## Website Integration
+
+The demo app now uses this CSV as a read-only source library. Owner Equipment shows top-50 coverage counts, the highest-priority source rows, per-equipment source matches, and linked service-ticket references. Equipment profiles show matched research rows next to existing document-reader warnings.
+
+This is still a review queue, not a live AI repair engine. The app does not extract specs from generic product pages and does not enable paid AI, embeddings, OCR, Bedrock, AWS deployment, or autonomous repair recommendations.
+
 ## Next Steps
 
 1. Use this CSV as a seed list for a real documentation review queue.
