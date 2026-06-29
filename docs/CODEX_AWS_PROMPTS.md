@@ -83,10 +83,10 @@ Rules:
 
 Tasks:
 1. Create infra/package.json from infra/templates/package.json.example.
-2. Create infra/tsconfig.json from infra/templates/tsconfig.json.example.
-3. Create infra/cdk.json from infra/templates/cdk.json.example.
+2. Create infra/cdk.json from infra/templates/cdk.json.example.
+3. Create the TypeScript compiler config needed for a CDK Node.js app.
 4. Create infra/bin/field-copilot.ts from infra/templates/bin-field-copilot.ts.example.
-5. Create infra/lib/foundation-stack.ts from infra/templates/lib-foundation-stack.ts.example.
+5. Replace infra/templates/lib-foundation-stack.ts.example with a real infra/lib/foundation-stack.ts implementation.
 6. Run npm install inside infra and commit infra/package-lock.json.
 7. Run npm run build inside infra.
 8. Run npm run synth -- --context stage=dev inside infra.
