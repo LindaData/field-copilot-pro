@@ -244,12 +244,17 @@ describe("migration baseline", () => {
   });
 
   it("renders the centered review workspace and captures notes for the framed app route", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
     vi.stubGlobal("fetch", fetchMock);
     window.history.pushState(
       {},
       "",
-      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Fcapture",
+      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
     );
 
     render(<App />);
@@ -273,17 +278,35 @@ describe("migration baseline", () => {
   });
 
   it("tracks review workspace route shortcuts and messages to Codex", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            messages: [{
+              id: "msg-test",
+              sessionId: "broadcast",
+              author: "codex",
+              text: "I can see your review notes live.",
+              createdAt: "2026-06-29T21:30:00.000Z",
+            }],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
     vi.stubGlobal("fetch", fetchMock);
     window.history.pushState(
       {},
       "",
-      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Fcapture",
+      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
     );
 
     render(<App />);
 
     expect(await screen.findByText("Review workspace")).toBeInTheDocument();
+    expect((await screen.findAllByText("I can see your review notes live.")).length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Owner equipment" }));
     expect(screen.getByText("Reviewing now")).toBeInTheDocument();
@@ -315,7 +338,7 @@ describe("migration baseline", () => {
       ))).toBe(true);
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/capture", expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/review-note", expect.objectContaining({
       method: "POST",
       body: expect.stringContaining("\"event\":\"review_action\""),
     }));
