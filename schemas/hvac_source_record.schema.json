@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lindadata.com/schemas/hvac_source_record.schema.json",
+  "title": "HVAC source manifest record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "manufacturer",
+    "model_number",
+    "unit_type",
+    "source_url",
+    "source_type"
+  ],
+  "properties": {
+    "manufacturer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_number": {
+      "type": "string",
+      "minLength": 1
+    },
+    "series": {
+      "type": "string"
+    },
+    "unit_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "document_title": {
+      "type": "string"
+    },
+    "document_date": {
+      "type": "string"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_type": {
+      "type": "string",
+      "enum": ["pdf", "html", "image", "spreadsheet", "manual", "unknown"]
+    },
+    "retrieved_at": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}
