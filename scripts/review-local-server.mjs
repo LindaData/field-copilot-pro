@@ -27,6 +27,7 @@ function corsHeaders(origin = "") {
     "access-control-allow-origin": allowOrigin,
     "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-headers": "content-type",
+    "access-control-allow-private-network": "true",
     "access-control-max-age": "86400",
   };
 }
@@ -70,7 +71,49 @@ function noteMarkdown(record) {
   ].filter(Boolean).join("\n");
 }
 
+function actionMarkdown(record) {
+  return [
+    "## Review action",
+    "",
+    `- Action: ${record.kind}`,
+    `- Page: ${record.pageLabel}`,
+    `- Route: \`${record.path}\``,
+    `- Label: ${record.label}`,
+    record.target ? `- Target: ${record.target}` : "",
+    record.detail ? `- Detail: ${record.detail}` : "",
+    `- Created: ${record.createdAt}`,
+    `- Received: ${record.receivedAt}`,
+    `- Session: \`${record.sessionId}\``,
+    record.viewport ? `- Viewport: ${record.viewport}` : "",
+    "",
+  ].filter(Boolean).join("\n");
+}
+
 function normalizePayload(payload) {
+  if (payload?.event === "review_action") {
+    const action = payload.action || {};
+    const label = safeString(action.label).slice(0, 1000);
+    if (!label) throw new Error("empty_action");
+
+    return {
+      id: safeString(action.id, `action-${Date.now()}`),
+      event: "review_action",
+      repo: safeString(payload.repo, "LindaData/field-copilot-pro"),
+      inboxIssue: safeString(payload.inboxIssue, "local"),
+      sessionId: safeString(payload.sessionId, "unknown-session"),
+      kind: safeString(action.kind, "click"),
+      pageLabel: safeString(action.pageLabel, "Unknown page"),
+      path: safeString(action.path || payload.routePath || payload.path, "unknown"),
+      label,
+      target: safeString(action.target),
+      detail: safeString(action.detail).slice(0, 4000),
+      createdAt: safeString(action.createdAt, new Date().toISOString()),
+      viewport: safeString(action.viewport || payload.viewport),
+      userAgent: safeString(payload.userAgent),
+      receivedAt: new Date().toISOString(),
+    };
+  }
+
   const note = payload?.note ?? {};
   const textValue = safeString(note.note).slice(0, 4000);
   if (!textValue) throw new Error("empty_note");
@@ -162,7 +205,7 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       const record = normalizePayload(JSON.parse(body));
       await appendFile(ndjsonPath, `${JSON.stringify(record)}\n`, "utf8");
-      await appendFile(markdownPath, `${noteMarkdown(record)}\n`, "utf8");
+      await appendFile(markdownPath, `${record.event === "review_action" ? actionMarkdown(record) : noteMarkdown(record)}\n`, "utf8");
       json(res, 200, { ok: true, id: record.id, notesUrl: `http://127.0.0.1:${port}/notes` }, origin);
       return;
     }
@@ -170,7 +213,7 @@ const server = createServer(async (req, res) => {
     json(res, 404, { ok: false, error: "not_found" }, origin);
   } catch (error) {
     const message = error instanceof Error ? error.message : "server_error";
-    json(res, message === "empty_note" ? 400 : 500, { ok: false, error: message }, origin);
+    json(res, message === "empty_note" || message === "empty_action" ? 400 : 500, { ok: false, error: message }, origin);
   }
 });
 
