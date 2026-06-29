@@ -10,6 +10,10 @@ This is a cheap-first data step. Do not add Bedrock, embeddings, OCR, or AI call
 
 For Codex execution, use: [Codex HVAC Document Search Prompt](CODEX_HVAC_DOCUMENT_SEARCH_PROMPT.md).
 
+## Codex handoff status
+
+Ready for Codex. The search target CSV now includes model variations and equipment-wording variations so Codex can search for HVAC unit, AC unit, air conditioner, condenser, heat pump, gas furnace, air handler, manual, spec sheet, wiring diagram, IOM, and related terms.
+
 ## Demo-phase confidence policy
 
 This does not have to be perfect in the demo phase. The goal is to make a best-effort match, clearly label the confidence level, and make it easy for the end user or owner/admin to correct later.
