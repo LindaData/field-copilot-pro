@@ -8,7 +8,7 @@ The review workspace is a dedicated UI review page:
 
 It keeps the Field Copilot app centered in a device-sized canvas and puts the review system around it:
 
-- left side: review prompts, route shortcuts, and a message-to-Codex lane
+- left side: review prompts, route shortcuts, the live notetaker, and a message-to-Codex lane
 - center: the live app canvas
 - right side: current click context, feedback capture, endpoint sync, live note queue, and a hideable session trail
 
@@ -70,6 +70,14 @@ For phone testing, expose the local endpoint through a temporary HTTPS tunnel an
 https://lindadata.github.io/field-copilot-pro/?p=%2Freview&reviewEndpoint=<HTTPS_TUNNEL_URL>/review-note
 ```
 
+When testing an unpublished branch on a phone, serve the local `dist` output or Vite preview through a temporary HTTPS tunnel and use the same SPA fallback form:
+
+```text
+https://<APP_TUNNEL>.trycloudflare.com/?p=%2Freview&reviewEndpoint=<BRIDGE_TUNNEL>/review-note
+```
+
+The local bridge accepts GitHub Pages, localhost, `127.0.0.1`, and temporary `trycloudflare.com` review origins. This is only for review sessions; do not use a quick tunnel as production hosting.
+
 Do not put GitHub tokens, API keys, or production secrets in the browser. The bridge is a temporary review tool for demo feedback.
 
 ## Reviewer Workflow
@@ -82,9 +90,10 @@ Do not put GitHub tokens, API keys, or production secrets in the browser. The br
 6. Type notes in `Your note`, then press `Enter` or `Capture`.
 7. Type quick context in the left `Message to Codex` box when the note depends on what you just clicked.
 8. Hide the session trail on smaller screens when it gets in the way; tracking continues while hidden.
-9. Keep the `Codex replies` panel open to see responses from the note taker during the review.
-10. Notes and actions save locally in browser storage and sync to the endpoint when configured.
-11. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
+9. Watch `Latest thing you sent` to confirm the exact note or chat message was captured.
+10. Watch `Codex replied`, use `Refresh replies` when needed, and use `Copy exchange` to copy the latest note/reply pair.
+11. Notes and actions save locally in browser storage and sync to the endpoint when configured.
+12. Use `Copy chat handoff` or the `/notes` URL to bring the full review session back into ChatGPT/Codex.
 
 ## Safety
 

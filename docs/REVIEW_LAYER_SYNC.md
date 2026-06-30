@@ -24,7 +24,9 @@ The dedicated `/review` workspace adds session tracking around the centered app 
 - Reviewer notes and `Message to Codex` entries are recorded into the same timeline.
 - Copy/export includes both open notes and the action trail so Codex can understand what the reviewer was doing when feedback was written.
 - The workspace shows `Reviewing now` above the note box, and the session trail can be hidden on mobile while tracking continues in the background.
+- The live notetaker shows `Latest thing you sent`, `Codex replied`, `Refresh replies`, and `Copy exchange` so the reviewer can confirm the note-taker loop without leaving the page.
 - The local review server also exposes a two-way review bridge. Phone notes/actions post to `/review-note`; Codex replies post to `/review-message`; the review workspace polls `/review-messages` and shows responses in the `Codex replies` panel.
+- Temporary `trycloudflare.com` app tunnels are allowed by the local bridge for unpublished-branch phone reviews.
 
 When a review endpoint is configured, pressing Enter or Capture submits the note to the GitHub review inbox:
 
@@ -65,6 +67,12 @@ https://lindadata.github.io/field-copilot-pro/review?reviewEndpoint=<WORKER_OR_L
 ```
 
 The workspace keeps the app centered and places prompts, endpoint status, note capture, session trail, and chat handoff around it.
+
+For an unpublished local branch, expose the app and bridge through separate temporary HTTPS tunnels and open:
+
+```text
+https://<APP_TUNNEL>.trycloudflare.com/?p=%2Freview&reviewEndpoint=<BRIDGE_TUNNEL>/review-note
+```
 
 ## Review workflow
 
