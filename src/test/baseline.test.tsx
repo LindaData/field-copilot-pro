@@ -154,16 +154,21 @@ describe("migration baseline", () => {
     expect(observed?.jobs.some((job) => job.id === "stale-job")).toBe(false);
   });
 
-  it("initializes English and Spanish translation resources", async () => {
-    expect(LANGS.map((lang) => lang.code)).toEqual(["en", "es"]);
+  it("initializes English, Spanish, and French translation resources", async () => {
+    expect(LANGS.map((lang) => lang.code)).toEqual(["en", "es", "fr"]);
     expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
     expect(i18n.hasResourceBundle("es", "translation")).toBe(true);
+    expect(i18n.hasResourceBundle("fr", "translation")).toBe(true);
 
     await i18n.changeLanguage("en");
     expect(i18n.t("nav.today")).toBe("Today");
 
     await i18n.changeLanguage("es");
     expect(i18n.t("nav.today")).toBe("Hoy");
+
+    await i18n.changeLanguage("fr");
+    expect(i18n.t("nav.today")).toBe("Aujourd'hui");
+    expect(i18n.t("landing.enterAsOwner")).toBe("Démo propriétaire");
   });
 
   it("points the primary job diagnostic action to /diagnose instead of /diagnostics", () => {

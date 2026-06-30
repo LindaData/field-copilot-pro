@@ -11,6 +11,8 @@ export default function Settings() {
   const c = state.company;
   const [draft, setDraft] = useState(c);
   const fileRef = useRef<HTMLInputElement>(null);
+  const defaultPrimary = "#16564f";
+  const defaultAccent = "#f38a3c";
 
   const onLogo = (file: File) => {
     const reader = new FileReader();
@@ -61,14 +63,14 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-2">
             <label>{t("settings.brandPrimary")}
               <div className="mt-1 flex gap-2">
-                <Input type="color" className="h-10 w-14 p-1" value={draft.brandPrimary ?? "#1d4ed8"} onChange={(e) => setDraft({ ...draft, brandPrimary: e.target.value })} />
-                <Input className="touch-target flex-1" value={draft.brandPrimary ?? ""} placeholder="#1d4ed8" onChange={(e) => setDraft({ ...draft, brandPrimary: e.target.value })} />
+                <Input type="color" className="h-10 w-14 p-1" value={draft.brandPrimary ?? defaultPrimary} onChange={(e) => setDraft({ ...draft, brandPrimary: e.target.value })} />
+                <Input className="touch-target flex-1" value={draft.brandPrimary ?? ""} placeholder={defaultPrimary} onChange={(e) => setDraft({ ...draft, brandPrimary: e.target.value })} />
               </div>
             </label>
             <label>{t("settings.brandAccent")}
               <div className="mt-1 flex gap-2">
-                <Input type="color" className="h-10 w-14 p-1" value={draft.brandAccent ?? "#0ea5e9"} onChange={(e) => setDraft({ ...draft, brandAccent: e.target.value })} />
-                <Input className="touch-target flex-1" value={draft.brandAccent ?? ""} placeholder="#0ea5e9" onChange={(e) => setDraft({ ...draft, brandAccent: e.target.value })} />
+                <Input type="color" className="h-10 w-14 p-1" value={draft.brandAccent ?? defaultAccent} onChange={(e) => setDraft({ ...draft, brandAccent: e.target.value })} />
+                <Input className="touch-target flex-1" value={draft.brandAccent ?? ""} placeholder={defaultAccent} onChange={(e) => setDraft({ ...draft, brandAccent: e.target.value })} />
               </div>
             </label>
           </div>

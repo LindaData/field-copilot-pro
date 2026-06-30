@@ -65,7 +65,21 @@
     "lessPaperwork": "Less paperwork",
     "fasterDiagnosisV": "−32% avg time",
     "fewerCallbacksV": "−18% rate",
-    "lessPaperworkV": "Reports in 60s"
+    "lessPaperworkV": "Reports in 60s",
+    "testBuild": "Phone test build",
+    "safariPrompt": "Open on iPhone Safari and test the technician workflow from Today, Jobs, Scan, and Reports.",
+    "homeScreenPrompt": "Use Share, then Add to Home Screen after opening the technician view for an app-like test shell.",
+    "tourSteps": {
+      "openJobTitle": "Open the job",
+      "openJobBody": "Tap a job to see the customer, equipment, and complaint.",
+      "diagnoseTitle": "Diagnose step by step",
+      "diagnoseBody": "Field Copilot asks one question at a time. Every spec is sourced.",
+      "finishTitle": "Finish before you leave",
+      "finishBody": "Capture customer approval and generate a clean service report.",
+      "skip": "Skip",
+      "next": "Next",
+      "start": "Start"
+    }
   },
   "common": {
     "back": "Back",

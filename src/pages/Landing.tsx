@@ -14,20 +14,20 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary to-primary-soft text-primary-foreground">
-      <div className="mx-auto flex max-w-md flex-col gap-6 px-5 pt-10 pb-12 safe-top">
+      <div className="mx-auto flex max-w-md flex-col gap-6 px-5 pb-12 pt-10 safe-top">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground font-bold text-lg">FC</div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-accent-foreground text-lg font-bold">FC</div>
             <div>
               <div className="text-xl font-semibold leading-tight">{t("app.name")}</div>
-              <div className="text-xs opacity-80">Demo · {state.company.name}</div>
+              <div className="text-xs opacity-80">{t("app.demoBadge")} · {state.company.name}</div>
             </div>
           </div>
           <LanguageSelector />
         </div>
 
         <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-foreground/90">
-          Phone test build
+          {t("landing.testBuild")}
         </div>
 
         <h1 className="text-3xl font-bold leading-tight">
@@ -38,17 +38,17 @@ export default function Landing() {
         <div className="grid gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 text-sm backdrop-blur">
           <div className="flex items-start gap-2">
             <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            <span>Open on iPhone Safari and test the technician workflow from Today, Jobs, Scan, and Reports.</span>
+            <span>{t("landing.safariPrompt")}</span>
           </div>
           <div className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-            <span>Use Share, then Add to Home Screen after opening the technician view for an app-like test shell.</span>
+            <span>{t("landing.homeScreenPrompt")}</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <Link to="/app/today" onClick={() => setRole("guest-tech", "u-alex")}>
-            <Button className="touch-target h-14 w-full justify-between bg-accent text-accent-foreground hover:bg-accent/90 text-base font-semibold">
+            <Button className="touch-target h-14 w-full justify-between bg-accent text-base font-semibold text-accent-foreground hover:bg-accent/90">
               <span className="inline-flex items-center gap-2"><Wrench className="h-5 w-5" /> {t("landing.enterAsTech")}</span>
               <ArrowRight className="h-5 w-5" />
             </Button>
@@ -94,14 +94,28 @@ export default function Landing() {
 }
 
 function TourModal({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const [i, setI] = useState(0);
   const screens = [
-    { title: "Open the job", body: "Tap a job to see the customer, equipment, and complaint.", icon: Wrench },
-    { title: "Diagnose step by step", body: "Field Copilot asks one question at a time. Every spec is sourced.", icon: ShieldCheck },
-    { title: "Finish before you leave", body: "Capture customer approval and generate a clean service report.", icon: Bot },
+    {
+      title: t("landing.tourSteps.openJobTitle"),
+      body: t("landing.tourSteps.openJobBody"),
+      icon: Wrench,
+    },
+    {
+      title: t("landing.tourSteps.diagnoseTitle"),
+      body: t("landing.tourSteps.diagnoseBody"),
+      icon: ShieldCheck,
+    },
+    {
+      title: t("landing.tourSteps.finishTitle"),
+      body: t("landing.tourSteps.finishBody"),
+      icon: Bot,
+    },
   ];
   const s = screens[i];
   const Icon = s.icon;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 md:items-center">
       <div className="w-full max-w-sm rounded-2xl bg-card p-5 text-card-foreground shadow-xl">
@@ -112,11 +126,11 @@ function TourModal({ onDone }: { onDone: () => void }) {
           {screens.map((_, idx) => <span key={idx} className={`h-1.5 w-6 rounded-full ${idx === i ? "bg-primary" : "bg-muted"}`} />)}
         </div>
         <div className="mt-4 flex gap-2">
-          <Button variant="ghost" className="flex-1" onClick={onDone}>Skip</Button>
+          <Button variant="ghost" className="flex-1" onClick={onDone}>{t("landing.tourSteps.skip")}</Button>
           {i < screens.length - 1 ? (
-            <Button className="flex-1" onClick={() => setI(i + 1)}>Next</Button>
+            <Button className="flex-1" onClick={() => setI(i + 1)}>{t("landing.tourSteps.next")}</Button>
           ) : (
-            <Button className="flex-1" onClick={onDone}>Start</Button>
+            <Button className="flex-1" onClick={onDone}>{t("landing.tourSteps.start")}</Button>
           )}
         </div>
       </div>

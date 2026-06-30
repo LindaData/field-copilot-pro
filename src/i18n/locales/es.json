@@ -65,7 +65,21 @@
     "lessPaperwork": "Menos papeleo",
     "fasterDiagnosisV": "−32% tiempo prom.",
     "fewerCallbacksV": "−18% de tasa",
-    "lessPaperworkV": "Reportes en 60 s"
+    "lessPaperworkV": "Reportes en 60 s",
+    "testBuild": "Build de prueba en mÃ³vil",
+    "safariPrompt": "Abre en Safari de iPhone y prueba el flujo del tÃ©cnico desde Hoy, Ã“rdenes, Escanear y Reportes.",
+    "homeScreenPrompt": "Usa Compartir y luego Agregar a pantalla de inicio despuÃ©s de abrir la vista de tÃ©cnico para probar una experiencia tipo app.",
+    "tourSteps": {
+      "openJobTitle": "Abre la orden",
+      "openJobBody": "Toca una orden para ver al cliente, el equipo y la falla reportada.",
+      "diagnoseTitle": "Diagnostica paso a paso",
+      "diagnoseBody": "Field Copilot hace una pregunta a la vez. Cada especificaciÃ³n tiene fuente.",
+      "finishTitle": "Termina antes de salir",
+      "finishBody": "Captura la aprobaciÃ³n del cliente y genera un reporte limpio.",
+      "skip": "Omitir",
+      "next": "Siguiente",
+      "start": "Comenzar"
+    }
   },
   "common": {
     "back": "Atrás",

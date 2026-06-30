@@ -43,6 +43,8 @@ export const COMPANY: Company = {
   address: "14241 Jetport Loop, Unit #1, Fort Myers, FL 33913",
   laborRate: 145,
   tax: 6.5,
+  brandPrimary: "#16564f",
+  brandAccent: "#f38a3c",
   establishedYear: 2001,
   weekdayHours: "7:00 a.m.–9:00 p.m.",
   weekendHours: "8:00 a.m.–9:00 p.m.",
