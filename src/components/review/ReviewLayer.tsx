@@ -860,39 +860,20 @@ export function ReviewLayer() {
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
-            <div className={cn(
-              "rounded-md border p-2 text-xs",
-              endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-950",
-            )}>
-              <div className="flex items-start gap-2">
-                {endpointConfigured ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />}
+            <section className="rounded-xl border bg-card/70 p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold">
-                    {endpointConfigured ? "I can see this review session live." : "I cannot see notes from this phone yet."}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-semibold">Follow mode</div>
+                    <Badge variant="outline" className={cn("gap-1 text-[10px] uppercase tracking-normal", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-300 bg-amber-50 text-amber-800")}>
+                      {endpointConfigured ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      {endpointConfigured ? "live" : "local"}
+                    </Badge>
                   </div>
-                  <div className="mt-0.5">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {endpointConfigured
-                      ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
-                      : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
-                  </div>
-                  <div className="mt-1 break-words text-[11px] text-muted-foreground">
-                    Reviewing: {reviewContextTitle}
-                  </div>
-                  <div className="mt-0.5 break-all text-[11px] text-muted-foreground">
-                    {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-md border bg-background p-2 text-xs">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold">Follow mode</div>
-                  <div className="mt-0.5 text-muted-foreground">
-                    {endpointConfigured
-                      ? "This review link keeps a live trail of where you go and what you touch."
-                      : "This device can still keep a local trail until the live endpoint is connected."}
+                      ? "This review link follows the screen, click trail, and notes while you move."
+                      : "This device can still capture a local trail until the live endpoint is connected."}
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
@@ -900,77 +881,150 @@ export function ReviewLayer() {
                 </Badge>
               </div>
 
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
                   <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Pages</div>
                   <div className="mt-1 text-sm font-semibold">{pageCountInSession || 1}</div>
                 </div>
-                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
                   <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Notes sent</div>
                   <div className="mt-1 text-sm font-semibold">{submittedNotes.length}</div>
                 </div>
-                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
                   <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Open notes</div>
                   <div className="mt-1 text-sm font-semibold">{openCount}</div>
                 </div>
               </div>
 
-              <div className="mt-2 rounded-md border bg-muted/20 px-2 py-2">
-                <div className="font-medium">Last tracked</div>
-                <div className="mt-1 text-sm leading-relaxed">{describeAction(lastTrackedAction)}</div>
-                <div className="mt-1 break-all text-[11px] text-muted-foreground">
-                  {lastTrackedAction ? `${lastTrackedAction.pageLabel} - ${lastTrackedAction.path} - ${formatWhen(lastTrackedAction.createdAt)}` : `${pageLabel} - ${path}`}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <div className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground">
+                  Reviewing: {reviewContextTitle}
+                </div>
+                <div className="rounded-full bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+                  {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
                 </div>
               </div>
 
-              {recentTrackedActions.length > 0 ? (
-                <div className="mt-2 space-y-1">
-                  {recentTrackedActions.slice(0, 3).map((action) => (
-                    <div key={action.id} className="flex items-start justify-between gap-2 rounded-md border bg-muted/10 px-2 py-1.5">
-                      <div className="min-w-0">
-                        <div className="truncate text-[11px] font-medium uppercase tracking-normal text-muted-foreground">{action.kind}</div>
-                        <div className="mt-0.5 break-words text-sm leading-snug">{describeAction(action)}</div>
-                      </div>
-                      <div className="shrink-0 text-[11px] text-muted-foreground">{formatWhen(action.createdAt)}</div>
-                    </div>
-                  ))}
+              <div className={cn(
+                "mt-3 rounded-lg border px-3 py-2 text-xs",
+                endpointConfigured ? "border-emerald-200/80 bg-emerald-50/80 text-emerald-950" : "border-amber-300/80 bg-amber-50/80 text-amber-950",
+              )}>
+                <div className="font-medium">
+                  {endpointConfigured ? "I can see this review session live." : "I cannot see notes from this phone yet."}
+                </div>
+                <div className="mt-1 leading-relaxed">
+                  {endpointConfigured
+                    ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
+                    : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  Last tracked: {describeAction(lastTrackedAction)}
+                </div>
+              </div>
+
+              {recentTrackedActions.length > 1 ? (
+                <div className="mt-2 rounded-lg border bg-background/70 px-3 py-2 text-[11px] text-muted-foreground">
+                  Recent: {recentTrackedActions.slice(0, 3).map((action) => describeAction(action)).join(" · ")}
                 </div>
               ) : null}
-            </div>
+            </section>
 
-            <textarea
-              value={currentDraft.text}
-              onChange={(event) => updateDraft({ text: event.target.value })}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  addNote();
-                }
-              }}
-              placeholder="Capture what feels wrong or missing on this exact screen. Enter submits; Shift+Enter starts a new line."
-              className="min-h-[112px] w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
-
-            <div className="flex items-center justify-between gap-2">
-              <div className={cn(
-                "text-[11px]",
-                liveDraftState === "error" ? "text-destructive" : liveDraftState === "sent" ? "text-emerald-700" : "text-muted-foreground",
-              )} aria-live="polite">
-                {currentDraft.text ? `Draft saved ${formatWhen(currentDraft.updatedAt)} - live ${liveDraftLabel(liveDraftState, liveDraftAt)}` : "Ready"}
+            <section className="rounded-xl border bg-background p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">Capture this screen</div>
+                  <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Attach feedback to what you are looking at right now. Enter submits; Shift+Enter starts a new line.
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
+                  {openCount} open
+                </Badge>
               </div>
-              <div className="text-[11px] text-muted-foreground">{openCount} open</div>
-            </div>
 
-            <div className="grid grid-cols-[1fr_auto] gap-2">
-              <Button onClick={addNote} disabled={!currentDraft.text.trim()} className="h-10">
-                <MessageSquarePlus className="mr-1 h-4 w-4" /> Send note
-              </Button>
-              <Button variant="outline" onClick={copyExport} className="h-10 px-3" aria-label="Copy review notes">
-                <ClipboardCopy className="h-4 w-4" />
-              </Button>
-            </div>
+              <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
+                {REVIEW_KINDS.map((kind) => (
+                  <button
+                    key={kind.value}
+                    type="button"
+                    onClick={() => updateDraft({ kind: kind.value })}
+                    className={cn(
+                      "h-8 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors",
+                      currentDraft.kind === kind.value
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+                    )}
+                  >
+                    {kind.label}
+                  </button>
+                ))}
+              </div>
 
-            <div className="rounded-md border bg-background p-2 text-xs">
+              <div className="mt-2 inline-flex rounded-full border bg-muted/30 p-0.5">
+                {REVIEW_PRIORITIES.map((priority) => (
+                  <button
+                    key={priority.value}
+                    type="button"
+                    onClick={() => updateDraft({ priority: priority.value })}
+                    className={cn(
+                      "h-7 rounded-full px-3 text-xs font-medium transition-colors",
+                      currentDraft.priority === priority.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {priority.label}
+                  </button>
+                ))}
+              </div>
+
+              <label htmlFor="review-layer-note-text" className="mt-3 block text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                Review note
+              </label>
+              <div className="mt-1 rounded-xl border bg-muted/10 p-2">
+                <div className="mb-2 rounded-lg bg-background px-2.5 py-2 text-[11px] text-muted-foreground">
+                  Sending this note with: <span className="font-medium text-foreground">{reviewContextTitle}</span>
+                </div>
+                <textarea
+                  id="review-layer-note-text"
+                  value={currentDraft.text}
+                  onChange={(event) => updateDraft({ text: event.target.value })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      addNote();
+                    }
+                  }}
+                  placeholder="Capture what feels wrong or missing on this exact screen. Enter submits; Shift+Enter starts a new line."
+                  className="min-h-[112px] w-full resize-none rounded-lg border-0 bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <div className={cn(
+                  "text-[11px]",
+                  liveDraftState === "error" ? "text-destructive" : liveDraftState === "sent" ? "text-emerald-700" : "text-muted-foreground",
+                )} aria-live="polite">
+                  {currentDraft.text ? `Draft saved ${formatWhen(currentDraft.updatedAt)} - live ${liveDraftLabel(liveDraftState, liveDraftAt)}` : "Ready"}
+                </div>
+                {latestSubmittedNote ? (
+                  <div className="max-w-[48%] truncate text-[11px] text-muted-foreground">
+                    Last sent: {shortText(latestSubmittedNote.note, 48)}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground">No submitted notes yet</div>
+                )}
+              </div>
+
+              <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                <Button onClick={addNote} disabled={!currentDraft.text.trim()} className="h-10 rounded-full">
+                  <MessageSquarePlus className="mr-1 h-4 w-4" /> Send note
+                </Button>
+                <Button variant="outline" onClick={copyExport} className="h-10 rounded-full px-3" aria-label="Copy review notes">
+                  <ClipboardCopy className="h-4 w-4" />
+                </Button>
+              </div>
+            </section>
+
+            <div className="rounded-xl border bg-background p-3 text-xs shadow-sm">
               <div className="flex items-start gap-2">
                 <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
@@ -1042,7 +1096,7 @@ export function ReviewLayer() {
                       })}
                     </div>
                   ) : (
-                    <div className="mt-2 rounded-md border border-dashed p-3 text-[11px] leading-relaxed text-muted-foreground">
+                    <div className="mt-2 rounded-lg border border-dashed p-3 text-[11px] leading-relaxed text-muted-foreground">
                       {endpointConfigured
                         ? "Send a note and I will echo the live conversation here."
                         : "Connect the live endpoint to see the running conversation here."}
@@ -1065,7 +1119,7 @@ export function ReviewLayer() {
 
             <div
               className={cn(
-                "rounded-md border p-2 text-xs",
+                "rounded-xl border p-3 text-xs shadow-sm",
                 handoffTone === "received"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"
                   : handoffTone === "local" || handoffTone === "pending"
@@ -1121,36 +1175,8 @@ export function ReviewLayer() {
                   <div className="text-xs text-muted-foreground">{visibleNotes.length} shown</div>
                 </div>
 
-                <div className="flex gap-1 overflow-x-auto pb-1">
-                  {REVIEW_KINDS.map((kind) => (
-                    <button
-                      key={kind.value}
-                      type="button"
-                      onClick={() => updateDraft({ kind: kind.value })}
-                      className={cn(
-                        "h-8 shrink-0 rounded-md border px-2 text-xs font-medium",
-                        currentDraft.kind === kind.value ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {kind.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="inline-flex rounded-md border bg-background p-0.5">
-                  {REVIEW_PRIORITIES.map((priority) => (
-                    <button
-                      key={priority.value}
-                      type="button"
-                      onClick={() => updateDraft({ priority: priority.value })}
-                      className={cn(
-                        "h-7 rounded px-2 text-xs font-medium",
-                        currentDraft.priority === priority.value ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {priority.label}
-                    </button>
-                  ))}
+                <div className="rounded-lg border border-dashed bg-background/70 px-3 py-2 text-[11px] text-muted-foreground">
+                  Capture controls are above. This section is for sync status, retries, and note cleanup.
                 </div>
 
                 <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={sendingCount + sendingActionCount > 0}>

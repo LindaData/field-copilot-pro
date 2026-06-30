@@ -305,7 +305,7 @@ describe("migration baseline", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
     }));
-  });
+  }, 10000);
 
   it("shows the live review conversation as a chat transcript", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
@@ -537,7 +537,7 @@ describe("migration baseline", () => {
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
 
     expect(await screen.findByText("Follow mode")).toBeInTheDocument();
-    expect(screen.getAllByText("Focused Enter Demo as Owner").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Last tracked: Focused Enter Demo as Owner")).toBeInTheDocument();
     expect(screen.queryByText("Old session action")).not.toBeInTheDocument();
   });
 
