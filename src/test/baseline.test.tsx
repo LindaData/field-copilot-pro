@@ -416,6 +416,34 @@ describe("migration baseline", () => {
     expect(screen.getByText(/Opened Technician today/i)).toBeInTheDocument();
   });
 
+  it("restores a persisted position for the closed review launcher", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.localStorage.setItem("field-copilot-review-launcher-position-v1", JSON.stringify({
+      x: 144,
+      y: 188,
+    }));
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    const moveButton = await screen.findByRole("button", { name: /move review launcher/i });
+    const launcher = moveButton.closest("div[style]") as HTMLDivElement | null;
+    expect(launcher).not.toBeNull();
+
+    expect(launcher?.style.left).toBe("144px");
+    expect(launcher?.style.top).toBe("188px");
+  });
+
   it("keeps received-note handoff status after a sent note is resolved", async () => {
     window.localStorage.setItem("field-copilot-review-notes-v1", JSON.stringify([{
       id: "note-resolved-live",

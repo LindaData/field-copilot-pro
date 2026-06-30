@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useLocation } from "react-router-dom";
 import {
   AlertCircle,
@@ -7,6 +7,7 @@ import {
   ClipboardCopy,
   Cloud,
   CloudOff,
+  GripHorizontal,
   Loader2,
   MessageSquarePlus,
   RefreshCw,
@@ -60,6 +61,44 @@ import {
 import { cn } from "@/lib/utils";
 
 type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
+type ReviewLauncherPosition = { x: number; y: number };
+
+const REVIEW_LAUNCHER_POSITION_KEY = "field-copilot-review-launcher-position-v1";
+const REVIEW_LAUNCHER_MARGIN = 12;
+const REVIEW_LAUNCHER_MAX_WIDTH = 352;
+const REVIEW_LAUNCHER_MAX_HEIGHT = 160;
+
+function clampLauncherPosition(position: ReviewLauncherPosition) {
+  if (typeof window === "undefined") return position;
+  const maxWidth = Math.min(REVIEW_LAUNCHER_MAX_WIDTH, Math.max(220, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2)));
+  const maxX = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerWidth - maxWidth - REVIEW_LAUNCHER_MARGIN);
+  const maxY = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerHeight - REVIEW_LAUNCHER_MAX_HEIGHT - REVIEW_LAUNCHER_MARGIN);
+  return {
+    x: Math.min(Math.max(REVIEW_LAUNCHER_MARGIN, position.x), maxX),
+    y: Math.min(Math.max(REVIEW_LAUNCHER_MARGIN, position.y), maxY),
+  };
+}
+
+function defaultLauncherPosition(): ReviewLauncherPosition {
+  if (typeof window === "undefined") return { x: REVIEW_LAUNCHER_MARGIN, y: REVIEW_LAUNCHER_MARGIN };
+  return clampLauncherPosition({
+    x: window.innerWidth - Math.min(REVIEW_LAUNCHER_MAX_WIDTH, Math.max(220, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2))) - REVIEW_LAUNCHER_MARGIN,
+    y: window.innerHeight - 132,
+  });
+}
+
+function loadLauncherPosition(): ReviewLauncherPosition {
+  if (typeof window === "undefined") return defaultLauncherPosition();
+  try {
+    const raw = window.localStorage.getItem(REVIEW_LAUNCHER_POSITION_KEY);
+    if (!raw) return defaultLauncherPosition();
+    const parsed = JSON.parse(raw) as Partial<ReviewLauncherPosition>;
+    if (typeof parsed.x !== "number" || typeof parsed.y !== "number") return defaultLauncherPosition();
+    return clampLauncherPosition({ x: parsed.x, y: parsed.y });
+  } catch {
+    return defaultLauncherPosition();
+  }
+}
 
 function shortText(value: string | null | undefined, max = 140) {
   const clean = String(value ?? "").replace(/\s+/g, " ").trim();
@@ -185,7 +224,15 @@ function conversationBadge(entry: ReviewConversationEntry) {
 export function ReviewLayer() {
   const location = useLocation();
   const layerRef = useRef<HTMLDivElement | null>(null);
+  const launcherRef = useRef<HTMLDivElement | null>(null);
   const conversationRef = useRef<HTMLDivElement | null>(null);
+  const launcherDragRef = useRef<{
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    moved: boolean;
+  } | null>(null);
   const lastRouteRef = useRef("");
   const lastLiveDraftRef = useRef("");
   const passiveActionRef = useRef<Record<string, number>>({});
@@ -204,6 +251,8 @@ export function ReviewLayer() {
   const [lastBridgeError, setLastBridgeError] = useState<string | null>(null);
   const [liveDraftState, setLiveDraftState] = useState<LiveDraftState>("idle");
   const [liveDraftAt, setLiveDraftAt] = useState<string | null>(null);
+  const [launcherPosition, setLauncherPosition] = useState<ReviewLauncherPosition>(() => loadLauncherPosition());
+  const [draggingLauncher, setDraggingLauncher] = useState(false);
 
   const pageLabel = pageLabelFor(location.pathname);
   const path = reviewPathFor(location);
@@ -232,9 +281,60 @@ export function ReviewLayer() {
       if (event.key === REVIEW_NOTES_KEY) setNotes(loadNotes());
       if (event.key === REVIEW_ACTIONS_KEY) setActions(loadActions());
       if (event.key === REVIEW_DRAFTS_KEY) setDrafts(loadDrafts());
+      if (event.key === REVIEW_LAUNCHER_POSITION_KEY) setLauncherPosition(loadLauncherPosition());
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(REVIEW_LAUNCHER_POSITION_KEY, JSON.stringify(launcherPosition));
+    } catch {
+      // ignore storage errors
+    }
+  }, [launcherPosition]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setLauncherPosition((current) => clampLauncherPosition(current));
+    };
+
+    const handleDragMove = (event: PointerEvent | MouseEvent) => {
+      const activeDrag = launcherDragRef.current;
+      if (!activeDrag) return;
+      const dx = event.clientX - activeDrag.startX;
+      const dy = event.clientY - activeDrag.startY;
+      if (!activeDrag.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        activeDrag.moved = true;
+        setDraggingLauncher(true);
+      }
+      setLauncherPosition(clampLauncherPosition({
+        x: activeDrag.originX + dx,
+        y: activeDrag.originY + dy,
+      }));
+    };
+
+    const handlePointerEnd = () => {
+      if (!launcherDragRef.current) return;
+      launcherDragRef.current = null;
+      setDraggingLauncher(false);
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("pointermove", handleDragMove);
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+    window.addEventListener("mouseup", handlePointerEnd);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("pointermove", handleDragMove);
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+      window.removeEventListener("mouseup", handlePointerEnd);
+    };
   }, []);
 
   const sessionNotes = useMemo(
@@ -588,7 +688,13 @@ export function ReviewLayer() {
 
     const shouldIgnore = (target: EventTarget | null) => {
       const element = target as Element | null;
-      return Boolean(element && layerRef.current?.contains(element));
+      return Boolean(
+        element
+        && (
+          layerRef.current?.contains(element)
+          || launcherRef.current?.contains(element)
+        ),
+      );
     };
 
     const handleClick = (event: MouseEvent) => {
@@ -827,40 +933,50 @@ export function ReviewLayer() {
     });
   };
 
+  const startLauncherDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    launcherDragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: launcherPosition.x,
+      originY: launcherPosition.y,
+      moved: false,
+    };
+  };
+
   if (hiddenForReviewWorkspace) return null;
 
   return (
-    <div
-      ref={layerRef}
-      className={cn(
-        "fixed inset-x-2 z-50 flex flex-col items-end gap-2 md:inset-auto md:right-5 md:w-[420px]",
-        open ? "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] md:bottom-5" : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] md:bottom-5",
-      )}
-    >
-      {open && (
-        <div className="flex max-h-[68svh] w-full flex-col overflow-hidden rounded-[20px] border bg-card shadow-xl md:max-h-[72vh] md:rounded-lg">
-          <div className="border-b p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                  <StickyNote className="h-4 w-4 text-primary" />
-                  Live review
-                  <Badge variant="outline" className={cn("gap-1", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-300 bg-amber-50 text-amber-800")}>
-                    {endpointConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-                    {endpointConfigured ? "Codex live" : "local only"}
-                  </Badge>
+    <>
+      {open ? (
+        <div
+          ref={layerRef}
+          className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-50 flex flex-col items-end gap-2 md:inset-auto md:bottom-5 md:right-5 md:w-[420px]"
+        >
+          <div className="flex max-h-[68svh] w-full flex-col overflow-hidden rounded-[20px] border bg-card shadow-xl md:max-h-[72vh] md:rounded-lg">
+            <div className="border-b p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                    <StickyNote className="h-4 w-4 text-primary" />
+                    Live review
+                    <Badge variant="outline" className={cn("gap-1", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-300 bg-amber-50 text-amber-800")}>
+                      {endpointConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
+                      {endpointConfigured ? "Codex live" : "local only"}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 truncate text-xs text-muted-foreground">{pageLabel}</div>
+                  <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{path}</div>
                 </div>
-                <div className="mt-1 truncate text-xs text-muted-foreground">{pageLabel}</div>
-                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{path}</div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={closeReviewLayer} aria-label="Close review layer">
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={closeReviewLayer} aria-label="Close review layer">
-                <X className="h-4 w-4" />
-              </Button>
             </div>
-          </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
-            <section className="rounded-xl border bg-card/70 p-3 shadow-sm">
+            <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+              <section className="rounded-xl border bg-card/70 p-3 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -920,11 +1036,14 @@ export function ReviewLayer() {
                 <div className="mt-2 text-[11px] text-muted-foreground">
                   Last tracked: {describeAction(lastTrackedAction)}
                 </div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Close this panel any time. The floating review launcher can be dragged if it covers the page.
+                </div>
               </div>
 
               {recentTrackedActions.length > 1 ? (
                 <div className="mt-2 rounded-lg border bg-background/70 px-3 py-2 text-[11px] text-muted-foreground">
-                  Recent: {recentTrackedActions.slice(0, 3).map((action) => describeAction(action)).join(" · ")}
+                  Recent: {recentTrackedActions.slice(0, 3).map((action) => describeAction(action)).join(" | ")}
                 </div>
               ) : null}
             </section>
@@ -1237,41 +1356,67 @@ export function ReviewLayer() {
                 </div>
               </div>
             </details>
+            </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {!open ? (
-        <div className="flex w-full flex-col items-end gap-2">
-          {(endpointConfigured || sessionActions.length > 0) ? (
+        <div
+          ref={launcherRef}
+          className="fixed z-50 w-[min(calc(100vw-1rem),22rem)] max-w-[22rem]"
+          style={{
+            left: `${launcherPosition.x}px`,
+            top: `${launcherPosition.y}px`,
+          }}
+        >
+          <div className="flex w-full flex-col items-end gap-2">
             <button
               type="button"
-              onClick={() => setOpen(true)}
-              className="max-w-[min(100%,22rem)] rounded-2xl border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur"
-              aria-label={`Following ${pageLabel}. ${followChipText}`}
+              onPointerDown={startLauncherDrag}
+              aria-label="Move review launcher"
+              className={cn(
+                "inline-flex max-w-full items-center gap-2 self-end rounded-full border bg-background/95 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur transition-colors touch-none select-none",
+                draggingLauncher ? "cursor-grabbing border-primary text-foreground" : "cursor-grab hover:border-foreground/20 hover:text-foreground",
+              )}
             >
-              <div className="flex items-center gap-2 text-xs font-semibold">
-                <span className={cn("h-2.5 w-2.5 rounded-full", endpointConfigured ? "bg-emerald-500" : "bg-amber-500")} />
-                {endpointConfigured ? "Following live" : "Tracking locally"}
-                <span className="text-muted-foreground">{sessionActions.length} actions</span>
-              </div>
-              <div className="mt-1 truncate text-sm font-medium">{pageLabel}</div>
-              <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{followChipText}</div>
+              <GripHorizontal className="h-3.5 w-3.5" />
+              {draggingLauncher ? "Moving review" : "Drag to move"}
             </button>
-          ) : null}
 
-          <Button
-            type="button"
-            onClick={() => setOpen(true)}
-            className={cn("h-11 rounded-full shadow-lg", openCount > 0 ? "pr-3" : "")}
-            aria-label={`Review layer, ${openCount} open notes`}
-          >
-            <StickyNote className="h-4 w-4" />
-            Review
-            {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
-          </Button>
+            {(endpointConfigured || sessionActions.length > 0) ? (
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="w-full rounded-2xl border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur transition-colors hover:border-foreground/20"
+                aria-label={`Following ${pageLabel}. ${followChipText}`}
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <span className={cn("h-2.5 w-2.5 rounded-full", endpointConfigured ? "bg-emerald-500" : "bg-amber-500")} />
+                  {endpointConfigured ? "Following live" : "Tracking locally"}
+                  <span className="text-muted-foreground">{sessionActions.length} actions</span>
+                </div>
+                <div className="mt-1 truncate text-sm font-medium">{pageLabel}</div>
+                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{followChipText}</div>
+              </button>
+            ) : null}
+
+            <Button
+              type="button"
+              onClick={() => setOpen(true)}
+              className={cn("h-11 w-full justify-between rounded-full px-4 shadow-lg", openCount > 0 ? "pr-3" : "")}
+              aria-label={`Review layer, ${openCount} open notes`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <StickyNote className="h-4 w-4" />
+                Review
+              </span>
+              {openCount === 0 ? <span className="text-xs text-primary-foreground/80">Open</span> : null}
+              {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
+            </Button>
+          </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
