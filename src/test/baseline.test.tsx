@@ -255,6 +255,7 @@ describe("migration baseline", () => {
     fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
       target: { value: "Today page cards need stronger scan hierarchy." },
     });
+    expect(screen.queryByRole("button", { name: /^Review layer,/i })).not.toBeInTheDocument();
 
     await waitFor(() => {
       const drafts = JSON.parse(window.localStorage.getItem("field-copilot-review-drafts-v1") ?? "{}");
@@ -296,8 +297,9 @@ describe("migration baseline", () => {
 
     expect(await screen.findByText("Review handoff")).toBeInTheDocument();
     expect(screen.getByText("Codex received 1 submitted note.")).toBeInTheDocument();
-    expect(screen.getByText(/Closing hides this layer; it does not erase the session/i)).toBeInTheDocument();
+    expect(screen.getByText(/Close with X when you are done/i)).toBeInTheDocument();
     expect(screen.getByText(/Last received: Owner equipment source cards need clearer scan hierarchy/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close review" })).not.toBeInTheDocument();
 
     expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/capture", expect.objectContaining({
       method: "POST",

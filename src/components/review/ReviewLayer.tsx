@@ -9,7 +9,6 @@ import {
   CloudOff,
   Loader2,
   MessageSquarePlus,
-  MousePointerClick,
   RefreshCw,
   Send,
   StickyNote,
@@ -218,8 +217,8 @@ export function ReviewLayer() {
     : "Review notes are local on this device.";
   const handoffBody = endpointConfigured
     ? sentNotes.length > 0
-      ? "Closing hides this layer; it does not erase the session. I will use submitted notes with the page, click trail, route, viewport, and timestamps to turn feedback into fixes or follow-up questions."
-      : "Typed drafts stream live while connected, but Send note locks feedback into the review feed before you close."
+      ? "Close with X when you are done. Submitted notes stay in this session, and I pair them with the page, click trail, route, viewport, and timestamps."
+      : "Typed drafts can stream live, but Send note is what locks feedback into the review feed before you close."
     : "Closing keeps notes in this browser only. Copy the notes or reopen with a live review link before relying on Codex to see them.";
 
   const updateDraft = (patch: Partial<ReviewDraft>) => {
@@ -577,9 +576,15 @@ export function ReviewLayer() {
   if (hiddenForReviewWorkspace) return null;
 
   return (
-    <div ref={layerRef} className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 flex flex-col items-end gap-2 md:inset-auto md:bottom-5 md:right-5 md:w-[420px]">
+    <div
+      ref={layerRef}
+      className={cn(
+        "fixed inset-x-2 z-50 flex flex-col items-end gap-2 md:inset-auto md:right-5 md:w-[420px]",
+        open ? "bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] md:bottom-5" : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] md:bottom-5",
+      )}
+    >
       {open && (
-        <div className="flex max-h-[min(58vh,500px)] w-full flex-col overflow-hidden rounded-lg border bg-card shadow-xl md:max-h-[min(72vh,620px)]">
+        <div className="flex max-h-[68svh] w-full flex-col overflow-hidden rounded-[20px] border bg-card shadow-xl md:max-h-[72vh] md:rounded-lg">
           <div className="border-b p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -600,14 +605,14 @@ export function ReviewLayer() {
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
+          <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
             <div className={cn(
               "rounded-md border p-2 text-xs",
               endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-950",
             )}>
               <div className="flex items-start gap-2">
                 {endpointConfigured ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />}
-                <div>
+                <div className="min-w-0">
                   <div className="font-semibold">
                     {endpointConfigured ? "I can see this review session live." : "I cannot see notes from this phone yet."}
                   </div>
@@ -616,17 +621,8 @@ export function ReviewLayer() {
                       ? "I am tracking page changes, taps, and anything you type here."
                       : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-md border bg-muted/40 p-2 text-xs">
-              <div className="flex items-start gap-2">
-                <MousePointerClick className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <div className="min-w-0">
-                  <div className="font-semibold">You are looking at</div>
-                  <div className="mt-1 break-words text-sm font-medium text-foreground">
-                    {reviewContextAction ? reviewContextAction.label : pageLabel}
+                  <div className="mt-1 break-words text-[11px] text-muted-foreground">
+                    Reviewing: {reviewContextAction ? reviewContextAction.label : pageLabel}
                   </div>
                   <div className="mt-0.5 break-all text-[11px] text-muted-foreground">
                     {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
@@ -671,13 +667,20 @@ export function ReviewLayer() {
               <div className="flex items-start gap-2">
                 <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                 <div className="min-w-0">
-                  <div className="font-semibold">Codex response</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold">Codex response</div>
+                    {latestBridgeMessage ? (
+                      <div className="text-[10px] text-muted-foreground">
+                        {formatWhen(latestBridgeMessage.createdAt)}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 max-h-20 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                     {latestBridgeMessage?.text ?? (endpointConfigured ? "I am listening. Type a note and I will respond in the review feed." : "Connect the live endpoint to receive replies here.")}
                   </div>
                   {latestBridgeMessage ? (
                     <div className="mt-1 break-all text-[10px] text-muted-foreground">
-                      {latestBridgeMessage.pageLabel || latestBridgeMessage.author} - {latestBridgeMessage.routePath || "broadcast"} - {formatWhen(latestBridgeMessage.createdAt)}
+                      {latestBridgeMessage.pageLabel || latestBridgeMessage.author} - {latestBridgeMessage.routePath || "broadcast"}
                     </div>
                   ) : null}
                   {lastBridgeError ? <div className="mt-1 text-[11px] text-destructive">{lastBridgeError}</div> : null}
@@ -714,9 +717,6 @@ export function ReviewLayer() {
                       {pendingReviewItemCount} {plural(pendingReviewItemCount, "item")} still {plural(pendingReviewItemCount, "needs", "need")} sync before the handoff is complete.
                     </div>
                   ) : null}
-                  <Button type="button" variant="outline" size="sm" className="mt-2 h-8 bg-white/70" onClick={closeReviewLayer}>
-                    Close review
-                  </Button>
                 </div>
               </div>
             </div>
@@ -840,16 +840,18 @@ export function ReviewLayer() {
         </div>
       )}
 
-      <Button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className={cn("h-11 rounded-full shadow-lg", openCount > 0 ? "pr-3" : "")}
-        aria-label={`Review layer, ${openCount} open notes`}
-      >
-        <StickyNote className="h-4 w-4" />
-        Review
-        {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
-      </Button>
+      {!open ? (
+        <Button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={cn("h-11 rounded-full shadow-lg", openCount > 0 ? "pr-3" : "")}
+          aria-label={`Review layer, ${openCount} open notes`}
+        >
+          <StickyNote className="h-4 w-4" />
+          Review
+          {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
+        </Button>
+      ) : null}
     </div>
   );
 }
