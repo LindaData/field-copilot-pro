@@ -2,33 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
-/* HVAC Field Copilot - deep evergreen / white / mist gray / warm orange */
+/* HVAC Field Copilot - deep blue / white / cool gray / bright sky blue */
 @layer base {
   :root {
-    --background: 168 16% 98%;
-    --foreground: 174 28% 12%;
+    --background: 210 25% 98%;
+    --foreground: 215 35% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 174 28% 12%;
+    --card-foreground: 215 35% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 174 28% 12%;
+    --popover-foreground: 215 35% 12%;
 
-    /* Deep evergreen */
-    --primary: 174 59% 21%;
+    /* Deep blue */
+    --primary: 214 63% 20%;
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 174 49% 30%;
+    --primary-soft: 212 57% 30%;
 
-    /* Mist gray */
-    --secondary: 170 16% 93%;
-    --secondary-foreground: 174 24% 18%;
+    /* Cool gray */
+    --secondary: 215 20% 94%;
+    --secondary-foreground: 215 35% 18%;
 
-    --muted: 170 16% 93%;
-    --muted-foreground: 174 10% 40%;
+    --muted: 215 20% 94%;
+    --muted-foreground: 215 15% 42%;
 
-    /* Warm orange */
-    --accent: 24 89% 59%;
-    --accent-foreground: 28 56% 12%;
+    /* Bright sky blue */
+    --accent: 199 89% 56%;
+    --accent-foreground: 214 60% 12%;
 
     --destructive: 0 78% 48%;
     --destructive-foreground: 0 0% 100%;
@@ -36,48 +36,48 @@
     --success: 152 60% 36%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 24 89% 59%;
-    --warning-foreground: 28 56% 12%;
+    --warning: 38 95% 52%;
+    --warning-foreground: 215 50% 12%;
 
-    --info: 197 72% 43%;
+    --info: 210 80% 45%;
     --info-foreground: 0 0% 100%;
 
-    --border: 170 18% 86%;
-    --input: 170 18% 86%;
-    --ring: 174 45% 34%;
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 214 63% 32%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 174 59% 21%;
+    --sidebar-background: 214 63% 20%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 24 89% 59%;
-    --sidebar-primary-foreground: 28 56% 12%;
-    --sidebar-accent: 173 35% 27%;
+    --sidebar-primary: 199 89% 56%;
+    --sidebar-primary-foreground: 214 60% 12%;
+    --sidebar-accent: 214 49% 24%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 173 35% 27%;
-    --sidebar-ring: 24 89% 59%;
+    --sidebar-border: 214 49% 24%;
+    --sidebar-ring: 199 89% 56%;
   }
 
   .dark {
-    --background: 174 30% 8%;
+    --background: 215 40% 8%;
     --foreground: 0 0% 98%;
-    --card: 174 24% 12%;
+    --card: 215 35% 12%;
     --card-foreground: 0 0% 98%;
-    --popover: 174 24% 12%;
+    --popover: 215 35% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 24 89% 59%;
-    --primary-foreground: 28 56% 12%;
-    --secondary: 174 18% 18%;
+    --primary: 199 89% 56%;
+    --primary-foreground: 214 60% 12%;
+    --secondary: 215 30% 18%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 174 18% 18%;
-    --muted-foreground: 173 9% 64%;
-    --accent: 24 89% 59%;
-    --accent-foreground: 28 56% 12%;
+    --muted: 215 30% 18%;
+    --muted-foreground: 215 15% 65%;
+    --accent: 199 89% 56%;
+    --accent-foreground: 214 60% 12%;
     --destructive: 0 78% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 174 18% 22%;
-    --input: 174 18% 22%;
-    --ring: 24 89% 59%;
+    --border: 215 30% 22%;
+    --input: 215 30% 22%;
+    --ring: 199 89% 56%;
   }
 }
 

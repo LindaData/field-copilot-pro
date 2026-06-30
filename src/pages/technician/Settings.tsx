@@ -11,8 +11,8 @@ export default function Settings() {
   const c = state.company;
   const [draft, setDraft] = useState(c);
   const fileRef = useRef<HTMLInputElement>(null);
-  const defaultPrimary = "#16564f";
-  const defaultAccent = "#f38a3c";
+  const defaultPrimary = "#133c53";
+  const defaultAccent = "#14b1f0";
 
   const onLogo = (file: File) => {
     const reader = new FileReader();
