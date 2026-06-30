@@ -33,6 +33,7 @@ import {
   makeNoteId,
   matchesReviewSession,
   pageLabelFor,
+  reviewConversationEntries,
   postReviewAction,
   postReviewNote,
   REVIEW_ACTIONS_KEY,
@@ -50,6 +51,7 @@ import {
   type ReviewAction,
   type ReviewActionKind,
   type ReviewBridgeMessage,
+  type ReviewConversationEntry,
   type ReviewDraft,
   type ReviewDrafts,
   type ReviewNote,
@@ -171,6 +173,11 @@ function describeAction(action: ReviewAction | null) {
   }
 }
 
+function conversationBadge(entry: ReviewConversationEntry) {
+  if (entry.author === "codex") return "Reply";
+  return entry.channel === "chat" ? "Message" : "Note";
+}
+
 export function ReviewLayer() {
   const location = useLocation();
   const layerRef = useRef<HTMLDivElement | null>(null);
@@ -264,6 +271,11 @@ export function ReviewLayer() {
     () => sessionActions.filter((action) => !isLiveDraftAction(action)).slice(0, 4),
     [sessionActions],
   );
+  const conversationEntries = useMemo(
+    () => reviewConversationEntries(sessionId, sessionNotes, sessionActions, bridgeMessages),
+    [bridgeMessages, sessionActions, sessionId, sessionNotes],
+  );
+  const visibleConversationEntries = conversationEntries.slice(-6);
   const lastTrackedAction = recentTrackedActions[0] ?? null;
   const pageCountInSession = useMemo(
     () => new Set(sessionActions.map((action) => action.path)).size,
@@ -919,21 +931,79 @@ export function ReviewLayer() {
             <div className="rounded-md border bg-background p-2 text-xs">
               <div className="flex items-start gap-2">
                 <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold">Codex response</div>
-                    {latestBridgeMessage ? (
-                      <div className="text-[10px] text-muted-foreground">
-                        {formatWhen(latestBridgeMessage.createdAt)}
-                      </div>
-                    ) : null}
+                    <div className="font-semibold">Live exchange</div>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
+                      {visibleConversationEntries.length ? `${visibleConversationEntries.length} shown` : endpointConfigured ? "listening" : "offline"}
+                    </Badge>
                   </div>
-                  <div className="mt-1 max-h-20 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                    {latestBridgeMessage?.text ?? (endpointConfigured ? "I am listening. Type a note and I will respond in the review feed." : "Connect the live endpoint to receive replies here.")}
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    What you said, what Codex answered, and the order it happened.
                   </div>
+
+                  {visibleConversationEntries.length > 0 ? (
+                    <div className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+                      {visibleConversationEntries.map((entry) => {
+                        const isReviewer = entry.author === "reviewer";
+
+                        return (
+                          <div key={entry.id} className={cn("flex", isReviewer ? "justify-end" : "justify-start")}>
+                            <div
+                              className={cn(
+                                "max-w-[88%] rounded-2xl border px-3 py-2 shadow-sm",
+                                isReviewer
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                                  : "border-sky-200 bg-sky-50 text-sky-950",
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-[10px] font-semibold uppercase tracking-normal">
+                                  {isReviewer ? "You" : "Codex"}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
+                                    {conversationBadge(entry)}
+                                  </Badge>
+                                  {isReviewer ? (
+                                    <Badge variant="outline" className={cn("text-[10px] uppercase tracking-normal", syncClass({
+                                      syncState: entry.syncState,
+                                      syncedAt: entry.syncedAt,
+                                    }))}>
+                                      {syncLabel({
+                                        syncState: entry.syncState,
+                                        syncedAt: entry.syncedAt,
+                                      })}
+                                    </Badge>
+                                  ) : null}
+                                  <span className="text-[10px] text-muted-foreground">{formatWhen(entry.createdAt)}</span>
+                                </div>
+                              </div>
+                              <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{entry.text}</div>
+                              {entry.pageLabel || entry.path ? (
+                                <div className="mt-1 break-all text-[10px] text-muted-foreground">
+                                  {[entry.pageLabel, entry.path].filter(Boolean).join(" - ")}
+                                </div>
+                              ) : null}
+                              {entry.lastError ? (
+                                <div className="mt-1 text-[10px] text-destructive">{entry.lastError}</div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-md border border-dashed p-3 text-[11px] leading-relaxed text-muted-foreground">
+                      {endpointConfigured
+                        ? "Send a note and I will echo the live conversation here."
+                        : "Connect the live endpoint to see the running conversation here."}
+                    </div>
+                  )}
+
                   {latestBridgeMessage ? (
-                    <div className="mt-1 break-all text-[10px] text-muted-foreground">
-                      {latestBridgeMessage.pageLabel || latestBridgeMessage.author} - {latestBridgeMessage.routePath || "broadcast"}
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      Latest reply: {shortText(latestBridgeMessage.text, 110)}
                     </div>
                   ) : null}
                   {lastBridgeError ? <div className="mt-1 text-[11px] text-destructive">{lastBridgeError}</div> : null}

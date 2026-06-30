@@ -37,6 +37,7 @@ import {
   pageLabelFor,
   postReviewAction,
   postReviewNote,
+  reviewConversationEntries,
   REVIEW_ACTIONS_KEY,
   REVIEW_DRAFTS_KEY,
   REVIEW_KINDS,
@@ -54,6 +55,7 @@ import {
   type ReviewAction,
   type ReviewActionKind,
   type ReviewBridgeMessage,
+  type ReviewConversationEntry,
   type ReviewDraft,
   type ReviewDrafts,
   type ReviewNote,
@@ -191,6 +193,27 @@ function latestExchangeText(submission: ReviewerSubmission | null, message: Revi
   return lines.join("\n");
 }
 
+function conversationTranscriptText(entries: ReviewConversationEntry[]) {
+  if (entries.length === 0) {
+    return "No conversation captured yet.";
+  }
+
+  return entries.map((entry) => {
+    const speaker = entry.author === "reviewer" ? "You" : "Codex";
+    const location = [entry.pageLabel, entry.path].filter(Boolean).join(" - ");
+    return [
+      `${speaker} (${formatWhen(entry.createdAt)})`,
+      entry.text,
+      location ? `${location}` : "",
+    ].filter(Boolean).join("\n");
+  }).join("\n\n");
+}
+
+function conversationBadge(entry: ReviewConversationEntry) {
+  if (entry.author === "codex") return "Reply";
+  return entry.channel === "chat" ? "Message" : "Note";
+}
+
 function closestTrackable(target: EventTarget | null) {
   const element = target as Element | null;
   if (!element || typeof element.closest !== "function") return null;
@@ -293,6 +316,14 @@ export default function ReviewWorkspace() {
       .filter((submission): submission is ReviewerSubmission => Boolean(submission))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
   ), [actions]);
+  const conversationEntries = useMemo(
+    () => reviewConversationEntries(sessionId, notes, actions, bridgeMessages),
+    [actions, bridgeMessages, notes, sessionId],
+  );
+  const visibleConversationEntries = useMemo(
+    () => conversationEntries.slice(-10),
+    [conversationEntries],
+  );
 
   useEffect(() => {
     framePathRef.current = framePath;
@@ -711,7 +742,12 @@ export default function ReviewWorkspace() {
 
   const copyLatestExchange = async () => {
     try {
-      await navigator.clipboard.writeText(latestExchangeText(latestReviewerSubmission, latestBridgeMessage, endpointConfigured));
+      await navigator.clipboard.writeText([
+        latestExchangeText(latestReviewerSubmission, latestBridgeMessage, endpointConfigured),
+        "",
+        "## Conversation",
+        conversationTranscriptText(conversationEntries),
+      ].join("\n"));
       toast.success("Copied latest exchange");
     } catch {
       toast.error("Could not copy exchange");
@@ -934,19 +970,73 @@ export default function ReviewWorkspace() {
             </div>
             <div className="mt-3 rounded-md border border-white/10 bg-slate-950 p-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold text-cyan-100">Codex replies</div>
-                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", latestBridgeMessage ? "text-emerald-100" : "text-slate-300")}>
-                  {latestBridgeMessage ? "live" : endpointConfigured ? "listening" : "offline"}
+                <div className="text-xs font-semibold text-cyan-100">Conversation</div>
+                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", conversationEntries.length ? "text-emerald-100" : endpointConfigured ? "text-slate-300" : "text-amber-100")}>
+                  {conversationEntries.length ? `${conversationEntries.length} messages` : endpointConfigured ? "listening" : "offline"}
                 </Badge>
               </div>
-              {latestBridgeMessage ? (
-                <div className="mt-2 space-y-2">
-                  {bridgeMessages.slice(0, 3).map((message) => (
-                    <div key={message.id} className="rounded border border-cyan-300/15 bg-cyan-300/10 p-2">
-                      <div className="text-[10px] uppercase text-cyan-100">{message.author} - {formatWhen(message.createdAt)}</div>
-                      <div className="mt-1 text-xs leading-relaxed text-slate-100">{message.text}</div>
-                    </div>
-                  ))}
+              <div className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                What you said, what Codex said back, and the order it happened.
+              </div>
+              {visibleConversationEntries.length > 0 ? (
+                <div className="mt-2 max-h-[320px] space-y-2 overflow-y-auto pr-1">
+                  {visibleConversationEntries.map((entry) => {
+                    const isReviewer = entry.author === "reviewer";
+
+                    return (
+                      <div key={entry.id} className={cn("flex", isReviewer ? "justify-end" : "justify-start")}>
+                        <div
+                          className={cn(
+                            "max-w-[92%] rounded-2xl border px-3 py-2 text-xs shadow-sm",
+                            isReviewer
+                              ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-50"
+                              : "border-cyan-300/20 bg-cyan-300/10 text-slate-100",
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold uppercase tracking-normal">{isReviewer ? "You" : "Codex"}</span>
+                              <Badge variant="outline" className="border-white/15 text-[10px] uppercase">
+                                {conversationBadge(entry)}
+                              </Badge>
+                              {isReviewer ? (
+                                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass({
+                                  text: entry.text,
+                                  label: entry.channel === "chat" ? "Message to Codex" : "Review note",
+                                  pageLabel: entry.pageLabel ?? "",
+                                  path: entry.path ?? "",
+                                  target: entry.target,
+                                  createdAt: entry.createdAt,
+                                  syncedAt: entry.syncedAt,
+                                  syncState: entry.syncState,
+                                  lastError: entry.lastError,
+                                }, endpointConfigured))}>
+                                  {submissionSyncLabel({
+                                    text: entry.text,
+                                    label: entry.channel === "chat" ? "Message to Codex" : "Review note",
+                                    pageLabel: entry.pageLabel ?? "",
+                                    path: entry.path ?? "",
+                                    target: entry.target,
+                                    createdAt: entry.createdAt,
+                                    syncedAt: entry.syncedAt,
+                                    syncState: entry.syncState,
+                                    lastError: entry.lastError,
+                                  }, endpointConfigured)}
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <span className="text-[10px] text-slate-400">{formatWhen(entry.createdAt)}</span>
+                          </div>
+                          <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{entry.text}</div>
+                          {(entry.pageLabel || entry.path) ? (
+                            <div className="mt-1 break-all text-[10px] text-slate-400">
+                              {[entry.pageLabel, entry.path].filter(Boolean).join(" - ")}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="mt-2 text-xs leading-relaxed text-slate-400">

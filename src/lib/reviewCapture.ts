@@ -67,6 +67,20 @@ export interface ReviewBridgeMessage {
   pageLabel?: string;
 }
 
+export interface ReviewConversationEntry {
+  id: string;
+  author: "reviewer" | "codex";
+  channel: "note" | "chat" | "reply";
+  text: string;
+  createdAt: string;
+  pageLabel?: string;
+  path?: string;
+  target?: string;
+  syncState?: NoteSyncState;
+  syncedAt?: string;
+  lastError?: string;
+}
+
 export interface ReviewLocationLike {
   pathname: string;
   search: string;
@@ -346,6 +360,64 @@ export function currentViewport() {
 
 export function matchesReviewSession(itemSessionId: string | undefined, activeSessionId: string) {
   return !itemSessionId || itemSessionId === activeSessionId;
+}
+
+export function reviewConversationEntries(
+  sessionId: string,
+  notes: ReviewNote[],
+  actions: ReviewAction[],
+  bridgeMessages: ReviewBridgeMessage[],
+) {
+  const reviewerNotes: ReviewConversationEntry[] = notes
+    .filter((note) => matchesReviewSession(note.sessionId, sessionId))
+    .filter((note) => note.note.trim().length > 0)
+    .map((note) => ({
+      id: note.id,
+      author: "reviewer",
+      channel: "note",
+      text: note.note,
+      createdAt: note.createdAt,
+      pageLabel: note.pageLabel,
+      path: note.path,
+      syncState: note.syncState,
+      syncedAt: note.syncedAt,
+      lastError: note.lastError,
+    }));
+
+  const reviewerChats: ReviewConversationEntry[] = actions
+    .filter((action) => matchesReviewSession(action.sessionId, sessionId))
+    .filter((action) => action.kind === "chat" && Boolean(action.detail?.trim()))
+    .map((action) => ({
+      id: action.id,
+      author: "reviewer",
+      channel: "chat",
+      text: action.detail?.trim() ?? "",
+      createdAt: action.createdAt,
+      pageLabel: action.pageLabel,
+      path: action.path,
+      target: action.target,
+      syncState: action.syncState,
+      syncedAt: action.syncedAt,
+      lastError: action.lastError,
+    }));
+
+  const codexReplies: ReviewConversationEntry[] = bridgeMessages
+    .filter((message) => message.author === "codex")
+    .map((message) => ({
+      id: message.id,
+      author: "codex",
+      channel: "reply",
+      text: message.text,
+      createdAt: message.createdAt,
+      pageLabel: message.pageLabel,
+      path: message.routePath,
+    }));
+
+  return [...reviewerNotes, ...reviewerChats, ...codexReplies].sort((a, b) => {
+    const timeOrder = a.createdAt.localeCompare(b.createdAt);
+    if (timeOrder !== 0) return timeOrder;
+    return a.id.localeCompare(b.id);
+  });
 }
 
 export function formatWhen(value?: string) {

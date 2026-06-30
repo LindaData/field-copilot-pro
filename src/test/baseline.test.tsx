@@ -307,6 +307,49 @@ describe("migration baseline", () => {
     }));
   });
 
+  it("shows the live review conversation as a chat transcript", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            messages: [{
+              id: "msg-live-chat",
+              sessionId: "review-session",
+              author: "codex",
+              text: "I saw that note and will follow your next steps.",
+              createdAt: "2026-06-30T18:30:00.000Z",
+              routePath: "/app/today",
+              pageLabel: "Technician today",
+            }],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "The current screen needs tighter spacing." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
+
+    expect(await screen.findByText("Live exchange")).toBeInTheDocument();
+    expect(await screen.findByText("I saw that note and will follow your next steps.")).toBeInTheDocument();
+    expect(screen.getAllByText("The current screen needs tighter spacing.").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("You").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Codex").length).toBeGreaterThanOrEqual(1);
+  });
+
   it("shows a live follow chip even while the review panel is closed", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
@@ -664,6 +707,7 @@ describe("migration baseline", () => {
     expect(await screen.findByText("Review workspace")).toBeInTheDocument();
     expect((await screen.findAllByText("I can see your review notes live.")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByLabelText("Latest Codex response")).toHaveValue("I can see your review notes live.");
+    expect(screen.getByText("Conversation")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Refresh replies/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Copy exchange/i })).toBeEnabled();
 
@@ -697,6 +741,9 @@ describe("migration baseline", () => {
       ))).toBe(true);
       expect(screen.getByLabelText("Latest thing you sent")).toHaveValue("The owner equipment filters feel crowded on mobile.");
     });
+
+    expect(screen.getAllByText("The owner equipment filters feel crowded on mobile.").length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText("I can see your review notes live.")).length).toBeGreaterThanOrEqual(1);
 
     expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/review-note", expect.objectContaining({
       method: "POST",
