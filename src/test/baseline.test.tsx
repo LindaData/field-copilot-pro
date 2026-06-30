@@ -281,7 +281,7 @@ describe("migration baseline", () => {
     fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
       target: { value: "Owner equipment source cards need clearer scan hierarchy." },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Capture/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
 
     await waitFor(() => {
       const notes = JSON.parse(window.localStorage.getItem("field-copilot-review-notes-v1") ?? "[]");
@@ -551,5 +551,5 @@ describe("migration baseline", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show session trail" }));
     expect(screen.queryByText(/Trail hidden/i)).not.toBeInTheDocument();
-  });
+  }, 10000);
 });

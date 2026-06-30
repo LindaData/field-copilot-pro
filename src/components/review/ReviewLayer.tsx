@@ -535,50 +535,33 @@ export function ReviewLayer() {
   if (hiddenForReviewWorkspace) return null;
 
   return (
-    <div ref={layerRef} className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-2 z-50 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 md:bottom-5 md:right-5">
+    <div ref={layerRef} className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 flex flex-col items-end gap-2 md:inset-auto md:bottom-5 md:right-5 md:w-[420px]">
       {open && (
-        <div className="flex max-h-[min(82vh,720px)] w-[min(96vw,480px)] flex-col overflow-hidden rounded-lg border bg-card shadow-xl">
+        <div className="flex max-h-[min(58vh,500px)] w-full flex-col overflow-hidden rounded-lg border bg-card shadow-xl md:max-h-[min(72vh,620px)]">
           <div className="border-b p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
                   <StickyNote className="h-4 w-4 text-primary" />
-                  Review layer
-                  <Badge variant="outline" className={cn("gap-1", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground")}>
+                  Live review
+                  <Badge variant="outline" className={cn("gap-1", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-300 bg-amber-50 text-amber-800")}>
                     {endpointConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-                    {endpointConfigured ? "Codex live" : "Codex cannot see this"}
+                    {endpointConfigured ? "Codex live" : "local only"}
                   </Badge>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">{pageLabel}</div>
-                <div className="mt-0.5 break-all text-[11px] text-muted-foreground">{path}</div>
+                <div className="mt-1 truncate text-xs text-muted-foreground">{pageLabel}</div>
+                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{path}</div>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setOpen(false)} aria-label="Close review layer">
                 <X className="h-4 w-4" />
               </Button>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px]">
-              <div className="rounded-md border bg-background px-2 py-1.5">
-                <div className="text-sm font-semibold">{currentPageNotes.length}</div>
-                <div className="text-muted-foreground">this page</div>
-              </div>
-              <div className="rounded-md border bg-background px-2 py-1.5">
-                <div className="text-sm font-semibold">{openCount}</div>
-                <div className="text-muted-foreground">open</div>
-              </div>
-              <div className="rounded-md border bg-background px-2 py-1.5">
-                <div className="text-sm font-semibold">{pendingNotes.length + sendingCount}</div>
-                <div className="text-muted-foreground">to sync</div>
-              </div>
             </div>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto p-3">
             <div className={cn(
               "rounded-md border p-2 text-xs",
-              endpointConfigured
-                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                : "border-amber-300 bg-amber-50 text-amber-950",
+              endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-950",
             )}>
               <div className="flex items-start gap-2">
                 {endpointConfigured ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />}
@@ -588,8 +571,8 @@ export function ReviewLayer() {
                   </div>
                   <div className="mt-0.5">
                     {endpointConfigured
-                      ? "Routes, clicks, typed review drafts, and captured notes are syncing to the review inbox."
-                      : "This is local-only mode. Notes stay in this browser until copied or opened with a live review link."}
+                      ? "I am tracking page changes, taps, and anything you type here."
+                      : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
                   </div>
                 </div>
               </div>
@@ -599,38 +582,108 @@ export function ReviewLayer() {
               <div className="flex items-start gap-2">
                 <MousePointerClick className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                 <div className="min-w-0">
-                  <div className="font-semibold">Reviewing now</div>
-                  <div className="mt-1 break-words text-sm text-foreground">
+                  <div className="font-semibold">You are looking at</div>
+                  <div className="mt-1 break-words text-sm font-medium text-foreground">
                     {reviewContextAction ? reviewContextAction.label : pageLabel}
                   </div>
                   <div className="mt-0.5 break-all text-[11px] text-muted-foreground">
                     {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
                   </div>
-                  {reviewContextAction?.target ? (
-                    <div className="mt-0.5 break-all text-[10px] text-muted-foreground">{reviewContextAction.target}</div>
-                  ) : null}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex gap-1 overflow-x-auto pb-1">
-                {REVIEW_KINDS.map((kind) => (
-                  <button
-                    key={kind.value}
-                    type="button"
-                    onClick={() => updateDraft({ kind: kind.value })}
-                    className={cn(
-                      "h-8 shrink-0 rounded-md border px-2 text-xs font-medium",
-                      currentDraft.kind === kind.value ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {kind.label}
-                  </button>
-                ))}
-              </div>
+            <textarea
+              value={currentDraft.text}
+              onChange={(event) => updateDraft({ text: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  addNote();
+                }
+              }}
+              placeholder="Capture what feels wrong or missing on this exact screen. Enter submits; Shift+Enter starts a new line."
+              className="min-h-[112px] w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
 
-              <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className={cn(
+                "text-[11px]",
+                liveDraftState === "error" ? "text-destructive" : liveDraftState === "sent" ? "text-emerald-700" : "text-muted-foreground",
+              )} aria-live="polite">
+                {currentDraft.text ? `Draft saved ${formatWhen(currentDraft.updatedAt)} - live ${liveDraftLabel(liveDraftState, liveDraftAt)}` : "Ready"}
+              </div>
+              <div className="text-[11px] text-muted-foreground">{openCount} open</div>
+            </div>
+
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Button onClick={addNote} disabled={!currentDraft.text.trim()} className="h-10">
+                <MessageSquarePlus className="mr-1 h-4 w-4" /> Send note
+              </Button>
+              <Button variant="outline" onClick={copyExport} className="h-10 px-3" aria-label="Copy review notes">
+                <ClipboardCopy className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="rounded-md border bg-background p-2 text-xs">
+              <div className="flex items-start gap-2">
+                <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <div className="font-semibold">Codex response</div>
+                  <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {latestBridgeMessage?.text ?? (endpointConfigured ? "I am listening. Type a note and I will respond in the review feed." : "Connect the live endpoint to receive replies here.")}
+                  </div>
+                  {latestBridgeMessage ? (
+                    <div className="mt-1 break-all text-[10px] text-muted-foreground">
+                      {latestBridgeMessage.pageLabel || latestBridgeMessage.author} - {latestBridgeMessage.routePath || "broadcast"} - {formatWhen(latestBridgeMessage.createdAt)}
+                    </div>
+                  ) : null}
+                  {lastBridgeError ? <div className="mt-1 text-[11px] text-destructive">{lastBridgeError}</div> : null}
+                </div>
+              </div>
+            </div>
+
+            <details className="rounded-md border bg-muted/20">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
+                Review history and sync details
+              </summary>
+              <div className="space-y-3 border-t p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="inline-flex rounded-md border bg-background p-0.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setView("page")}
+                      className={cn("rounded px-2 py-1 font-medium", view === "page" ? "bg-muted text-foreground" : "text-muted-foreground")}
+                    >
+                      This page
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setView("all")}
+                      className={cn("rounded px-2 py-1 font-medium", view === "all" ? "bg-muted text-foreground" : "text-muted-foreground")}
+                    >
+                      All open
+                    </button>
+                  </div>
+                  <div className="text-xs text-muted-foreground">{visibleNotes.length} shown</div>
+                </div>
+
+                <div className="flex gap-1 overflow-x-auto pb-1">
+                  {REVIEW_KINDS.map((kind) => (
+                    <button
+                      key={kind.value}
+                      type="button"
+                      onClick={() => updateDraft({ kind: kind.value })}
+                      className={cn(
+                        "h-8 shrink-0 rounded-md border px-2 text-xs font-medium",
+                        currentDraft.kind === kind.value ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {kind.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="inline-flex rounded-md border bg-background p-0.5">
                   {REVIEW_PRIORITIES.map((priority) => (
                     <button
@@ -646,139 +699,65 @@ export function ReviewLayer() {
                     </button>
                   ))}
                 </div>
-                <div className={cn(
-                  "text-[11px]",
-                  liveDraftState === "error" ? "text-destructive" : liveDraftState === "sent" ? "text-emerald-700" : "text-muted-foreground",
-                )} aria-live="polite">
-                  {currentDraft.text
-                    ? `Draft saved ${formatWhen(currentDraft.updatedAt)} - live ${liveDraftLabel(liveDraftState, liveDraftAt)}`
-                    : "Ready"}
-                </div>
-              </div>
 
-              <textarea
-                value={currentDraft.text}
-                onChange={(event) => updateDraft({ text: event.target.value })}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    addNote();
-                  }
-                }}
-                placeholder="Capture what feels wrong or missing on this exact screen. Enter submits; Shift+Enter starts a new line."
-                className="min-h-[104px] w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
+                <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={sendingCount + sendingActionCount > 0}>
+                  {sendingCount + sendingActionCount > 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+                  {endpointConfigured ? "Sync pending notes and actions" : "Local only - copy notes"}
+                </Button>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button onClick={addNote} disabled={!currentDraft.text.trim()}>
-                <MessageSquarePlus className="mr-1 h-4 w-4" /> Capture
-              </Button>
-              <Button variant="outline" onClick={copyExport}>
-                <ClipboardCopy className="mr-1 h-4 w-4" /> Copy
-              </Button>
-            </div>
-            <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={sendingCount + sendingActionCount > 0}>
-              {sendingCount + sendingActionCount > 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-              {endpointConfigured ? "Sync notes and actions" : "Local only - copy notes"}
-            </Button>
-
-            <div className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
-              <div className="flex items-start gap-2">
-                {endpointConfigured ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-600" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 text-amber-600" />}
-                <div>
+                <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
                   {endpointConfigured
                     ? `Live endpoint connected to review inbox #${REVIEW_INBOX_ISSUE}. Session: ${sessionId}`
                     : "No live endpoint is connected. Notes autosave locally and can be copied for fallback review."}
                   {lastSyncError ? <div className="mt-1 text-destructive">{lastSyncError}</div> : null}
                 </div>
-              </div>
-            </div>
 
-            <div className="rounded-md border bg-background p-2 text-xs">
-              <div className="flex items-start gap-2">
-                <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <div className="min-w-0">
-                  <div className="font-semibold">Codex response</div>
-                  <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                    {latestBridgeMessage?.text ?? (endpointConfigured ? "Listening for my reply in this session." : "Open with a live review endpoint to receive replies here.")}
-                  </div>
-                  {latestBridgeMessage ? (
-                    <div className="mt-1 break-all text-[10px] text-muted-foreground">
-                      {latestBridgeMessage.pageLabel || latestBridgeMessage.author} - {latestBridgeMessage.routePath || "broadcast"} - {formatWhen(latestBridgeMessage.createdAt)}
+                <div className="space-y-2">
+                  {visibleNotes.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                      No open notes here yet. Capture the rough edge while it is fresh.
                     </div>
-                  ) : null}
-                  {lastBridgeError ? <div className="mt-1 text-[11px] text-destructive">{lastBridgeError}</div> : null}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="inline-flex rounded-md border bg-background p-0.5 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setView("page")}
-                    className={cn("rounded px-2 py-1 font-medium", view === "page" ? "bg-muted text-foreground" : "text-muted-foreground")}
-                  >
-                    This page
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setView("all")}
-                    className={cn("rounded px-2 py-1 font-medium", view === "all" ? "bg-muted text-foreground" : "text-muted-foreground")}
-                  >
-                    All open
-                  </button>
-                </div>
-                <div className="text-xs text-muted-foreground">{visibleNotes.length} shown</div>
-              </div>
-
-              <div className="space-y-2">
-                {visibleNotes.length === 0 ? (
-                  <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    No open notes here yet. Capture the rough edge while it is fresh.
-                  </div>
-                ) : visibleNotes.map((note) => (
-                  <div key={note.id} className="rounded-md border bg-background p-2 text-xs shadow-sm">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className="text-[10px] uppercase tracking-normal">{note.kind ?? "ux"}</Badge>
-                      <Badge variant="outline" className="text-[10px] uppercase tracking-normal">{note.priority ?? "medium"}</Badge>
-                      <Badge variant="outline" className={cn("gap-1 text-[10px] uppercase tracking-normal", syncClass(note))}>
-                        {note.syncState === "sending" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                        {syncLabel(note)}
-                      </Badge>
-                    </div>
-                    <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{note.note}</div>
-                    {view === "all" ? (
-                      <div className="mt-2 break-all rounded bg-muted px-2 py-1 text-[11px] text-muted-foreground">
-                        {note.pageLabel} - {note.path}
+                  ) : visibleNotes.map((note) => (
+                    <div key={note.id} className="rounded-md border bg-background p-2 text-xs shadow-sm">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-normal">{note.kind ?? "ux"}</Badge>
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-normal">{note.priority ?? "medium"}</Badge>
+                        <Badge variant="outline" className={cn("gap-1 text-[10px] uppercase tracking-normal", syncClass(note))}>
+                          {note.syncState === "sending" ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          {syncLabel(note)}
+                        </Badge>
                       </div>
-                    ) : null}
-                    {note.lastError ? <div className="mt-2 text-[11px] text-destructive">{note.lastError}</div> : null}
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                      <span>{formatWhen(note.createdAt)}{note.viewport ? ` - ${note.viewport}` : ""}</span>
-                      <div className="flex items-center gap-2">
-                        {endpointConfigured && note.syncState !== "sent" ? (
-                          <button className="inline-flex items-center gap-1 underline underline-offset-2" onClick={() => void submitNote(note)}>
-                            <RefreshCw className="h-3 w-3" /> retry
-                          </button>
-                        ) : null}
-                        <button className="underline underline-offset-2" onClick={() => resolveNote(note.id)}>resolve</button>
-                        <button className="text-destructive underline underline-offset-2" onClick={() => deleteNote(note.id)}>delete</button>
+                      <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{note.note}</div>
+                      {view === "all" ? (
+                        <div className="mt-2 break-all rounded bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+                          {note.pageLabel} - {note.path}
+                        </div>
+                      ) : null}
+                      {note.lastError ? <div className="mt-2 text-[11px] text-destructive">{note.lastError}</div> : null}
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                        <span>{formatWhen(note.createdAt)}{note.viewport ? ` - ${note.viewport}` : ""}</span>
+                        <div className="flex items-center gap-2">
+                          {endpointConfigured && note.syncState !== "sent" ? (
+                            <button className="inline-flex items-center gap-1 underline underline-offset-2" onClick={() => void submitNote(note)}>
+                              <RefreshCw className="h-3 w-3" /> retry
+                            </button>
+                          ) : null}
+                          <button className="underline underline-offset-2" onClick={() => resolveNote(note.id)}>resolve</button>
+                          <button className="text-destructive underline underline-offset-2" onClick={() => deleteNote(note.id)}>delete</button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  ))}
+                </div>
 
-            <div className="flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
-              <span>{openCount} open - {pendingNotes.length + pendingActions.length} pending - {errorCount} errors</span>
-              <button className="inline-flex items-center gap-1 underline underline-offset-2" onClick={clearResolved}>
-                <Trash2 className="h-3 w-3" /> Clear resolved
-              </button>
-            </div>
+                <div className="flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
+                  <span>{openCount} open - {pendingNotes.length + pendingActions.length} pending - {errorCount} errors</span>
+                  <button className="inline-flex items-center gap-1 underline underline-offset-2" onClick={clearResolved}>
+                    <Trash2 className="h-3 w-3" /> Clear resolved
+                  </button>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       )}
