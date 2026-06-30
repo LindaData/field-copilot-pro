@@ -31,6 +31,7 @@ import {
   makeExport,
   makeActionId,
   makeNoteId,
+  matchesReviewSession,
   pageLabelFor,
   postReviewAction,
   postReviewNote,
@@ -135,11 +136,50 @@ function plural(count: number, singular: string, pluralLabel = `${singular}s`) {
   return count === 1 ? singular : pluralLabel;
 }
 
+function isLiveDraftAction(action: ReviewAction) {
+  return action.kind === "input" && action.label === "Live note draft";
+}
+
+function describeAction(action: ReviewAction | null) {
+  if (!action) return "Waiting for your next interaction.";
+
+  switch (action.kind) {
+    case "route":
+      return `Opened ${action.pageLabel}`;
+    case "click":
+      return `Tapped ${action.label}`;
+    case "focus":
+      return `Focused ${action.label}`;
+    case "submit":
+      return `Submitted ${action.label}`;
+    case "shortcut":
+      return action.label;
+    case "device":
+      return action.label;
+    case "scroll":
+      return action.label;
+    case "visibility":
+      return action.label;
+    case "chat":
+      return "Sent a message to Codex";
+    case "note":
+      return "Submitted a review note";
+    case "input":
+      return action.detail ? `${action.label}: ${shortText(action.detail, 72)}` : action.label;
+    default:
+      return action.label;
+  }
+}
+
 export function ReviewLayer() {
   const location = useLocation();
   const layerRef = useRef<HTMLDivElement | null>(null);
   const lastRouteRef = useRef("");
   const lastLiveDraftRef = useRef("");
+  const passiveActionRef = useRef<Record<string, number>>({});
+  const lastScrollBucketRef = useRef("");
+  const lastVisibilityStateRef = useRef(typeof document === "undefined" ? "visible" : document.visibilityState);
+  const lastViewportRef = useRef<string | undefined>(currentViewport());
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ReviewView>("page");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
@@ -185,40 +225,58 @@ export function ReviewLayer() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const currentPageNotes = useMemo(
-    () => notes.filter((note) => note.path === path && note.status !== "resolved"),
-    [notes, path],
+  const sessionNotes = useMemo(
+    () => notes.filter((note) => matchesReviewSession(note.sessionId, sessionId)),
+    [notes, sessionId],
   );
   const openNotes = useMemo(
-    () => notes.filter((note) => note.status !== "resolved"),
-    [notes],
+    () => sessionNotes.filter((note) => note.status !== "resolved"),
+    [sessionNotes],
+  );
+  const currentPageNotes = useMemo(
+    () => openNotes.filter((note) => note.path === path),
+    [openNotes, path],
+  );
+  const sessionActions = useMemo(
+    () => actions.filter((action) => matchesReviewSession(action.sessionId, sessionId)),
+    [actions, sessionId],
   );
   const visibleNotes = view === "page" ? currentPageNotes : openNotes;
   const pendingNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sending");
   const sendingCount = openNotes.filter((note) => note.syncState === "sending").length;
   const errorCount = openNotes.filter((note) => note.syncState === "error").length;
   const openCount = openNotes.length;
-  const pendingActions = actions.filter((action) => !action.syncedAt && action.syncState !== "sending");
-  const sendingActionCount = actions.filter((action) => action.syncState === "sending").length;
+  const pendingActions = sessionActions.filter((action) => !action.syncedAt && action.syncState !== "sending");
+  const sendingActionCount = sessionActions.filter((action) => action.syncState === "sending").length;
   const submittedNotes = useMemo(
-    () => notes.filter((note) => Boolean(note.syncedAt) || note.syncState === "sent"),
-    [notes],
+    () => sessionNotes.filter((note) => Boolean(note.syncedAt) || note.syncState === "sent"),
+    [sessionNotes],
   );
   const queuedOpenNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sent");
-  const pendingActionCount = actions.filter((action) => !action.syncedAt && action.syncState !== "sent").length;
+  const pendingActionCount = sessionActions.filter((action) => !action.syncedAt && action.syncState !== "sent").length;
   const latestSubmittedNote = submittedNotes[0] ?? null;
   const hasDraftText = currentDraft.text.trim().length > 0;
   const currentPathActions = useMemo(
-    () => actions.filter((action) => action.path === path),
-    [actions, path],
+    () => sessionActions.filter((action) => action.path === path),
+    [sessionActions, path],
   );
-  const reviewContextAction = currentPathActions.find((action) => ["click", "submit", "shortcut", "device"].includes(action.kind))
+  const recentTrackedActions = useMemo(
+    () => sessionActions.filter((action) => !isLiveDraftAction(action)).slice(0, 4),
+    [sessionActions],
+  );
+  const lastTrackedAction = recentTrackedActions[0] ?? null;
+  const pageCountInSession = useMemo(
+    () => new Set(sessionActions.map((action) => action.path)).size,
+    [sessionActions],
+  );
+  const reviewContextAction = currentPathActions.find((action) => ["click", "submit", "shortcut", "device", "focus", "scroll"].includes(action.kind))
     ?? currentPathActions.find((action) => action.kind === "route")
     ?? null;
   const latestBridgeMessage = bridgeMessages[0] ?? null;
   const reviewContextTitle = reviewContextAction?.kind === "route"
     ? pageLabel
     : reviewContextAction?.label ?? pageLabel;
+  const followChipText = lastTrackedAction ? describeAction(lastTrackedAction) : `Following ${pageLabel}`;
 
   let handoffTone: "received" | "draft" | "pending" | "local";
   let handoffTitle: string;
@@ -321,6 +379,7 @@ export function ReviewLayer() {
     const actionPath = pathOverride ?? path;
     const action: ReviewAction = {
       id: makeActionId(),
+      sessionId,
       kind,
       path: actionPath,
       pageLabel: pageLabelFor(actionPath.split("?")[0].split("#")[0] || actionPath),
@@ -335,7 +394,26 @@ export function ReviewLayer() {
     setActions((existing) => [action, ...existing].slice(0, 300));
     void submitAction(action);
     return action;
-  }, [path, submitAction]);
+  }, [path, sessionId, submitAction]);
+
+  const recordPassiveAction = useCallback((
+    kind: ReviewActionKind,
+    label: string,
+    detail?: string,
+    target?: string,
+    pathOverride?: string,
+    dedupeMs = 1800,
+  ) => {
+    const actionPath = pathOverride ?? path;
+    const signature = [kind, actionPath, label, detail ?? "", target ?? ""].join("\u001f");
+    const now = Date.now();
+    const lastSeen = passiveActionRef.current[signature] ?? 0;
+
+    if (dedupeMs > 0 && now - lastSeen < dedupeMs) return null;
+
+    passiveActionRef.current[signature] = now;
+    return recordAction(kind, label, detail, target, actionPath);
+  }, [path, recordAction]);
 
   const submitNote = useCallback(async (note: ReviewNote) => {
     if (!endpointConfigured || note.status === "resolved") return false;
@@ -393,6 +471,7 @@ export function ReviewLayer() {
     const now = new Date().toISOString();
     const note: ReviewNote = {
       id: makeNoteId(),
+      sessionId,
       path,
       pageLabel,
       note: text,
@@ -474,6 +553,13 @@ export function ReviewLayer() {
       recordAction("input", elementLabel(element), inputDetail(element), elementTarget(element));
     };
 
+    const handleFocusIn = (event: FocusEvent) => {
+      if (shouldIgnore(event.target)) return;
+      const element = closestTrackable(event.target);
+      if (!element) return;
+      recordPassiveAction("focus", elementLabel(element), undefined, elementTarget(element));
+    };
+
     const handleSubmit = (event: SubmitEvent) => {
       if (shouldIgnore(event.target)) return;
       const element = closestTrackable(event.target);
@@ -483,13 +569,90 @@ export function ReviewLayer() {
 
     document.addEventListener("click", handleClick, true);
     document.addEventListener("change", handleChange, true);
+    document.addEventListener("focusin", handleFocusIn, true);
     document.addEventListener("submit", handleSubmit, true);
     return () => {
       document.removeEventListener("click", handleClick, true);
       document.removeEventListener("change", handleChange, true);
+      document.removeEventListener("focusin", handleFocusIn, true);
       document.removeEventListener("submit", handleSubmit, true);
     };
-  }, [hiddenForReviewWorkspace, recordAction]);
+  }, [hiddenForReviewWorkspace, recordAction, recordPassiveAction]);
+
+  useEffect(() => {
+    if (hiddenForReviewWorkspace) return undefined;
+
+    const handleResize = () => {
+      const viewport = currentViewport();
+      if (!viewport || viewport === lastViewportRef.current) return;
+      lastViewportRef.current = viewport;
+      recordPassiveAction("device", `Viewport changed to ${viewport}`, undefined, "browser-viewport", path, 0);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [hiddenForReviewWorkspace, path, recordPassiveAction]);
+
+  useEffect(() => {
+    if (hiddenForReviewWorkspace) return undefined;
+
+    const handleVisibilityChange = () => {
+      const state = document.visibilityState;
+      if (state === lastVisibilityStateRef.current) return;
+      lastVisibilityStateRef.current = state;
+      recordPassiveAction(
+        "visibility",
+        state === "hidden" ? "Moved app to background" : "Returned to the app",
+        state,
+        "browser-visibility",
+        path,
+        0,
+      );
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [hiddenForReviewWorkspace, path, recordPassiveAction]);
+
+  useEffect(() => {
+    if (hiddenForReviewWorkspace) return undefined;
+
+    lastScrollBucketRef.current = "";
+    let raf = 0;
+
+    const emitScrollBucket = () => {
+      raf = 0;
+      const doc = document.documentElement;
+      const maxScroll = Math.max(doc.scrollHeight - window.innerHeight, 0);
+      if (maxScroll <= 0) return;
+
+      const ratio = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+      const bucket = ratio >= 0.95
+        ? "bottom"
+        : ratio >= 0.75
+          ? "75%"
+          : ratio >= 0.5
+            ? "50%"
+            : ratio >= 0.25
+              ? "25%"
+              : "top";
+      const signature = `${path}\u001f${bucket}`;
+      if (signature === lastScrollBucketRef.current) return;
+      lastScrollBucketRef.current = signature;
+      recordPassiveAction("scroll", `Scrolled to ${bucket}`, `${Math.round(ratio * 100)}% down the page`, "browser-scroll", path, 0);
+    };
+
+    const handleScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(emitScrollBucket);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [hiddenForReviewWorkspace, path, recordPassiveAction]);
 
   useEffect(() => {
     const text = currentDraft.text.trim();
@@ -521,6 +684,7 @@ export function ReviewLayer() {
       lastLiveDraftRef.current = key;
       const action: ReviewAction = {
         id: makeActionId(),
+        sessionId,
         kind: "input",
         path,
         pageLabel,
@@ -654,7 +818,7 @@ export function ReviewLayer() {
                   </div>
                   <div className="mt-0.5">
                     {endpointConfigured
-                      ? "I am tracking page changes, taps, and anything you type here."
+                      ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
                       : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
                   </div>
                   <div className="mt-1 break-words text-[11px] text-muted-foreground">
@@ -665,6 +829,59 @@ export function ReviewLayer() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-2 text-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-semibold">Follow mode</div>
+                  <div className="mt-0.5 text-muted-foreground">
+                    {endpointConfigured
+                      ? "This review link keeps a live trail of where you go and what you touch."
+                      : "This device can still keep a local trail until the live endpoint is connected."}
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
+                  {sessionActions.length} tracked
+                </Badge>
+              </div>
+
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+                  <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Pages</div>
+                  <div className="mt-1 text-sm font-semibold">{pageCountInSession || 1}</div>
+                </div>
+                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+                  <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Notes sent</div>
+                  <div className="mt-1 text-sm font-semibold">{submittedNotes.length}</div>
+                </div>
+                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+                  <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Open notes</div>
+                  <div className="mt-1 text-sm font-semibold">{openCount}</div>
+                </div>
+              </div>
+
+              <div className="mt-2 rounded-md border bg-muted/20 px-2 py-2">
+                <div className="font-medium">Last tracked</div>
+                <div className="mt-1 text-sm leading-relaxed">{describeAction(lastTrackedAction)}</div>
+                <div className="mt-1 break-all text-[11px] text-muted-foreground">
+                  {lastTrackedAction ? `${lastTrackedAction.pageLabel} - ${lastTrackedAction.path} - ${formatWhen(lastTrackedAction.createdAt)}` : `${pageLabel} - ${path}`}
+                </div>
+              </div>
+
+              {recentTrackedActions.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {recentTrackedActions.slice(0, 3).map((action) => (
+                    <div key={action.id} className="flex items-start justify-between gap-2 rounded-md border bg-muted/10 px-2 py-1.5">
+                      <div className="min-w-0">
+                        <div className="truncate text-[11px] font-medium uppercase tracking-normal text-muted-foreground">{action.kind}</div>
+                        <div className="mt-0.5 break-words text-sm leading-snug">{describeAction(action)}</div>
+                      </div>
+                      <div className="shrink-0 text-[11px] text-muted-foreground">{formatWhen(action.createdAt)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <textarea
@@ -877,16 +1094,35 @@ export function ReviewLayer() {
       )}
 
       {!open ? (
-        <Button
-          type="button"
-          onClick={() => setOpen(true)}
-          className={cn("h-11 rounded-full shadow-lg", openCount > 0 ? "pr-3" : "")}
-          aria-label={`Review layer, ${openCount} open notes`}
-        >
-          <StickyNote className="h-4 w-4" />
-          Review
-          {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
-        </Button>
+        <div className="flex w-full flex-col items-end gap-2">
+          {(endpointConfigured || sessionActions.length > 0) ? (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="max-w-[min(100%,22rem)] rounded-2xl border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur"
+              aria-label={`Following ${pageLabel}. ${followChipText}`}
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <span className={cn("h-2.5 w-2.5 rounded-full", endpointConfigured ? "bg-emerald-500" : "bg-amber-500")} />
+                {endpointConfigured ? "Following live" : "Tracking locally"}
+                <span className="text-muted-foreground">{sessionActions.length} actions</span>
+              </div>
+              <div className="mt-1 truncate text-sm font-medium">{pageLabel}</div>
+              <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{followChipText}</div>
+            </button>
+          ) : null}
+
+          <Button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={cn("h-11 rounded-full shadow-lg", openCount > 0 ? "pr-3" : "")}
+            aria-label={`Review layer, ${openCount} open notes`}
+          >
+            <StickyNote className="h-4 w-4" />
+            Review
+            {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
+          </Button>
+        </div>
       ) : null}
     </div>
   );

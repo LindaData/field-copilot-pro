@@ -12,10 +12,11 @@ export type NoteSyncState = "local" | "sending" | "sent" | "error";
 export type ReviewPriority = "low" | "medium" | "high";
 export type ReviewKind = "ux" | "bug" | "copy" | "data" | "workflow";
 export type ReviewView = "page" | "all";
-export type ReviewActionKind = "route" | "click" | "input" | "submit" | "shortcut" | "device" | "chat" | "note";
+export type ReviewActionKind = "route" | "click" | "input" | "submit" | "shortcut" | "device" | "chat" | "note" | "focus" | "scroll" | "visibility";
 
 export interface ReviewNote {
   id: string;
+  sessionId?: string;
   path: string;
   pageLabel: string;
   note: string;
@@ -42,6 +43,7 @@ export type ReviewDrafts = Record<string, ReviewDraft>;
 
 export interface ReviewAction {
   id: string;
+  sessionId?: string;
   kind: ReviewActionKind;
   path: string;
   pageLabel: string;
@@ -191,6 +193,7 @@ function normalizeNote(raw: unknown): ReviewNote | null {
 
   return {
     id: note.id,
+    sessionId: typeof note.sessionId === "string" ? note.sessionId : undefined,
     path: note.path,
     pageLabel: typeof note.pageLabel === "string" ? note.pageLabel : pageLabelFor(note.path),
     note: note.note,
@@ -222,6 +225,7 @@ function normalizeAction(raw: unknown): ReviewAction | null {
 
   return {
     id: action.id,
+    sessionId: typeof action.sessionId === "string" ? action.sessionId : undefined,
     kind: action.kind as ReviewActionKind,
     path: action.path,
     pageLabel: typeof action.pageLabel === "string" ? action.pageLabel : pageLabelFor(action.path),
@@ -338,6 +342,10 @@ export function makeActionId() {
 export function currentViewport() {
   if (typeof window === "undefined") return undefined;
   return `${window.innerWidth}x${window.innerHeight}`;
+}
+
+export function matchesReviewSession(itemSessionId: string | undefined, activeSessionId: string) {
+  return !itemSessionId || itemSessionId === activeSessionId;
 }
 
 export function formatWhen(value?: string) {

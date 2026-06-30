@@ -507,6 +507,7 @@ export default function ReviewWorkspace() {
       lastLiveNoteDraftRef.current = key;
       const action: ReviewAction = {
         id: makeActionId(),
+        sessionId,
         kind: "input",
         path: framePath,
         pageLabel,
@@ -565,6 +566,7 @@ export default function ReviewWorkspace() {
       lastLiveChatDraftRef.current = key;
       const action: ReviewAction = {
         id: makeActionId(),
+        sessionId,
         kind: "input",
         path: framePath,
         pageLabel,
@@ -626,6 +628,7 @@ export default function ReviewWorkspace() {
     const cleanPath = path.split("?")[0].split("#")[0] || path;
     const action: ReviewAction = {
       id: makeActionId(),
+      sessionId,
       kind,
       path,
       pageLabel: pageLabelFor(cleanPath),
@@ -640,7 +643,7 @@ export default function ReviewWorkspace() {
     setActions((existing) => [action, ...existing].slice(0, 300));
     void submitAction(action);
     return action;
-  }, [submitAction]);
+  }, [sessionId, submitAction]);
 
   const addNote = () => {
     const text = currentDraft.text.trim();
@@ -649,6 +652,7 @@ export default function ReviewWorkspace() {
     const now = new Date().toISOString();
     const note: ReviewNote = {
       id: makeNoteId(),
+      sessionId,
       path: framePath,
       pageLabel,
       note: text,

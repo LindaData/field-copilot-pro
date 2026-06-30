@@ -307,6 +307,27 @@ describe("migration baseline", () => {
     }));
   });
 
+  it("shows a live follow chip even while the review panel is closed", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Following live")).toBeInTheDocument();
+    expect(screen.getByText("Technician today")).toBeInTheDocument();
+    expect(screen.getByText(/Opened Technician today/i)).toBeInTheDocument();
+  });
+
   it("keeps received-note handoff status after a sent note is resolved", async () => {
     window.localStorage.setItem("field-copilot-review-notes-v1", JSON.stringify([{
       id: "note-resolved-live",
@@ -397,6 +418,44 @@ describe("migration baseline", () => {
 
     expect(await screen.findByText("Reviewing: Technician today")).toBeInTheDocument();
     expect(screen.queryByText("Reviewing: Opened Owner equipment")).not.toBeInTheDocument();
+  });
+
+  it("shows the latest tracked interaction in follow mode and ignores older sessions", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.localStorage.setItem("field-copilot-review-session-v1", "review-active-session");
+    window.localStorage.setItem("field-copilot-review-actions-v1", JSON.stringify([{
+      id: "action-old-session",
+      sessionId: "review-old-session",
+      kind: "click",
+      path: "/",
+      pageLabel: "Main demo landing",
+      label: "Old session action",
+      createdAt: "2026-06-30T16:00:00.000Z",
+      syncState: "sent",
+      syncedAt: "2026-06-30T16:00:01.000Z",
+      viewport: "390x844",
+    }]));
+    window.history.pushState(
+      {},
+      "",
+      "/?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    const ownerButton = await screen.findByText("Enter Demo as Owner");
+    fireEvent.focusIn(ownerButton);
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Follow mode")).toBeInTheDocument();
+    expect(screen.getAllByText("Focused Enter Demo as Owner").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Old session action")).not.toBeInTheDocument();
   });
 
   it("streams floating review-layer drafts and tracked actions to the live endpoint", async () => {
