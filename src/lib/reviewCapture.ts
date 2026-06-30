@@ -113,6 +113,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/app/owner/jobs": "Owner jobs",
   "/app/owner/customers": "Owner customers",
   "/app/owner/equipment": "Owner equipment",
+  "/app/owner/market-systems": "Owner market systems",
   "/app/owner/more": "Owner more",
   "/app/feedback": "Feedback",
   "/app/owner/feedback": "Owner feedback",
@@ -128,6 +129,7 @@ export const REVIEW_ROUTE_SHORTCUTS = [
   { label: "Documents", path: "/app/documents" },
   { label: "Owner dashboard", path: "/app/owner" },
   { label: "Owner equipment", path: "/app/owner/equipment" },
+  { label: "Owner market systems", path: "/app/owner/market-systems" },
   { label: "Owner jobs", path: "/app/owner/jobs" },
 ];
 

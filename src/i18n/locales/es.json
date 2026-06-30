@@ -755,6 +755,26 @@
   "ownerMore": {
     "title": "Más"
   },
+  "ownerMarket": {
+    "title": "Sistemas del mercado HVAC",
+    "navLabel": "Sistemas de mercado",
+    "navSub": "Sitios de empresas, flujos de cliente y plataformas comunes.",
+    "desc": "Revisión pública de cómo las empresas HVAC presentan reservas, financiamiento, membresías, reseñas, comunicación con clientes y sistemas de servicio de campo. Es contexto de planificación, no una integración activa.",
+    "reviewed": "Revisado {{date}}",
+    "companySites": "Sitios de empresas",
+    "companySitesSub": "sitios públicos HVAC representativos",
+    "platforms": "Plataformas",
+    "platformsSub": "categorías comunes de software para contratistas",
+    "priorities": "Prioridades",
+    "prioritiesSub": "ajustes de producto para continuar",
+    "scopeNote": "Solo revisión de sitios públicos. No se asumen sistemas internos de despacho, CRM, pagos, reseñas o contabilidad salvo que estén publicados. No hay IA paga, despliegue AWS, embeddings, OCR ni integración activa con proveedores.",
+    "patternsTitle": "Patrones comunes de sitio y flujo de trabajo",
+    "companiesTitle": "Sitios representativos de empresas HVAC",
+    "platformsTitle": "Señales de plataformas de servicio de campo",
+    "adjustment": "Ajuste de Field Copilot:",
+    "nextDemoTitle": "Dirección de la demo",
+    "nextDemoDesc": "Usa esta investigación para guiar futuros campos de fuente de cliente potencial, planes de servicio, financiamiento, comunicación con clientes e integraciones, manteniendo la documentación verificada del equipo como fuente técnica confiable."
+  },
   "owner": {
     "switchToTech": "Cambiar a Técnico",
     "helpDesc": "Vista de propietario para órdenes, clientes y equipos.",

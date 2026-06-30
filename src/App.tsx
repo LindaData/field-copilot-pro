@@ -31,6 +31,7 @@ import OwnerJobs from "./pages/owner/OwnerJobs";
 import OwnerCustomers from "./pages/owner/OwnerCustomers";
 import OwnerEquipment from "./pages/owner/OwnerEquipment";
 import OwnerMore from "./pages/owner/OwnerMore";
+import OwnerMarketSystems from "./pages/owner/OwnerMarketSystems";
 import AwsStorage from "./pages/owner/integrations/AwsStorage";
 import Feedback from "./pages/technician/Feedback";
 import Today from "./pages/technician/Today";
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="jobs" element={<OwnerJobs />} />
               <Route path="customers" element={<OwnerCustomers />} />
               <Route path="equipment" element={<OwnerEquipment />} />
+              <Route path="market-systems" element={<OwnerMarketSystems />} />
               <Route path="integrations/aws" element={<AwsStorage />} />
               <Route path="more" element={<OwnerMore />} />
               <Route path="feedback" element={<Feedback />} />

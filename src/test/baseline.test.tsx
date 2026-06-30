@@ -10,6 +10,11 @@ import i18n, { LANGS } from "@/i18n";
 import { resolveAnswer } from "@/lib/answers/resolver";
 import { manufacturerDocsForEquipment, MANUFACTURER_SOURCE_LIBRARY, manualLinksForEquipment } from "@/lib/manufacturerSources";
 import { documentationResearchForEquipment, top50ResearchStats, US_HVAC_TOP_50_DOCUMENTATION_RESEARCH } from "@/lib/hvacTop50";
+import {
+  HVAC_COMPANY_WEBSITE_REVIEW,
+  HVAC_FIELD_SERVICE_PLATFORM_REVIEW,
+  HVAC_MARKET_SYSTEM_PRIORITIES,
+} from "@/lib/hvacMarketSystems";
 import { getPrimaryAction } from "@/lib/primaryAction";
 import { DOCS, EQUIPMENT, INITIAL_DIAG, JOBS } from "@/lib/seed";
 import { DEMO_DATA_VERSION, DEMO_STORE_KEY, StoreProvider, useStore, type StoreState } from "@/lib/store";
@@ -68,7 +73,8 @@ function runIndexRedirect(search: string) {
 }
 
 describe("migration baseline", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     window.localStorage.clear();
     window.history.pushState({}, "", "/");
   });
@@ -224,6 +230,20 @@ describe("migration baseline", () => {
 
     const mappedEquipment = EQUIPMENT.filter((item) => documentationResearchForEquipment(item).length > 0);
     expect(mappedEquipment.length).toBeGreaterThan(50);
+  });
+
+  it("loads HVAC company website and field-service system research for the owner market view", async () => {
+    expect(HVAC_COMPANY_WEBSITE_REVIEW.length).toBeGreaterThanOrEqual(6);
+    expect(HVAC_COMPANY_WEBSITE_REVIEW.some((item) => item.website.includes("onehourheatandair.com"))).toBe(true);
+    expect(HVAC_FIELD_SERVICE_PLATFORM_REVIEW.some((item) => item.platform === "ServiceTitan")).toBe(true);
+    expect(HVAC_MARKET_SYSTEM_PRIORITIES.some((item) => item.id === "equipment-documents")).toBe(true);
+
+    window.history.pushState({}, "", "/app/owner/market-systems");
+    render(<App />);
+
+    expect(await screen.findByText("HVAC market systems")).toBeInTheDocument();
+    expect(screen.getByText("One Hour Heating & Air Conditioning")).toBeInTheDocument();
+    expect(screen.getByText("ServiceTitan")).toBeInTheDocument();
   });
 
   it("autosaves review-layer drafts while the reviewer types", async () => {

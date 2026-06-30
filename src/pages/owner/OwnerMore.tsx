@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Package, Book, Settings as SettingsIcon, Cloud, MessageSquare, ClipboardList } from "lucide-react";
+import { FileText, Package, Book, Settings as SettingsIcon, Cloud, MessageSquare, ClipboardList, Globe2 } from "lucide-react";
 
 export default function OwnerMore() {
   const { state, reset } = useStore();
@@ -11,6 +11,7 @@ export default function OwnerMore() {
   const nav = useNavigate();
   const items = [
     { to: "/app/owner/demo-walkthrough", label: "Demo walkthrough", icon: ClipboardList, sub: "Reset, perfect maintenance, active repair, owner review." },
+    { to: "/app/owner/market-systems", label: t("ownerMarket.navLabel"), icon: Globe2, sub: t("ownerMarket.navSub") },
     { to: "/app/owner/integrations/aws", label: t("more.awsStorage"), icon: Cloud, sub: t("more.awsStorageSub") },
     { to: "/app/documents", label: t("more.documents"), icon: FileText, sub: t("more.documentsSub", { count: state.docs.length }) },
     { to: "/app/parts", label: t("more.parts"), icon: Package, sub: t("more.partsSub", { count: state.parts.length }) },

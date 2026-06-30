@@ -755,6 +755,26 @@
   "ownerMore": {
     "title": "More"
   },
+  "ownerMarket": {
+    "title": "HVAC market systems",
+    "navLabel": "Market systems",
+    "navSub": "Company websites, customer flows, and common contractor platforms.",
+    "desc": "Public review of how HVAC companies present booking, financing, memberships, reviews, customer communication, and field-service systems. This is planning context, not a live integration.",
+    "reviewed": "Reviewed {{date}}",
+    "companySites": "Company sites",
+    "companySitesSub": "representative public HVAC websites",
+    "platforms": "Platforms",
+    "platformsSub": "common contractor software categories",
+    "priorities": "Priorities",
+    "prioritiesSub": "product adjustments to carry forward",
+    "scopeNote": "Public website review only. Internal dispatch, CRM, payment, review, and accounting systems are not assumed unless publicly disclosed. No paid AI, AWS deployment, embeddings, OCR, or live provider integration is active here.",
+    "patternsTitle": "Common website and workflow patterns",
+    "companiesTitle": "Representative HVAC company websites",
+    "platformsTitle": "Field-service platform signals",
+    "adjustment": "Field Copilot adjustment:",
+    "nextDemoTitle": "Demo direction",
+    "nextDemoDesc": "Use this research to shape future lead-source, service-plan, financing, customer-communication, and integration placeholders while keeping verified equipment documentation as the technical source of truth."
+  },
   "owner": {
     "switchToTech": "Switch to Tech",
     "helpDesc": "Owner overview for jobs, customers, and equipment.",
