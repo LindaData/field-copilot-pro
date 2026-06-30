@@ -22,7 +22,11 @@ function corsHeaders(origin = "") {
     "http://localhost:4173",
     "http://127.0.0.1:4173",
   ];
-  const allowOrigin = allowed.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")
+  const isTemporaryTunnel = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/i.test(origin);
+  const allowOrigin = allowed.includes(origin)
+    || isTemporaryTunnel
+    || origin.startsWith("http://localhost:")
+    || origin.startsWith("http://127.0.0.1:")
     ? origin
     : "https://lindadata.github.io";
 
