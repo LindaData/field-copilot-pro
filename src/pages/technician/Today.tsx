@@ -97,11 +97,24 @@ export default function Today() {
     .filter((j) => j !== current)
     .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
 
+  const followUp = openJobs
+    .filter((j) => j.status === "Follow-Up")
+    .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor))[0];
   const next = upcoming[0];
 
   const diag = current ? state.diag[current.id] : undefined;
   const auth = current ? state.auths.find((a) => a.jobId === current.id) : undefined;
-  const action = primaryActionForToday({ current, upcoming: next, diag, auth });
+  const action: PrimaryAction = current
+    ? primaryActionForToday({ current, upcoming: next, diag, auth })
+    : followUp
+      ? {
+        kind: "open-job",
+        label: "Review Follow-Up",
+        helper: `${customerOf(followUp.customerId)?.name ?? "Return visit"} - ${new Date(followUp.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
+        to: `/app/jobs/${followUp.id}`,
+        variant: "accent",
+      }
+      : primaryActionForToday({ upcoming: next });
 
   const { activeMs, pausedMs, activePauseReason } = useMemo(() => {
     const now = Date.now();
@@ -235,6 +248,7 @@ export default function Today() {
                     className={cn(
                       "card-elev flex items-center gap-3 p-3",
                       isCurrent && "border-l-4 border-l-accent",
+                      j.status === "Follow-Up" && "border border-warning/40 bg-warning/10",
                       done && "opacity-60",
                     )}
                   >
@@ -252,6 +266,9 @@ export default function Today() {
                         <Badge variant="secondary" className="shrink-0 text-[10px]">{statusLabel(j.status)}</Badge>
                       </div>
                       <div className="truncate text-[11px] text-muted-foreground">{tx(j.complaint)}</div>
+                      {j.status === "Follow-Up" ? (
+                        <div className="mt-0.5 text-[11px] font-medium text-warning">Needs return visit or office follow-up</div>
+                      ) : null}
                       {p && (
                         <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                           <MapPin className="h-3 w-3" /> {p.address.split(",")[0]}

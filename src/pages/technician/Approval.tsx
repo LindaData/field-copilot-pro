@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { AlertTriangle, Check, Lock, X } from "lucide-react";
 
 export default function Approval() {
   const { id = "" } = useParams();
@@ -16,10 +16,10 @@ export default function Approval() {
   const nav = useNavigate();
   const sigRef = useRef<HTMLCanvasElement | null>(null);
   const [signed, setSigned] = useState(false);
-  const [email, setEmail] = useState(state.customers.find(c => c.id === job?.customerId)?.email ?? "");
-  const [partPrice, setPartPrice] = useState(cap.price);
-  const [laborHrs, setLaborHrs] = useState(0.75);
-  const [laborRate, setLaborRate] = useState(state.company.laborRate);
+  const [email, setEmail] = useState(state.customers.find((c) => c.id === job?.customerId)?.email ?? "");
+  const partPrice = cap.price;
+  const laborHrs = 0.75;
+  const laborRate = state.company.laborRate;
   const labor = +(laborHrs * laborRate).toFixed(2);
   const subtotal = +(partPrice + labor).toFixed(2);
   const tax = +(subtotal * (state.company.tax / 100)).toFixed(2);
@@ -39,15 +39,27 @@ export default function Approval() {
     const up = () => { drawing = false; };
     c.addEventListener("pointerdown", down); c.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
-    return () => { c.removeEventListener("pointerdown", down); c.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    return () => {
+      c.removeEventListener("pointerdown", down);
+      c.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
   }, []);
 
   if (!job) return <div className="p-6">{t("common.notFound")}</div>;
-  const customer = state.customers.find(c => c.id === job.customerId);
+  const customer = state.customers.find((c) => c.id === job.customerId);
 
   const approve = () => {
     const dataUrl = sigRef.current?.toDataURL() ?? "";
-    setAuth({ jobId: job.id, signedBy: customer?.name, signatureDataUrl: dataUrl, approvedAt: new Date().toISOString(), total, email, decision: "approved" });
+    setAuth({
+      jobId: job.id,
+      signedBy: customer?.name,
+      signatureDataUrl: dataUrl,
+      approvedAt: new Date().toISOString(),
+      total,
+      email,
+      decision: "approved",
+    });
     addJobPart({ jobId: job.id, partId: cap.id, qty: 1 });
     setJobStatus(job.id, "Waiting for Parts");
     toast.success(t("approval.toast.approved"));
@@ -55,14 +67,23 @@ export default function Approval() {
   };
 
   const decline = () => {
-    setAuth({ jobId: job.id, signedBy: customer?.name, approvedAt: new Date().toISOString(), decision: "declined" });
-    toast(t("approval.toast.declinedTitle"), { description: t("approval.toast.declinedBody") });
+    setAuth({
+      jobId: job.id,
+      signedBy: customer?.name,
+      approvedAt: new Date().toISOString(),
+      decision: "declined",
+      email,
+    });
+    setJobStatus(job.id, "Follow-Up");
+    toast.success("Approval declined. Job moved to follow-up for office review.");
     nav(`/app/jobs/${job.id}`);
   };
 
   const clear = () => {
     const c = sigRef.current; if (!c) return;
-    const ctx = c.getContext("2d"); ctx?.clearRect(0, 0, c.width, c.height); setSigned(false);
+    const ctx = c.getContext("2d");
+    ctx?.clearRect(0, 0, c.width, c.height);
+    setSigned(false);
   };
 
   return (
@@ -76,16 +97,17 @@ export default function Approval() {
         </div>
 
         <div className="mt-3 rounded-md border p-3 text-sm">
+          <div className="mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
+            <div className="inline-flex items-center gap-1 font-medium text-foreground"><Lock className="h-3.5 w-3.5" /> Office pricing</div>
+            <div className="mt-1">Technicians can explain the estimate and capture approval here, but line-item pricing stays locked to the company rate card.</div>
+          </div>
           <div className="flex items-center justify-between gap-2">
             <span>{t("approval.partRow", { name: cap.name })}</span>
-            <div className="inline-flex items-center gap-1">$<Input type="number" inputMode="decimal" value={partPrice} onChange={(e) => setPartPrice(+e.target.value || 0)} className="h-8 w-20 text-right" /></div>
+            <span className="font-semibold">${partPrice.toFixed(2)}</span>
           </div>
           <div className="mt-2 flex items-center justify-between gap-2">
             <span>{t("approval.labor")}</span>
-            <div className="inline-flex items-center gap-1 text-xs">
-              <Input type="number" step="0.25" value={laborHrs} onChange={(e) => setLaborHrs(+e.target.value || 0)} className="h-8 w-16 text-right" /> {t("approval.hr")} ×
-              $<Input type="number" value={laborRate} onChange={(e) => setLaborRate(+e.target.value || 0)} className="h-8 w-20 text-right" />{t("approval.perHr")}
-            </div>
+            <span className="text-right text-xs">{laborHrs.toFixed(2)} {t("approval.hr")} x ${laborRate.toFixed(2)}{t("approval.perHr")}</span>
           </div>
           <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{t("approval.laborSubtotal")}</span><span>${labor.toFixed(2)}</span></div>
           <div className="mt-1 flex justify-between"><span>{t("approval.subtotal")}</span><span>${subtotal.toFixed(2)}</span></div>
@@ -108,8 +130,12 @@ export default function Approval() {
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button variant="outline" className="touch-target h-12" onClick={decline}><X className="mr-1 h-5 w-5" /> {t("approval.decline")}</Button>
+          <Button variant="outline" className="touch-target h-12" onClick={decline}><X className="mr-1 h-5 w-5" /> Decline and follow up</Button>
           <Button className="touch-target h-12" disabled={!signed} onClick={approve}><Check className="mr-1 h-5 w-5" /> {t("approval.approve")}</Button>
+        </div>
+        <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />
+          Declining sends the estimate back for office follow-up instead of letting the technician edit pricing on site.
         </div>
       </div>
     </div>

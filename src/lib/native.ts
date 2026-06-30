@@ -64,6 +64,15 @@ export async function shareOrCopyUrl(input: { title: string; text?: string; url:
     }
   }
 
+  if (canUseDom && typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    await navigator.share({
+      title: input.title,
+      text: input.text,
+      url: input.url,
+    });
+    return "shared" as const;
+  }
+
   await copyText(input.url);
   return "copied" as const;
 }

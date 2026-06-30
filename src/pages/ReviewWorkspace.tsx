@@ -1100,12 +1100,12 @@ export default function ReviewWorkspace() {
               value={chatDraft}
               onChange={(event) => setChatDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                   event.preventDefault();
                   sendChatMessage();
                 }
               }}
-              placeholder="Message to Codex while reviewing. Example: the button I just clicked feels unclear."
+              placeholder="Message to Codex while reviewing. Enter adds a new line. Use Send to Codex or Ctrl/Cmd+Enter to submit."
               className="mt-3 min-h-[96px] w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-cyan-300"
             />
             <div className={cn(
@@ -1252,17 +1252,20 @@ export default function ReviewWorkspace() {
             <label htmlFor="review-note-text" className="mt-3 block text-xs font-semibold uppercase tracking-normal text-slate-400">
               Your note
             </label>
+            <div className="mt-1 text-[11px] text-slate-500">
+              Enter adds a new line. Use Capture or Ctrl/Cmd+Enter to submit this note.
+            </div>
             <textarea
               id="review-note-text"
               value={currentDraft.text}
               onChange={(event) => updateDraft({ text: event.target.value })}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                   event.preventDefault();
                   addNote();
                 }
               }}
-              placeholder={reviewContextAction ? `Write your note about: ${reviewContextAction.label}` : "Write your note for the centered screen."}
+              placeholder={reviewContextAction ? `Write your note about: ${reviewContextAction.label}` : "Write your note for the centered screen. Enter adds a new line."}
               className="mt-1.5 min-h-[132px] w-full resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus-visible:ring-2 focus-visible:ring-cyan-300"
             />
 

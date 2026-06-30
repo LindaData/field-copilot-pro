@@ -934,7 +934,7 @@ export function ReviewLayer() {
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">Capture this screen</div>
                   <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Attach feedback to what you are looking at right now. Enter submits; Shift+Enter starts a new line.
+                    Attach feedback to what you are looking at right now. Enter adds a new line. Use Send note or Ctrl/Cmd+Enter to submit.
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
@@ -988,12 +988,12 @@ export function ReviewLayer() {
                   value={currentDraft.text}
                   onChange={(event) => updateDraft({ text: event.target.value })}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                       event.preventDefault();
                       addNote();
                     }
                   }}
-                  placeholder="Capture what feels wrong or missing on this exact screen. Enter submits; Shift+Enter starts a new line."
+                  placeholder="Capture what feels wrong or missing on this exact screen. Enter adds a new line. Use Send note when you are ready."
                   className="min-h-[112px] w-full resize-none rounded-lg border-0 bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>

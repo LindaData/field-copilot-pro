@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Camera, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Camera, ImagePlus, ShieldAlert, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { PartRequest } from "@/lib/types";
 
 export default function PartsRequest() {
   const { id = "" } = useParams();
-  const { state, addPartRequest, setJobStatus } = useStore();
+  const { state, addPartRequest, setJobStatus, updateJob } = useStore();
   const { t } = useTranslation();
   const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
@@ -42,6 +42,15 @@ export default function PartsRequest() {
   const submit = () => {
     if (!name.trim()) { toast.error(t("partsRequest.toast.nameRequired")); return; }
     const now = new Date().toISOString();
+    const requestStatus: PartRequest["status"] =
+      compatibility === "Unknown"
+        ? "Identification Needed"
+        : moveStatus
+          ? "Requested"
+          : "Compatibility Review";
+    const officeHandoff = moveStatus
+      ? `Office handoff ${new Date(now).toLocaleString()}: ${name.trim()} x${Math.max(1, parseInt(qty || "1", 10))}${partNumber.trim() ? ` - PN ${partNumber.trim()}` : ""}${supplier.trim() ? ` via ${supplier.trim()}` : ""}.`
+      : undefined;
     const pr: PartRequest = {
       id: `pr-${Date.now()}`, jobId: job.id, customerId: job.customerId,
       equipmentId: job.equipmentId, technicianId: job.technicianId,
@@ -50,14 +59,20 @@ export default function PartsRequest() {
       specs: specs.trim() || undefined,
       qty: Math.max(1, parseInt(qty || "1", 10)),
       urgency, supplier: supplier.trim() || undefined,
-      photoDataUrl: photo, notes: notes.trim() || undefined,
+      photoDataUrl: photo,
+      notes: [notes.trim(), officeHandoff].filter(Boolean).join("\n\n") || undefined,
       compatibility,
-      status: compatibility === "Unknown" ? "Identification Needed" : "Compatibility Review",
+      status: requestStatus,
       createdAt: now, updatedAt: now,
     };
     addPartRequest(pr);
-    if (moveStatus) setJobStatus(job.id, "Waiting for Parts");
-    toast.success(t("partsRequest.toast.submitted"));
+    if (moveStatus) {
+      setJobStatus(job.id, "Waiting for Parts");
+      updateJob(job.id, {
+        notes: [job.notes, officeHandoff].filter(Boolean).join("\n"),
+      });
+    }
+    toast.success(moveStatus ? "Parts request submitted and job moved to Waiting for Parts." : t("partsRequest.toast.submitted"));
     nav(`/app/jobs/${job.id}`);
   };
 
@@ -102,10 +117,26 @@ export default function PartsRequest() {
           <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-[11px]"><ShieldAlert className="mr-1 inline h-3 w-3" /> {t("partsRequest.compNotice", { value: compLabel(compatibility) })}</div>
         )}
         <Field label={t("partsRequest.fields.photo")}>
-          <label className="flex h-24 cursor-pointer items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
-            {photo ? <img src={photo} alt="part" className="h-full object-contain" /> : <span><Camera className="mr-1 inline h-4 w-4" /> {t("partsRequest.takePhoto")}</span>}
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} />
-          </label>
+          <div className="space-y-2">
+            <div className="flex h-28 items-center justify-center rounded-md border border-dashed bg-muted/20 text-xs text-muted-foreground">
+              {photo ? <img src={photo} alt="part" className="h-full max-w-full object-contain" /> : <span>Attach the failed part, nameplate, or wiring photo for office review.</span>}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex h-10 cursor-pointer items-center justify-center rounded-md border text-xs font-medium">
+                <Camera className="mr-1 h-4 w-4" /> {t("partsRequest.takePhoto")}
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} />
+              </label>
+              <label className="flex h-10 cursor-pointer items-center justify-center rounded-md border text-xs font-medium">
+                <ImagePlus className="mr-1 h-4 w-4" /> Upload image
+                <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+              </label>
+            </div>
+            {photo ? (
+              <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setPhoto(undefined)}>
+                <Trash2 className="mr-1 h-3.5 w-3.5" /> Remove photo
+              </Button>
+            ) : null}
+          </div>
         </Field>
         <Field label={t("partsRequest.fields.notes")}><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("partsRequest.ph.notes")} /></Field>
 
@@ -113,6 +144,11 @@ export default function PartsRequest() {
           <input type="checkbox" checked={moveStatus} onChange={(e) => setMoveStatus(e.target.checked)} className="h-4 w-4" />
           {t("partsRequest.moveStatus")}
         </label>
+        {moveStatus ? (
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Submitting will move this job to <span className="font-medium text-foreground">Waiting for Parts</span> and add an office handoff note to the job.
+          </div>
+        ) : null}
 
         <Button className="touch-target h-12 w-full" onClick={submit}>{t("partsRequest.submit")}</Button>
       </div>
