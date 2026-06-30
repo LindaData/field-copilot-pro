@@ -200,26 +200,53 @@ export function ReviewLayer() {
   const openCount = openNotes.length;
   const pendingActions = actions.filter((action) => !action.syncedAt && action.syncState !== "sending");
   const sendingActionCount = actions.filter((action) => action.syncState === "sending").length;
-  const sentNotes = openNotes.filter((note) => Boolean(note.syncedAt) || note.syncState === "sent");
-  const unsentNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sent");
+  const submittedNotes = useMemo(
+    () => notes.filter((note) => Boolean(note.syncedAt) || note.syncState === "sent"),
+    [notes],
+  );
+  const queuedOpenNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sent");
   const pendingActionCount = actions.filter((action) => !action.syncedAt && action.syncState !== "sent").length;
-  const latestSentNote = sentNotes[0] ?? null;
-  const pendingReviewItemCount = unsentNotes.length + pendingActionCount;
-  const reviewContextAction = actions.find((action) => ["click", "submit", "shortcut", "device"].includes(action.kind))
-    ?? actions.find((action) => !["note", "chat", "input"].includes(action.kind))
+  const latestSubmittedNote = submittedNotes[0] ?? null;
+  const hasDraftText = currentDraft.text.trim().length > 0;
+  const currentPathActions = useMemo(
+    () => actions.filter((action) => action.path === path),
+    [actions, path],
+  );
+  const reviewContextAction = currentPathActions.find((action) => ["click", "submit", "shortcut", "device"].includes(action.kind))
+    ?? currentPathActions.find((action) => action.kind === "route")
     ?? null;
   const latestBridgeMessage = bridgeMessages[0] ?? null;
+  const reviewContextTitle = reviewContextAction?.kind === "route"
+    ? pageLabel
+    : reviewContextAction?.label ?? pageLabel;
 
-  const handoffTitle = endpointConfigured
-    ? sentNotes.length > 0
-      ? `Codex received ${sentNotes.length} submitted ${plural(sentNotes.length, "note")}.`
-      : "No submitted notes received yet."
-    : "Review notes are local on this device.";
-  const handoffBody = endpointConfigured
-    ? sentNotes.length > 0
-      ? "Close with X when you are done. Submitted notes stay in this session, and I pair them with the page, click trail, route, viewport, and timestamps."
-      : "Typed drafts can stream live, but Send note is what locks feedback into the review feed before you close."
-    : "Closing keeps notes in this browser only. Copy the notes or reopen with a live review link before relying on Codex to see them.";
+  let handoffTone: "received" | "draft" | "pending" | "local";
+  let handoffTitle: string;
+  let handoffBody: string;
+
+  if (!endpointConfigured) {
+    handoffTone = "local";
+    handoffTitle = "Review notes are local on this device.";
+    handoffBody = "Closing keeps notes in this browser only. Copy the notes or reopen with a live review link before relying on Codex to see them.";
+  } else if (hasDraftText) {
+    handoffTone = "draft";
+    handoffTitle = "Draft not submitted yet.";
+    handoffBody = submittedNotes.length > 0
+      ? `Your latest text is still a draft. Tap Send note before closing if you want Codex to act on it. ${submittedNotes.length} submitted ${plural(submittedNotes.length, "note")} ${plural(submittedNotes.length, "already stays", "already stay")} in this session.`
+      : "Your latest text is still a draft. Tap Send note before closing if you want Codex to act on it.";
+  } else if (queuedOpenNotes.length > 0) {
+    handoffTone = "pending";
+    handoffTitle = `${queuedOpenNotes.length} submitted ${plural(queuedOpenNotes.length, "note")} still syncing.`;
+    handoffBody = "You can keep reviewing. The note stays queued here and can be retried from Review history if live sync does not finish.";
+  } else if (submittedNotes.length > 0) {
+    handoffTone = "received";
+    handoffTitle = `Codex received ${submittedNotes.length} submitted ${plural(submittedNotes.length, "note")}.`;
+    handoffBody = "Close with X when you are done. Submitted notes stay in this session, and I pair them with the page, click trail, route, viewport, and timestamps.";
+  } else {
+    handoffTone = "draft";
+    handoffTitle = "No submitted notes received yet.";
+    handoffBody = "Typed drafts can stream live, but Send note is what locks feedback into the review feed before you close.";
+  }
 
   const updateDraft = (patch: Partial<ReviewDraft>) => {
     const updatedAt = new Date().toISOString();
@@ -554,16 +581,25 @@ export function ReviewLayer() {
   const closeReviewLayer = () => {
     setOpen(false);
 
-    if (endpointConfigured && sentNotes.length > 0) {
-      toast.success("Review layer hidden", {
-        description: `Codex received ${sentNotes.length} ${plural(sentNotes.length, "note")}. Notes stay in the live review feed for follow-up.`,
+    if (hasDraftText) {
+      toast("Draft saved", {
+        description: endpointConfigured
+          ? "Your latest text is still a draft. Reopen Review and tap Send note to submit it to Codex."
+          : "Your draft stays on this device until you copy it or reopen with a live review link.",
       });
       return;
     }
 
-    if (currentDraft.text.trim()) {
-      toast("Draft saved", {
-        description: "Reopen Review and press Send note when you want Codex to receive it as a submitted note.",
+    if (endpointConfigured && queuedOpenNotes.length > 0) {
+      toast("Review layer hidden", {
+        description: `${queuedOpenNotes.length} submitted ${plural(queuedOpenNotes.length, "note")} still ${plural(queuedOpenNotes.length, "needs", "need")} live sync. Reopen Review history if you need to retry.`,
+      });
+      return;
+    }
+
+    if (endpointConfigured && submittedNotes.length > 0) {
+      toast.success("Review layer hidden", {
+        description: `Codex received ${submittedNotes.length} ${plural(submittedNotes.length, "note")}. Notes stay in the live review feed for follow-up.`,
       });
       return;
     }
@@ -622,7 +658,7 @@ export function ReviewLayer() {
                       : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
                   </div>
                   <div className="mt-1 break-words text-[11px] text-muted-foreground">
-                    Reviewing: {reviewContextAction ? reviewContextAction.label : pageLabel}
+                    Reviewing: {reviewContextTitle}
                   </div>
                   <div className="mt-0.5 break-all text-[11px] text-muted-foreground">
                     {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
@@ -691,30 +727,30 @@ export function ReviewLayer() {
             <div
               className={cn(
                 "rounded-md border p-2 text-xs",
-                endpointConfigured && sentNotes.length > 0
+                handoffTone === "received"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-                  : endpointConfigured
-                    ? "border-blue-200 bg-blue-50 text-blue-950"
-                    : "border-amber-300 bg-amber-50 text-amber-950",
+                  : handoffTone === "local" || handoffTone === "pending"
+                    ? "border-amber-300 bg-amber-50 text-amber-950"
+                    : "border-blue-200 bg-blue-50 text-blue-950",
               )}
               aria-live="polite"
             >
               <div className="flex items-start gap-2">
-                {endpointConfigured && sentNotes.length > 0
+                {handoffTone === "received"
                   ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" />
-                  : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />}
+                  : <AlertCircle className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", handoffTone === "draft" ? "text-blue-700" : "text-amber-700")} />}
                 <div className="min-w-0">
                   <div className="font-semibold">Review handoff</div>
                   <div className="mt-1 font-medium">{handoffTitle}</div>
                   <div className="mt-1 leading-relaxed">{handoffBody}</div>
-                  {latestSentNote ? (
+                  {latestSubmittedNote ? (
                     <div className="mt-2 rounded border border-emerald-200/80 bg-white/70 px-2 py-1 text-[11px] text-emerald-950">
-                      Last received: {shortText(latestSentNote.note, 120)}
+                      Last received: {shortText(latestSubmittedNote.note, 120)}
                     </div>
                   ) : null}
-                  {pendingReviewItemCount > 0 ? (
+                  {pendingActionCount > 0 ? (
                     <div className="mt-2 rounded border border-amber-300/80 bg-amber-100/70 px-2 py-1 text-[11px] text-amber-950">
-                      {pendingReviewItemCount} {plural(pendingReviewItemCount, "item")} still {plural(pendingReviewItemCount, "needs", "need")} sync before the handoff is complete.
+                      {pendingActionCount} tracked {plural(pendingActionCount, "action")} still {plural(pendingActionCount, "needs", "need")} background sync.
                     </div>
                   ) : null}
                 </div>

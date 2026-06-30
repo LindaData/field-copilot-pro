@@ -307,6 +307,98 @@ describe("migration baseline", () => {
     }));
   });
 
+  it("keeps received-note handoff status after a sent note is resolved", async () => {
+    window.localStorage.setItem("field-copilot-review-notes-v1", JSON.stringify([{
+      id: "note-resolved-live",
+      path: "/app/today",
+      pageLabel: "Technician today",
+      note: "Resolved but still received by Codex.",
+      status: "resolved",
+      createdAt: "2026-06-30T17:00:00.000Z",
+      updatedAt: "2026-06-30T17:01:00.000Z",
+      kind: "ux",
+      priority: "medium",
+      syncState: "sent",
+      syncedAt: "2026-06-30T17:00:05.000Z",
+      viewport: "390x844",
+    }]));
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Review handoff")).toBeInTheDocument();
+    expect(screen.getByText("Codex received 1 submitted note.")).toBeInTheDocument();
+    expect(screen.getByText(/Last received: Resolved but still received by Codex/i)).toBeInTheDocument();
+  });
+
+  it("shows draft-not-submitted handoff copy even when earlier notes were already sent", async () => {
+    window.localStorage.setItem("field-copilot-review-notes-v1", JSON.stringify([{
+      id: "note-sent-live",
+      path: "/app/today",
+      pageLabel: "Technician today",
+      note: "Earlier submitted note.",
+      status: "open",
+      createdAt: "2026-06-30T17:10:00.000Z",
+      updatedAt: "2026-06-30T17:10:00.000Z",
+      kind: "ux",
+      priority: "medium",
+      syncState: "sent",
+      syncedAt: "2026-06-30T17:10:05.000Z",
+      viewport: "390x844",
+    }]));
+    window.localStorage.setItem("field-copilot-review-drafts-v1", JSON.stringify({
+      "/app/today": {
+        text: "Newest thought is still a draft.",
+        kind: "ux",
+        priority: "medium",
+        updatedAt: "2026-06-30T17:11:00.000Z",
+      },
+    }));
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Review handoff")).toBeInTheDocument();
+    expect(screen.getByText("Draft not submitted yet.")).toBeInTheDocument();
+    expect(screen.getByText(/Your latest text is still a draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 submitted note already stays in this session/i)).toBeInTheDocument();
+    expect(screen.getByText(/Last received: Earlier submitted note/i)).toBeInTheDocument();
+  });
+
+  it("keeps reviewing context scoped to the current page instead of older session actions", async () => {
+    window.localStorage.setItem("field-copilot-review-actions-v1", JSON.stringify([{
+      id: "action-owner-shortcut",
+      kind: "shortcut",
+      path: "/app/owner/equipment",
+      pageLabel: "Owner equipment",
+      label: "Opened Owner equipment",
+      createdAt: "2026-06-30T16:55:00.000Z",
+      syncState: "sent",
+      syncedAt: "2026-06-30T16:55:02.000Z",
+      viewport: "390x844",
+    }]));
+    window.history.pushState({}, "", "/app/today");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Reviewing: Technician today")).toBeInTheDocument();
+    expect(screen.queryByText("Reviewing: Opened Owner equipment")).not.toBeInTheDocument();
+  });
+
   it("streams floating review-layer drafts and tracked actions to the live endpoint", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
