@@ -132,6 +132,10 @@ function liveDraftLabel(state: LiveDraftState, savedAt: string | null) {
   return "ready";
 }
 
+function plural(count: number, singular: string, pluralLabel = `${singular}s`) {
+  return count === 1 ? singular : pluralLabel;
+}
+
 export function ReviewLayer() {
   const location = useLocation();
   const layerRef = useRef<HTMLDivElement | null>(null);
@@ -197,10 +201,26 @@ export function ReviewLayer() {
   const openCount = openNotes.length;
   const pendingActions = actions.filter((action) => !action.syncedAt && action.syncState !== "sending");
   const sendingActionCount = actions.filter((action) => action.syncState === "sending").length;
+  const sentNotes = openNotes.filter((note) => Boolean(note.syncedAt) || note.syncState === "sent");
+  const unsentNotes = openNotes.filter((note) => !note.syncedAt && note.syncState !== "sent");
+  const pendingActionCount = actions.filter((action) => !action.syncedAt && action.syncState !== "sent").length;
+  const latestSentNote = sentNotes[0] ?? null;
+  const pendingReviewItemCount = unsentNotes.length + pendingActionCount;
   const reviewContextAction = actions.find((action) => ["click", "submit", "shortcut", "device"].includes(action.kind))
     ?? actions.find((action) => !["note", "chat", "input"].includes(action.kind))
     ?? null;
   const latestBridgeMessage = bridgeMessages[0] ?? null;
+
+  const handoffTitle = endpointConfigured
+    ? sentNotes.length > 0
+      ? `Codex received ${sentNotes.length} submitted ${plural(sentNotes.length, "note")}.`
+      : "No submitted notes received yet."
+    : "Review notes are local on this device.";
+  const handoffBody = endpointConfigured
+    ? sentNotes.length > 0
+      ? "Closing hides this layer; it does not erase the session. I will use submitted notes with the page, click trail, route, viewport, and timestamps to turn feedback into fixes or follow-up questions."
+      : "Typed drafts stream live while connected, but Send note locks feedback into the review feed before you close."
+    : "Closing keeps notes in this browser only. Copy the notes or reopen with a live review link before relying on Codex to see them.";
 
   const updateDraft = (patch: Partial<ReviewDraft>) => {
     const updatedAt = new Date().toISOString();
@@ -532,6 +552,28 @@ export function ReviewLayer() {
     setNotes((existing) => existing.filter((note) => note.status !== "resolved"));
   };
 
+  const closeReviewLayer = () => {
+    setOpen(false);
+
+    if (endpointConfigured && sentNotes.length > 0) {
+      toast.success("Review layer hidden", {
+        description: `Codex received ${sentNotes.length} ${plural(sentNotes.length, "note")}. Notes stay in the live review feed for follow-up.`,
+      });
+      return;
+    }
+
+    if (currentDraft.text.trim()) {
+      toast("Draft saved", {
+        description: "Reopen Review and press Send note when you want Codex to receive it as a submitted note.",
+      });
+      return;
+    }
+
+    toast("Review layer hidden", {
+      description: endpointConfigured ? "No submitted notes in this session yet." : "Live endpoint is not connected.",
+    });
+  };
+
   if (hiddenForReviewWorkspace) return null;
 
   return (
@@ -552,7 +594,7 @@ export function ReviewLayer() {
                 <div className="mt-1 truncate text-xs text-muted-foreground">{pageLabel}</div>
                 <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{path}</div>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setOpen(false)} aria-label="Close review layer">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={closeReviewLayer} aria-label="Close review layer">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -639,6 +681,42 @@ export function ReviewLayer() {
                     </div>
                   ) : null}
                   {lastBridgeError ? <div className="mt-1 text-[11px] text-destructive">{lastBridgeError}</div> : null}
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "rounded-md border p-2 text-xs",
+                endpointConfigured && sentNotes.length > 0
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                  : endpointConfigured
+                    ? "border-blue-200 bg-blue-50 text-blue-950"
+                    : "border-amber-300 bg-amber-50 text-amber-950",
+              )}
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-2">
+                {endpointConfigured && sentNotes.length > 0
+                  ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                  : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />}
+                <div className="min-w-0">
+                  <div className="font-semibold">Review handoff</div>
+                  <div className="mt-1 font-medium">{handoffTitle}</div>
+                  <div className="mt-1 leading-relaxed">{handoffBody}</div>
+                  {latestSentNote ? (
+                    <div className="mt-2 rounded border border-emerald-200/80 bg-white/70 px-2 py-1 text-[11px] text-emerald-950">
+                      Last received: {shortText(latestSentNote.note, 120)}
+                    </div>
+                  ) : null}
+                  {pendingReviewItemCount > 0 ? (
+                    <div className="mt-2 rounded border border-amber-300/80 bg-amber-100/70 px-2 py-1 text-[11px] text-amber-950">
+                      {pendingReviewItemCount} {plural(pendingReviewItemCount, "item")} still {plural(pendingReviewItemCount, "needs", "need")} sync before the handoff is complete.
+                    </div>
+                  ) : null}
+                  <Button type="button" variant="outline" size="sm" className="mt-2 h-8 bg-white/70" onClick={closeReviewLayer}>
+                    Close review
+                  </Button>
                 </div>
               </div>
             </div>

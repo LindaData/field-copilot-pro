@@ -294,6 +294,11 @@ describe("migration baseline", () => {
       expect(notes[0].syncedAt).toBeTruthy();
     });
 
+    expect(await screen.findByText("Review handoff")).toBeInTheDocument();
+    expect(screen.getByText("Codex received 1 submitted note.")).toBeInTheDocument();
+    expect(screen.getByText(/Closing hides this layer; it does not erase the session/i)).toBeInTheDocument();
+    expect(screen.getByText(/Last received: Owner equipment source cards need clearer scan hierarchy/i)).toBeInTheDocument();
+
     expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/capture", expect.objectContaining({
       method: "POST",
       headers: { "content-type": "application/json" },
