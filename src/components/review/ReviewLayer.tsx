@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   AlertCircle,
+  Bot,
   CheckCircle2,
   ClipboardCopy,
   Cloud,
   CloudOff,
   Loader2,
   MessageSquarePlus,
+  MousePointerClick,
   RefreshCw,
   Send,
   StickyNote,
@@ -20,25 +22,34 @@ import { Button } from "@/components/ui/button";
 import {
   currentViewport,
   EMPTY_REVIEW_DRAFT,
+  fetchReviewMessages,
   formatWhen,
   getReviewEndpoint,
   getReviewSessionId,
+  loadActions,
   loadDrafts,
   loadNotes,
   makeExport,
+  makeActionId,
   makeNoteId,
   pageLabelFor,
+  postReviewAction,
   postReviewNote,
+  REVIEW_ACTIONS_KEY,
   REVIEW_DRAFTS_KEY,
   REVIEW_INBOX_ISSUE,
   REVIEW_KINDS,
   REVIEW_NOTES_KEY,
   REVIEW_PRIORITIES,
   reviewPathFor,
+  saveActions,
   saveDrafts,
   saveNotes,
   syncClass,
   syncLabel,
+  type ReviewAction,
+  type ReviewActionKind,
+  type ReviewBridgeMessage,
   type ReviewDraft,
   type ReviewDrafts,
   type ReviewNote,
@@ -46,15 +57,98 @@ import {
 } from "@/lib/reviewCapture";
 import { cn } from "@/lib/utils";
 
+type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
+
+function shortText(value: string | null | undefined, max = 140) {
+  const clean = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  return clean.length > max ? `${clean.slice(0, max - 1)}...` : clean;
+}
+
+function closestTrackable(target: EventTarget | null) {
+  const element = target as Element | null;
+  if (!element || typeof element.closest !== "function") return null;
+  return element.closest("button,a,input,select,textarea,[role='button'],[role='link'],[data-review-track],form");
+}
+
+function elementLabel(element: Element) {
+  const tag = element.tagName.toLowerCase();
+  const inputType = element.getAttribute("type")?.toLowerCase() ?? "";
+  const safeValue = tag === "button" || ["button", "submit", "reset"].includes(inputType)
+    ? element.getAttribute("value")
+    : "";
+
+  return shortText(
+    element.getAttribute("data-review-label")
+      || element.getAttribute("aria-label")
+      || element.getAttribute("title")
+      || safeValue
+      || element.textContent
+      || element.getAttribute("placeholder")
+      || element.getAttribute("name")
+      || element.getAttribute("id")
+      || tag,
+  ) || tag;
+}
+
+function elementTarget(element: Element) {
+  const tag = element.tagName.toLowerCase();
+  const id = element.getAttribute("id");
+  const role = element.getAttribute("role");
+  const type = element.getAttribute("type");
+  const href = tag === "a" ? element.getAttribute("href") : "";
+  return [tag, role ? `role=${role}` : "", type ? `type=${type}` : "", id ? `#${id}` : "", href ? `href=${href}` : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function inputDetail(element: Element) {
+  const tag = element.tagName.toLowerCase();
+  const input = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+  const type = (input as HTMLInputElement).type?.toLowerCase?.() ?? "";
+
+  if (tag === "select") {
+    const select = element as HTMLSelectElement;
+    const selected = select.selectedOptions?.[0]?.textContent || select.value;
+    return `selected=${shortText(selected, 80)}`;
+  }
+
+  if (tag === "input" && ["checkbox", "radio"].includes(type)) {
+    return `checked=${(input as HTMLInputElement).checked ? "true" : "false"}`;
+  }
+
+  if (tag === "input" && type === "range") {
+    return `value=${shortText((input as HTMLInputElement).value, 40)}`;
+  }
+
+  return "value changed";
+}
+
+function liveDraftLabel(state: LiveDraftState, savedAt: string | null) {
+  if (state === "waiting") return "queued";
+  if (state === "sending") return "sending";
+  if (state === "sent") return savedAt ? `sent ${formatWhen(savedAt)}` : "sent";
+  if (state === "error") return "needs retry";
+  return "ready";
+}
+
 export function ReviewLayer() {
   const location = useLocation();
+  const layerRef = useRef<HTMLDivElement | null>(null);
+  const lastRouteRef = useRef("");
+  const lastLiveDraftRef = useRef("");
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ReviewView>("page");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
+  const [actions, setActions] = useState<ReviewAction[]>(() => loadActions());
   const [drafts, setDrafts] = useState<ReviewDrafts>(() => loadDrafts());
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [bridgeMessages, setBridgeMessages] = useState<ReviewBridgeMessage[]>([]);
+  const [lastBridgeError, setLastBridgeError] = useState<string | null>(null);
+  const [liveDraftState, setLiveDraftState] = useState<LiveDraftState>("idle");
+  const [liveDraftAt, setLiveDraftAt] = useState<string | null>(null);
 
   const pageLabel = pageLabelFor(location.pathname);
   const path = reviewPathFor(location);
@@ -71,12 +165,17 @@ export function ReviewLayer() {
   }, [notes]);
 
   useEffect(() => {
+    saveActions(actions);
+  }, [actions]);
+
+  useEffect(() => {
     saveDrafts(drafts);
   }, [drafts]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key === REVIEW_NOTES_KEY) setNotes(loadNotes());
+      if (event.key === REVIEW_ACTIONS_KEY) setActions(loadActions());
       if (event.key === REVIEW_DRAFTS_KEY) setDrafts(loadDrafts());
     };
     window.addEventListener("storage", handleStorage);
@@ -96,6 +195,12 @@ export function ReviewLayer() {
   const sendingCount = openNotes.filter((note) => note.syncState === "sending").length;
   const errorCount = openNotes.filter((note) => note.syncState === "error").length;
   const openCount = openNotes.length;
+  const pendingActions = actions.filter((action) => !action.syncedAt && action.syncState !== "sending");
+  const sendingActionCount = actions.filter((action) => action.syncState === "sending").length;
+  const reviewContextAction = actions.find((action) => ["click", "submit", "shortcut", "device"].includes(action.kind))
+    ?? actions.find((action) => !["note", "chat", "input"].includes(action.kind))
+    ?? null;
+  const latestBridgeMessage = bridgeMessages[0] ?? null;
 
   const updateDraft = (patch: Partial<ReviewDraft>) => {
     const updatedAt = new Date().toISOString();
@@ -123,6 +228,68 @@ export function ReviewLayer() {
       note.id === id ? { ...note, ...patch, updatedAt: new Date().toISOString() } : note
     )));
   }, []);
+
+  const patchAction = useCallback((id: string, patch: Partial<ReviewAction>) => {
+    setActions((existing) => existing.map((action) => (
+      action.id === id ? { ...action, ...patch } : action
+    )));
+  }, []);
+
+  const submitAction = useCallback(async (action: ReviewAction) => {
+    if (!endpointConfigured) return false;
+
+    patchAction(action.id, {
+      syncState: "sending",
+      lastError: undefined,
+    });
+    setLastSyncError(null);
+
+    try {
+      const sent = await postReviewAction(reviewEndpoint, sessionId, action);
+      if (sent) {
+        patchAction(action.id, {
+          syncedAt: new Date().toISOString(),
+          syncState: "sent",
+          lastError: undefined,
+        });
+      }
+      return sent;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Review action submit failed";
+      patchAction(action.id, {
+        syncState: "error",
+        lastError: message,
+      });
+      setLastSyncError(message);
+      return false;
+    }
+  }, [endpointConfigured, patchAction, reviewEndpoint, sessionId]);
+
+  const recordAction = useCallback((
+    kind: ReviewActionKind,
+    label: string,
+    detail?: string,
+    target?: string,
+    pathOverride?: string,
+  ) => {
+    const actionPath = pathOverride ?? path;
+    const action: ReviewAction = {
+      id: makeActionId(),
+      kind,
+      path: actionPath,
+      pageLabel: pageLabelFor(actionPath.split("?")[0].split("#")[0] || actionPath),
+      label: shortText(label, 220),
+      target: target ? shortText(target, 260) : undefined,
+      detail: detail ? shortText(detail, 1000) : undefined,
+      createdAt: new Date().toISOString(),
+      syncState: "local",
+      viewport: currentViewport(),
+    };
+
+    setActions((existing) => [action, ...existing].slice(0, 300));
+    void submitAction(action);
+    return action;
+  }, [path, submitAction]);
 
   const submitNote = useCallback(async (note: ReviewNote) => {
     if (!endpointConfigured || note.status === "resolved") return false;
@@ -157,6 +324,22 @@ export function ReviewLayer() {
     }
   }, [endpointConfigured, patchNote, reviewEndpoint, sessionId]);
 
+  const refreshBridgeMessages = useCallback(async () => {
+    if (!endpointConfigured) {
+      setBridgeMessages([]);
+      setLastBridgeError(null);
+      return;
+    }
+
+    try {
+      const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
+      setBridgeMessages(messages);
+      setLastBridgeError(null);
+    } catch (error) {
+      setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+    }
+  }, [endpointConfigured, reviewEndpoint, sessionId]);
+
   const addNote = () => {
     const text = currentDraft.text.trim();
     if (!text) return;
@@ -190,8 +373,8 @@ export function ReviewLayer() {
       toast("Live endpoint not connected", { description: "Notes are saved locally and can be exported." });
       return;
     }
-    if (pendingNotes.length === 0) {
-      toast.success("All review notes are already live");
+    if (pendingNotes.length + pendingActions.length === 0) {
+      toast.success("All review notes and actions are already live");
       return;
     }
 
@@ -199,8 +382,133 @@ export function ReviewLayer() {
       const sent = await submitNote(note);
       if (!sent) return;
     }
+    for (const action of pendingActions) {
+      const sent = await submitAction(action);
+      if (!sent) return;
+    }
     toast.success("Review notes synced");
   };
+
+  useEffect(() => {
+    void refreshBridgeMessages();
+    const interval = window.setInterval(() => {
+      void refreshBridgeMessages();
+    }, 3500);
+    return () => window.clearInterval(interval);
+  }, [refreshBridgeMessages]);
+
+  useEffect(() => {
+    if (hiddenForReviewWorkspace) return;
+    if (lastRouteRef.current === path) return;
+    lastRouteRef.current = path;
+    recordAction("route", "Viewing page", undefined, "browser-route", path);
+  }, [hiddenForReviewWorkspace, path, recordAction]);
+
+  useEffect(() => {
+    if (hiddenForReviewWorkspace) return undefined;
+
+    const shouldIgnore = (target: EventTarget | null) => {
+      const element = target as Element | null;
+      return Boolean(element && layerRef.current?.contains(element));
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      if (shouldIgnore(event.target)) return;
+      const element = closestTrackable(event.target);
+      if (!element) return;
+      recordAction("click", elementLabel(element), undefined, elementTarget(element));
+    };
+
+    const handleChange = (event: Event) => {
+      if (shouldIgnore(event.target)) return;
+      const element = closestTrackable(event.target);
+      if (!element) return;
+      const tag = element.tagName.toLowerCase();
+      if (!["input", "select", "textarea"].includes(tag)) return;
+      recordAction("input", elementLabel(element), inputDetail(element), elementTarget(element));
+    };
+
+    const handleSubmit = (event: SubmitEvent) => {
+      if (shouldIgnore(event.target)) return;
+      const element = closestTrackable(event.target);
+      if (!element) return;
+      recordAction("submit", elementLabel(element), undefined, elementTarget(element));
+    };
+
+    document.addEventListener("click", handleClick, true);
+    document.addEventListener("change", handleChange, true);
+    document.addEventListener("submit", handleSubmit, true);
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+      document.removeEventListener("change", handleChange, true);
+      document.removeEventListener("submit", handleSubmit, true);
+    };
+  }, [hiddenForReviewWorkspace, recordAction]);
+
+  useEffect(() => {
+    const text = currentDraft.text.trim();
+    if (!text) {
+      setLiveDraftState("idle");
+      return undefined;
+    }
+
+    if (!endpointConfigured) {
+      setLiveDraftState("waiting");
+      return undefined;
+    }
+
+    setLiveDraftState("waiting");
+    const timer = window.setTimeout(() => {
+      const key = [
+        sessionId,
+        path,
+        currentDraft.kind,
+        currentDraft.priority,
+        text,
+      ].join("\u001f");
+
+      if (lastLiveDraftRef.current === key) {
+        setLiveDraftState("sent");
+        return;
+      }
+
+      lastLiveDraftRef.current = key;
+      const action: ReviewAction = {
+        id: makeActionId(),
+        kind: "input",
+        path,
+        pageLabel,
+        label: "Live note draft",
+        target: "review-layer-note-text",
+        detail: text.slice(0, 4000),
+        createdAt: new Date().toISOString(),
+        syncState: "local",
+        viewport: currentViewport(),
+      };
+
+      setActions((existing) => [action, ...existing].slice(0, 300));
+      setLiveDraftState("sending");
+      void submitAction(action).then((sent) => {
+        if (sent) {
+          setLiveDraftAt(new Date().toISOString());
+          setLiveDraftState("sent");
+        } else {
+          setLiveDraftState("error");
+        }
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    currentDraft.kind,
+    currentDraft.priority,
+    currentDraft.text,
+    endpointConfigured,
+    pageLabel,
+    path,
+    sessionId,
+    submitAction,
+  ]);
 
   const resolveNote = (id: string) => {
     patchNote(id, { status: "resolved" });
@@ -227,7 +535,7 @@ export function ReviewLayer() {
   if (hiddenForReviewWorkspace) return null;
 
   return (
-    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-2 z-50 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 md:bottom-5 md:right-5">
+    <div ref={layerRef} className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-2 z-50 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 md:bottom-5 md:right-5">
       {open && (
         <div className="flex max-h-[min(82vh,720px)] w-[min(96vw,480px)] flex-col overflow-hidden rounded-lg border bg-card shadow-xl">
           <div className="border-b p-3">
@@ -238,7 +546,7 @@ export function ReviewLayer() {
                   Review layer
                   <Badge variant="outline" className={cn("gap-1", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground")}>
                     {endpointConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-                    {endpointConfigured ? "Live sync" : "Local capture"}
+                    {endpointConfigured ? "Codex live" : "Codex cannot see this"}
                   </Badge>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">{pageLabel}</div>
@@ -266,6 +574,45 @@ export function ReviewLayer() {
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto p-3">
+            <div className={cn(
+              "rounded-md border p-2 text-xs",
+              endpointConfigured
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-amber-300 bg-amber-50 text-amber-950",
+            )}>
+              <div className="flex items-start gap-2">
+                {endpointConfigured ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /> : <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" />}
+                <div>
+                  <div className="font-semibold">
+                    {endpointConfigured ? "I can see this review session live." : "I cannot see notes from this phone yet."}
+                  </div>
+                  <div className="mt-0.5">
+                    {endpointConfigured
+                      ? "Routes, clicks, typed review drafts, and captured notes are syncing to the review inbox."
+                      : "This is local-only mode. Notes stay in this browser until copied or opened with a live review link."}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-muted/40 p-2 text-xs">
+              <div className="flex items-start gap-2">
+                <MousePointerClick className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <div className="font-semibold">Reviewing now</div>
+                  <div className="mt-1 break-words text-sm text-foreground">
+                    {reviewContextAction ? reviewContextAction.label : pageLabel}
+                  </div>
+                  <div className="mt-0.5 break-all text-[11px] text-muted-foreground">
+                    {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
+                  </div>
+                  {reviewContextAction?.target ? (
+                    <div className="mt-0.5 break-all text-[10px] text-muted-foreground">{reviewContextAction.target}</div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <div className="flex gap-1 overflow-x-auto pb-1">
                 {REVIEW_KINDS.map((kind) => (
@@ -299,8 +646,13 @@ export function ReviewLayer() {
                     </button>
                   ))}
                 </div>
-                <div className="text-[11px] text-muted-foreground" aria-live="polite">
-                  {currentDraft.text ? `Draft saved ${formatWhen(currentDraft.updatedAt)}` : "Ready"}
+                <div className={cn(
+                  "text-[11px]",
+                  liveDraftState === "error" ? "text-destructive" : liveDraftState === "sent" ? "text-emerald-700" : "text-muted-foreground",
+                )} aria-live="polite">
+                  {currentDraft.text
+                    ? `Draft saved ${formatWhen(currentDraft.updatedAt)} - live ${liveDraftLabel(liveDraftState, liveDraftAt)}`
+                    : "Ready"}
                 </div>
               </div>
 
@@ -326,9 +678,9 @@ export function ReviewLayer() {
                 <ClipboardCopy className="mr-1 h-4 w-4" /> Copy
               </Button>
             </div>
-            <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={sendingCount > 0}>
-              {sendingCount > 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-              {endpointConfigured ? "Sync saved notes" : "Export mode active"}
+            <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={sendingCount + sendingActionCount > 0}>
+              {sendingCount + sendingActionCount > 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+              {endpointConfigured ? "Sync notes and actions" : "Local only - copy notes"}
             </Button>
 
             <div className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
@@ -339,6 +691,24 @@ export function ReviewLayer() {
                     ? `Live endpoint connected to review inbox #${REVIEW_INBOX_ISSUE}. Session: ${sessionId}`
                     : "No live endpoint is connected. Notes autosave locally and can be copied for fallback review."}
                   {lastSyncError ? <div className="mt-1 text-destructive">{lastSyncError}</div> : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-background p-2 text-xs">
+              <div className="flex items-start gap-2">
+                <Bot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <div className="font-semibold">Codex response</div>
+                  <div className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {latestBridgeMessage?.text ?? (endpointConfigured ? "Listening for my reply in this session." : "Open with a live review endpoint to receive replies here.")}
+                  </div>
+                  {latestBridgeMessage ? (
+                    <div className="mt-1 break-all text-[10px] text-muted-foreground">
+                      {latestBridgeMessage.pageLabel || latestBridgeMessage.author} - {latestBridgeMessage.routePath || "broadcast"} - {formatWhen(latestBridgeMessage.createdAt)}
+                    </div>
+                  ) : null}
+                  {lastBridgeError ? <div className="mt-1 text-[11px] text-destructive">{lastBridgeError}</div> : null}
                 </div>
               </div>
             </div>
@@ -404,7 +774,7 @@ export function ReviewLayer() {
             </div>
 
             <div className="flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
-              <span>{openCount} open - {pendingNotes.length} pending - {errorCount} errors</span>
+              <span>{openCount} open - {pendingNotes.length + pendingActions.length} pending - {errorCount} errors</span>
               <button className="inline-flex items-center gap-1 underline underline-offset-2" onClick={clearResolved}>
                 <Trash2 className="h-3 w-3" /> Clear resolved
               </button>

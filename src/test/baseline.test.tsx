@@ -300,6 +300,49 @@ describe("migration baseline", () => {
     }));
   });
 
+  it("streams floating review-layer drafts and tracked actions to the live endpoint", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    expect(await screen.findByText("I can see this review session live.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "Testing" },
+    });
+
+    await waitFor(() => {
+      const actions = JSON.parse(window.localStorage.getItem("field-copilot-review-actions-v1") ?? "[]") as Array<{
+        detail?: string;
+        label?: string;
+        syncState?: string;
+      }>;
+
+      expect(actions.some((action) => (
+        action.label === "Live note draft"
+        && action.detail === "Testing"
+        && action.syncState === "sent"
+      ))).toBe(true);
+    }, { timeout: 2500 });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/review-note", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining("\"label\":\"Live note draft\""),
+    }));
+  });
+
   it("renders the centered review workspace and captures notes for the framed app route", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
