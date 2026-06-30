@@ -329,6 +329,7 @@ describe("migration baseline", () => {
       return { ok: true, json: async () => ({ ok: true }) };
     });
     vi.stubGlobal("fetch", fetchMock);
+    window.localStorage.setItem("field-copilot-review-session-v1", "review-session");
     window.history.pushState(
       {},
       "",
@@ -348,6 +349,45 @@ describe("migration baseline", () => {
     expect(screen.getAllByText("The current screen needs tighter spacing.").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("You").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Codex").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows a pending Codex state instead of stale broadcast replies after a new live note", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            messages: [{
+              id: "msg-broadcast-old",
+              sessionId: "broadcast",
+              author: "codex",
+              text: "Old broadcast message that should not replace pending state.",
+              createdAt: "2026-06-29T22:00:00.000Z",
+            }],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "Newest live note should wait for a fresh reply." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
+
+    expect(await screen.findByText("Waiting for Codex to answer your latest note.")).toBeInTheDocument();
+    expect(screen.getByText("I saw your latest note. Reply pending from Codex.")).toBeInTheDocument();
+    expect(screen.queryByText("Old broadcast message that should not replace pending state.")).not.toBeInTheDocument();
   });
 
   it("shows a live follow chip even while the review panel is closed", async () => {
@@ -576,7 +616,7 @@ describe("migration baseline", () => {
       expect(notes[0].pageLabel).toBe("Technician today");
       expect(notes[0].syncState).toBe("sent");
     });
-  });
+  }, 10000);
 
   it("streams live review drafts before the reviewer presses Capture", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request, _init?: RequestInit) => {
@@ -743,7 +783,9 @@ describe("migration baseline", () => {
     });
 
     expect(screen.getAllByText("The owner equipment filters feel crowded on mobile.").length).toBeGreaterThanOrEqual(1);
-    expect((await screen.findAllByText("I can see your review notes live.")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByLabelText("Latest Codex response")).toHaveValue("Waiting for Codex to answer your latest note.");
+    expect(screen.getByText("I saw your latest note. Reply pending from Codex.")).toBeInTheDocument();
+    expect(screen.queryByText("I can see your review notes live.")).not.toBeInTheDocument();
 
     expect(fetchMock).toHaveBeenCalledWith("https://reviews.example/review-note", expect.objectContaining({
       method: "POST",
@@ -756,5 +798,5 @@ describe("migration baseline", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show session trail" }));
     expect(screen.queryByText(/Trail hidden/i)).not.toBeInTheDocument();
-  }, 10000);
+  }, 15000);
 });

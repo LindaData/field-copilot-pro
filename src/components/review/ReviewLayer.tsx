@@ -142,6 +142,10 @@ function isLiveDraftAction(action: ReviewAction) {
   return action.kind === "input" && action.label === "Live note draft";
 }
 
+function isConversationAction(action: ReviewAction) {
+  return action.kind === "chat" || action.kind === "note" || isLiveDraftAction(action);
+}
+
 function describeAction(action: ReviewAction | null) {
   if (!action) return "Waiting for your next interaction.";
 
@@ -181,6 +185,7 @@ function conversationBadge(entry: ReviewConversationEntry) {
 export function ReviewLayer() {
   const location = useLocation();
   const layerRef = useRef<HTMLDivElement | null>(null);
+  const conversationRef = useRef<HTMLDivElement | null>(null);
   const lastRouteRef = useRef("");
   const lastLiveDraftRef = useRef("");
   const passiveActionRef = useRef<Record<string, number>>({});
@@ -271,11 +276,22 @@ export function ReviewLayer() {
     () => sessionActions.filter((action) => !isLiveDraftAction(action)).slice(0, 4),
     [sessionActions],
   );
-  const conversationEntries = useMemo(
-    () => reviewConversationEntries(sessionId, sessionNotes, sessionActions, bridgeMessages),
-    [bridgeMessages, sessionActions, sessionId, sessionNotes],
+  const sessionBridgeMessages = useMemo(
+    () => bridgeMessages.filter((message) => message.sessionId === sessionId),
+    [bridgeMessages, sessionId],
   );
-  const visibleConversationEntries = conversationEntries.slice(-6);
+  const hasSessionConversationActivity = sessionNotes.length > 0 || sessionActions.some(isConversationAction);
+  const visibleBridgeMessages = useMemo(() => (
+    sessionBridgeMessages.length > 0
+      ? sessionBridgeMessages
+      : hasSessionConversationActivity
+        ? []
+        : bridgeMessages.filter((message) => message.sessionId === "broadcast")
+  ), [bridgeMessages, hasSessionConversationActivity, sessionBridgeMessages]);
+  const conversationEntries = useMemo(
+    () => reviewConversationEntries(sessionId, sessionNotes, sessionActions, visibleBridgeMessages),
+    [sessionActions, sessionId, sessionNotes, visibleBridgeMessages],
+  );
   const lastTrackedAction = recentTrackedActions[0] ?? null;
   const pageCountInSession = useMemo(
     () => new Set(sessionActions.map((action) => action.path)).size,
@@ -284,11 +300,30 @@ export function ReviewLayer() {
   const reviewContextAction = currentPathActions.find((action) => ["click", "submit", "shortcut", "device", "focus", "scroll"].includes(action.kind))
     ?? currentPathActions.find((action) => action.kind === "route")
     ?? null;
-  const latestBridgeMessage = bridgeMessages[0] ?? null;
+  const latestBridgeMessage = visibleBridgeMessages[0] ?? null;
   const reviewContextTitle = reviewContextAction?.kind === "route"
     ? pageLabel
     : reviewContextAction?.label ?? pageLabel;
   const followChipText = lastTrackedAction ? describeAction(lastTrackedAction) : `Following ${pageLabel}`;
+  const latestConversationEntry = conversationEntries[conversationEntries.length - 1] ?? null;
+  const awaitingCodexReply = endpointConfigured && latestConversationEntry?.author === "reviewer";
+  const visibleConversationEntries = useMemo(() => {
+    const recent = conversationEntries.slice(-6);
+    if (!awaitingCodexReply || !latestConversationEntry) return recent;
+
+    return [
+      ...recent,
+      {
+        id: `pending-${latestConversationEntry.id}`,
+        author: "codex" as const,
+        channel: "reply" as const,
+        text: "I saw your latest note. Reply pending from Codex.",
+        createdAt: latestConversationEntry.createdAt,
+        pageLabel: latestConversationEntry.pageLabel,
+        path: latestConversationEntry.path,
+      },
+    ];
+  }, [awaitingCodexReply, conversationEntries, latestConversationEntry]);
 
   let handoffTone: "received" | "draft" | "pending" | "local";
   let handoffTitle: string;
@@ -533,6 +568,13 @@ export function ReviewLayer() {
     }, 3500);
     return () => window.clearInterval(interval);
   }, [refreshBridgeMessages]);
+
+  useEffect(() => {
+    if (!open) return;
+    const node = conversationRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [open, visibleConversationEntries.length]);
 
   useEffect(() => {
     if (hiddenForReviewWorkspace) return;
@@ -943,9 +985,10 @@ export function ReviewLayer() {
                   </div>
 
                   {visibleConversationEntries.length > 0 ? (
-                    <div className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+                    <div ref={conversationRef} className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
                       {visibleConversationEntries.map((entry) => {
                         const isReviewer = entry.author === "reviewer";
+                        const isPendingReply = entry.id.startsWith("pending-");
 
                         return (
                           <div key={entry.id} className={cn("flex", isReviewer ? "justify-end" : "justify-start")}>
@@ -954,6 +997,8 @@ export function ReviewLayer() {
                                 "max-w-[88%] rounded-2xl border px-3 py-2 shadow-sm",
                                 isReviewer
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                                  : isPendingReply
+                                    ? "border-sky-200 border-dashed bg-sky-50 text-sky-950"
                                   : "border-sky-200 bg-sky-50 text-sky-950",
                               )}
                             >
@@ -985,6 +1030,9 @@ export function ReviewLayer() {
                                   {[entry.pageLabel, entry.path].filter(Boolean).join(" - ")}
                                 </div>
                               ) : null}
+                              {isPendingReply ? (
+                                <div className="mt-1 text-[10px] text-muted-foreground">Waiting for the next Codex bridge reply.</div>
+                              ) : null}
                               {entry.lastError ? (
                                 <div className="mt-1 text-[10px] text-destructive">{entry.lastError}</div>
                               ) : null}
@@ -1001,7 +1049,11 @@ export function ReviewLayer() {
                     </div>
                   )}
 
-                  {latestBridgeMessage ? (
+                  {awaitingCodexReply ? (
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      Waiting for Codex to answer your latest note.
+                    </div>
+                  ) : latestBridgeMessage ? (
                     <div className="mt-2 text-[11px] text-muted-foreground">
                       Latest reply: {shortText(latestBridgeMessage.text, 110)}
                     </div>

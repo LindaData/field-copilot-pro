@@ -155,6 +155,12 @@ function actionToSubmission(action: ReviewAction): ReviewerSubmission | null {
   };
 }
 
+function isConversationAction(action: ReviewAction) {
+  return action.kind === "chat"
+    || action.kind === "note"
+    || (action.kind === "input" && (action.label === "Live note draft" || action.label === "Live chat draft"));
+}
+
 function submissionSyncLabel(submission: ReviewerSubmission | null, endpointConfigured: boolean) {
   if (!submission) return endpointConfigured ? "ready" : "offline";
   if (submission.syncState === "sending") return "sending live";
@@ -275,6 +281,7 @@ function inputDetail(element: Element) {
 
 export default function ReviewWorkspace() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const conversationRef = useRef<HTMLDivElement | null>(null);
   const frameCleanupRef = useRef<(() => void) | null>(null);
   const framePathRef = useRef("/app/today");
   const lastRouteRef = useRef("/app/today");
@@ -309,7 +316,20 @@ export default function ReviewWorkspace() {
   const currentDraft = drafts[framePath] ?? EMPTY_REVIEW_DRAFT;
   const endpointConfigured = reviewEndpoint.length > 0;
   const notesUrl = endpointNotesUrl(reviewEndpoint);
-  const latestBridgeMessage = bridgeMessages[0] ?? null;
+  const sessionBridgeMessages = useMemo(
+    () => bridgeMessages.filter((message) => message.sessionId === sessionId),
+    [bridgeMessages, sessionId],
+  );
+  const hasSessionConversationActivity = notes.some((note) => note.sessionId === sessionId)
+    || actions.some((action) => action.sessionId === sessionId && isConversationAction(action));
+  const visibleBridgeMessages = useMemo(() => (
+    sessionBridgeMessages.length > 0
+      ? sessionBridgeMessages
+      : hasSessionConversationActivity
+        ? []
+        : bridgeMessages.filter((message) => message.sessionId === "broadcast")
+  ), [bridgeMessages, hasSessionConversationActivity, sessionBridgeMessages]);
+  const latestBridgeMessage = visibleBridgeMessages[0] ?? null;
   const latestReviewerSubmission = useMemo(() => (
     actions
       .map(actionToSubmission)
@@ -317,13 +337,28 @@ export default function ReviewWorkspace() {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
   ), [actions]);
   const conversationEntries = useMemo(
-    () => reviewConversationEntries(sessionId, notes, actions, bridgeMessages),
-    [actions, bridgeMessages, notes, sessionId],
+    () => reviewConversationEntries(sessionId, notes, actions, visibleBridgeMessages),
+    [actions, notes, sessionId, visibleBridgeMessages],
   );
-  const visibleConversationEntries = useMemo(
-    () => conversationEntries.slice(-10),
-    [conversationEntries],
-  );
+  const latestConversationEntry = conversationEntries[conversationEntries.length - 1] ?? null;
+  const awaitingCodexReply = endpointConfigured && latestConversationEntry?.author === "reviewer";
+  const visibleConversationEntries = useMemo(() => {
+    const recent = conversationEntries.slice(-10);
+    if (!awaitingCodexReply || !latestConversationEntry) return recent;
+
+    return [
+      ...recent,
+      {
+        id: `pending-${latestConversationEntry.id}`,
+        author: "codex" as const,
+        channel: "reply" as const,
+        text: "I saw your latest note. Reply pending from Codex.",
+        createdAt: latestConversationEntry.createdAt,
+        pageLabel: latestConversationEntry.pageLabel,
+        path: latestConversationEntry.path,
+      },
+    ];
+  }, [awaitingCodexReply, conversationEntries, latestConversationEntry]);
 
   useEffect(() => {
     framePathRef.current = framePath;
@@ -383,6 +418,12 @@ export default function ReviewWorkspace() {
       window.clearInterval(interval);
     };
   }, [refreshBridgeMessages]);
+
+  useEffect(() => {
+    const node = conversationRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [visibleConversationEntries.length]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -935,11 +976,15 @@ export default function ReviewWorkspace() {
                 id="latest-codex-response"
                 aria-label="Latest Codex response"
                 readOnly
-                value={latestBridgeMessage?.text ?? ""}
+                value={awaitingCodexReply ? "Waiting for Codex to answer your latest note." : latestBridgeMessage?.text ?? ""}
                 placeholder={endpointConfigured ? "Codex responses will appear here." : "Connect the review endpoint to receive replies here."}
                 className="mt-1 min-h-[86px] w-full resize-none rounded-md border border-cyan-300/20 bg-slate-950 px-2 py-2 text-xs leading-relaxed text-slate-100 outline-none placeholder:text-slate-500"
               />
-              {latestBridgeMessage ? (
+              {awaitingCodexReply ? (
+                <div className="mt-1 break-all text-[10px] text-cyan-100/80">
+                  Pending reply for your latest session message.
+                </div>
+              ) : latestBridgeMessage ? (
                 <div className="mt-1 break-all text-[10px] text-cyan-100/80">
                   {latestBridgeMessage.pageLabel || "Codex"}{latestBridgeMessage.routePath ? ` - ${latestBridgeMessage.routePath}` : ""} - {formatWhen(latestBridgeMessage.createdAt)}
                 </div>
@@ -979,9 +1024,10 @@ export default function ReviewWorkspace() {
                 What you said, what Codex said back, and the order it happened.
               </div>
               {visibleConversationEntries.length > 0 ? (
-                <div className="mt-2 max-h-[320px] space-y-2 overflow-y-auto pr-1">
+                <div ref={conversationRef} className="mt-2 max-h-[320px] space-y-2 overflow-y-auto pr-1">
                   {visibleConversationEntries.map((entry) => {
                     const isReviewer = entry.author === "reviewer";
+                    const isPendingReply = entry.id.startsWith("pending-");
 
                     return (
                       <div key={entry.id} className={cn("flex", isReviewer ? "justify-end" : "justify-start")}>
@@ -990,6 +1036,8 @@ export default function ReviewWorkspace() {
                             "max-w-[92%] rounded-2xl border px-3 py-2 text-xs shadow-sm",
                             isReviewer
                               ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-50"
+                              : isPendingReply
+                                ? "border-cyan-300/20 border-dashed bg-cyan-300/10 text-slate-100"
                               : "border-cyan-300/20 bg-cyan-300/10 text-slate-100",
                           )}
                         >
@@ -1032,6 +1080,9 @@ export default function ReviewWorkspace() {
                             <div className="mt-1 break-all text-[10px] text-slate-400">
                               {[entry.pageLabel, entry.path].filter(Boolean).join(" - ")}
                             </div>
+                          ) : null}
+                          {isPendingReply ? (
+                            <div className="mt-1 text-[10px] text-slate-400">Waiting for the next Codex bridge reply.</div>
                           ) : null}
                         </div>
                       </div>
