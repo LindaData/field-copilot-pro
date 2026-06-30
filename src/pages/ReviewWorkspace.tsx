@@ -232,6 +232,8 @@ export default function ReviewWorkspace() {
   const lastRouteRef = useRef("/app/today");
   const lastLiveNoteDraftRef = useRef("");
   const lastLiveChatDraftRef = useRef("");
+  const isMountedRef = useRef(true);
+  const bridgeRequestIdRef = useRef(0);
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("phone");
   const [targetPath, setTargetPath] = useState("/app/today");
   const [framePath, setFramePath] = useState("/app/today");
@@ -285,7 +287,13 @@ export default function ReviewWorkspace() {
     saveDrafts(drafts);
   }, [drafts]);
 
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
+
   const refreshBridgeMessages = useCallback(async (showBusy = false) => {
+    const requestId = ++bridgeRequestIdRef.current;
+
     if (!endpointConfigured) {
       setBridgeMessages([]);
       setLastBridgeError(null);
@@ -295,12 +303,16 @@ export default function ReviewWorkspace() {
     if (showBusy) setIsRefreshingBridge(true);
     try {
       const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
-      setBridgeMessages(messages);
-      setLastBridgeError(null);
+      if (isMountedRef.current && requestId === bridgeRequestIdRef.current) {
+        setBridgeMessages(messages);
+        setLastBridgeError(null);
+      }
     } catch (error) {
-      setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+      if (isMountedRef.current && requestId === bridgeRequestIdRef.current) {
+        setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+      }
     } finally {
-      if (showBusy) setIsRefreshingBridge(false);
+      if (showBusy && isMountedRef.current) setIsRefreshingBridge(false);
     }
   }, [endpointConfigured, reviewEndpoint, sessionId]);
 
