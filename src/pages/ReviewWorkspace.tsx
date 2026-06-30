@@ -69,6 +69,9 @@ type ReviewerSubmission = {
   path: string;
   target?: string;
   createdAt: string;
+  syncedAt?: string;
+  syncState?: ReviewAction["syncState"];
+  lastError?: string;
 };
 
 const DEVICE_MODES: Array<{ value: DeviceMode; label: string; icon: typeof Smartphone; width: number; height: number }> = [
@@ -144,10 +147,29 @@ function actionToSubmission(action: ReviewAction): ReviewerSubmission | null {
     path: action.path,
     target: action.target,
     createdAt: action.createdAt,
+    syncedAt: action.syncedAt,
+    syncState: action.syncState,
+    lastError: action.lastError,
   };
 }
 
-function latestExchangeText(submission: ReviewerSubmission | null, message: ReviewBridgeMessage | null) {
+function submissionSyncLabel(submission: ReviewerSubmission | null, endpointConfigured: boolean) {
+  if (!submission) return endpointConfigured ? "ready" : "offline";
+  if (submission.syncState === "sending") return "sending live";
+  if (submission.syncState === "error") return "needs retry";
+  if (submission.syncedAt || submission.syncState === "sent") return "sent live";
+  return endpointConfigured ? "queued" : "local only";
+}
+
+function submissionSyncClass(submission: ReviewerSubmission | null, endpointConfigured: boolean) {
+  if (!submission) return endpointConfigured ? "text-slate-300" : "text-amber-100";
+  if (submission.syncState === "sending") return "border-blue-300/30 bg-blue-300/10 text-blue-100";
+  if (submission.syncState === "error") return "border-red-300/30 bg-red-300/10 text-red-100";
+  if (submission.syncedAt || submission.syncState === "sent") return "border-emerald-300/30 bg-emerald-300/10 text-emerald-100";
+  return endpointConfigured ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "text-slate-300";
+}
+
+function latestExchangeText(submission: ReviewerSubmission | null, message: ReviewBridgeMessage | null, endpointConfigured: boolean) {
   const lines = [
     "# Field Copilot live review exchange",
     "",
@@ -158,6 +180,9 @@ function latestExchangeText(submission: ReviewerSubmission | null, message: Revi
     submission
       ? `${submission.label} - ${submission.pageLabel} - ${submission.path}${submission.target ? ` - ${submission.target}` : ""}`
       : "(No source yet.)",
+    "",
+    "## Sync status",
+    submissionSyncLabel(submission, endpointConfigured),
     "",
     "## Codex replied",
     message?.text || "(No Codex reply yet.)",
@@ -682,7 +707,7 @@ export default function ReviewWorkspace() {
 
   const copyLatestExchange = async () => {
     try {
-      await navigator.clipboard.writeText(latestExchangeText(latestReviewerSubmission, latestBridgeMessage));
+      await navigator.clipboard.writeText(latestExchangeText(latestReviewerSubmission, latestBridgeMessage, endpointConfigured));
       toast.success("Copied latest exchange");
     } catch {
       toast.error("Could not copy exchange");
@@ -830,14 +855,23 @@ export default function ReviewWorkspace() {
             <div className="mt-3 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-emerald-100">Live notetaker</div>
-                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", latestReviewerSubmission ? "text-emerald-100" : "text-slate-300")}>
+                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass(latestReviewerSubmission, endpointConfigured))}>
                   {latestReviewerSubmission ? "capturing" : endpointConfigured ? "ready" : "offline"}
                 </Badge>
               </div>
 
-              <label htmlFor="latest-reviewer-submission" className="mt-3 block text-[10px] font-semibold uppercase tracking-normal text-emerald-100">
-                You sent
-              </label>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <label htmlFor="latest-reviewer-submission" className="block text-[10px] font-semibold uppercase tracking-normal text-emerald-100">
+                  You sent
+                </label>
+                <Badge
+                  aria-label="Latest submission sync status"
+                  variant="outline"
+                  className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass(latestReviewerSubmission, endpointConfigured))}
+                >
+                  {submissionSyncLabel(latestReviewerSubmission, endpointConfigured)}
+                </Badge>
+              </div>
               <textarea
                 id="latest-reviewer-submission"
                 aria-label="Latest thing you sent"
@@ -850,6 +884,7 @@ export default function ReviewWorkspace() {
                 <div className="mt-1 break-all text-[10px] text-emerald-100/80">
                   {latestReviewerSubmission.label} - {latestReviewerSubmission.pageLabel} - {latestReviewerSubmission.path}
                   {latestReviewerSubmission.target ? ` - ${latestReviewerSubmission.target}` : ""}
+                  {latestReviewerSubmission.lastError ? ` - ${latestReviewerSubmission.lastError}` : ""}
                 </div>
               ) : null}
 

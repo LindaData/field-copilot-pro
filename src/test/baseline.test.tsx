@@ -347,6 +347,7 @@ describe("migration baseline", () => {
       expect(body).toContain("\"target\":\"review-note-text\"");
       expect(body).toContain("\"path\":\"/app/today\"");
       expect(screen.getByLabelText("Latest thing you sent")).toHaveValue(exactPhrase);
+      expect(screen.getByLabelText("Latest submission sync status")).toHaveTextContent("sent live");
     }, { timeout: 2500 });
   });
 
