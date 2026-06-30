@@ -234,6 +234,8 @@ export default function ReviewWorkspace() {
   const lastLiveChatDraftRef = useRef("");
   const isMountedRef = useRef(true);
   const bridgeRequestIdRef = useRef(0);
+  const syncAttemptIdRef = useRef(0);
+  const lastSuccessfulSyncIdRef = useRef(0);
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("phone");
   const [targetPath, setTargetPath] = useState("/app/today");
   const [framePath, setFramePath] = useState("/app/today");
@@ -378,55 +380,76 @@ export default function ReviewWorkspace() {
     )));
   }, []);
 
+  const beginSyncAttempt = useCallback(() => {
+    const attemptId = ++syncAttemptIdRef.current;
+    setLastSyncError(null);
+    return attemptId;
+  }, []);
+
+  const markSyncSuccess = useCallback((attemptId: number) => {
+    lastSuccessfulSyncIdRef.current = Math.max(lastSuccessfulSyncIdRef.current, attemptId);
+    setLastSyncError(null);
+  }, []);
+
+  const markSyncFailure = useCallback((attemptId: number, message: string) => {
+    const isLatestAttempt = attemptId === syncAttemptIdRef.current;
+    const happenedAfterLastSuccess = attemptId > lastSuccessfulSyncIdRef.current;
+    if (isLatestAttempt && happenedAfterLastSuccess) {
+      setLastSyncError(message);
+    }
+  }, []);
+
   const submitNote = useCallback(async (note: ReviewNote) => {
     if (!endpointConfigured || note.status === "resolved") return false;
 
+    const attemptId = beginSyncAttempt();
     patchNote(note.id, {
       syncState: "sending",
       lastError: undefined,
       attempts: (note.attempts ?? 0) + 1,
     });
-    setLastSyncError(null);
 
     try {
       const sent = await postReviewNote(reviewEndpoint, sessionId, note);
       if (sent) {
         const syncedAt = new Date().toISOString();
         patchNote(note.id, { syncedAt, syncState: "sent", lastError: undefined });
+        markSyncSuccess(attemptId);
       }
       return sent;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Review submit failed";
       patchNote(note.id, { syncState: "error", lastError: message });
-      setLastSyncError(message);
+      markSyncFailure(attemptId, message);
       toast.error("Note saved locally. Live submit failed.");
       return false;
     }
-  }, [endpointConfigured, patchNote, reviewEndpoint, sessionId]);
+  }, [beginSyncAttempt, endpointConfigured, markSyncFailure, markSyncSuccess, patchNote, reviewEndpoint, sessionId]);
 
   const submitAction = useCallback(async (action: ReviewAction) => {
     if (!endpointConfigured) return false;
 
+    const attemptId = beginSyncAttempt();
     patchAction(action.id, {
       syncState: "sending",
       lastError: undefined,
     });
-    setLastSyncError(null);
 
     try {
       const sent = await postReviewAction(reviewEndpoint, sessionId, action);
       if (sent) {
         const syncedAt = new Date().toISOString();
         patchAction(action.id, { syncedAt, syncState: "sent", lastError: undefined });
+        markSyncSuccess(attemptId);
       }
       return sent;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Review action submit failed";
       patchAction(action.id, { syncState: "error", lastError: message });
-      setLastSyncError(message);
+      markSyncFailure(attemptId, message);
       return false;
     }
-  }, [endpointConfigured, patchAction, reviewEndpoint, sessionId]);
+  }, [beginSyncAttempt, endpointConfigured, markSyncFailure, markSyncSuccess, patchAction, reviewEndpoint, sessionId]);
 
   useEffect(() => {
     const text = currentDraft.text;

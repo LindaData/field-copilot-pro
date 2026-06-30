@@ -350,6 +350,67 @@ describe("migration baseline", () => {
     }, { timeout: 2500 });
   });
 
+  it("does not show stale sync errors after a newer live draft sync succeeds", async () => {
+    let draftAttempts = 0;
+    let resolveFirstDraft: ((value: { ok: boolean; status?: number; json: () => Promise<{ ok: boolean }> }) => void) | undefined;
+
+    const fetchMock = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes("/review-messages")) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, messages: [] }) });
+      }
+
+      const body = String(init?.body ?? "");
+      if (body.includes("\"label\":\"Live note draft\"")) {
+        draftAttempts += 1;
+        if (draftAttempts === 1) {
+          return new Promise((resolve) => {
+            resolveFirstDraft = resolve;
+          });
+        }
+      }
+
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/review?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Review workspace")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Your note"), {
+      target: { value: "First delayed draft will fail after the next draft." },
+    });
+
+    await waitFor(() => expect(draftAttempts).toBe(1), { timeout: 2500 });
+
+    fireEvent.change(screen.getByLabelText("Your note"), {
+      target: { value: "Second draft syncs cleanly and should stay trusted." },
+    });
+
+    await waitFor(() => {
+      expect(draftAttempts).toBe(2);
+      expect(screen.getByLabelText("Latest thing you sent")).toHaveValue("Second draft syncs cleanly and should stay trusted.");
+    }, { timeout: 2500 });
+
+    resolveFirstDraft?.({ ok: false, status: 500, json: async () => ({ ok: false }) });
+
+    await waitFor(() => {
+      const actions = JSON.parse(window.localStorage.getItem("field-copilot-review-actions-v1") ?? "[]") as Array<{
+        detail?: string;
+        syncState?: string;
+      }>;
+      expect(actions.some((action) => (
+        action.detail === "First delayed draft will fail after the next draft."
+        && action.syncState === "error"
+      ))).toBe(true);
+    });
+    expect(screen.queryByText("Review action sync failed: 500")).not.toBeInTheDocument();
+  });
+
   it("tracks review workspace route shortcuts and messages to Codex", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
