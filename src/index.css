@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* HVAC Field Copilot - deep blue / white / cool gray / bright sky blue */
+/* HVAC Field Copilot — dark navy / white / cool gray / safety amber */
 @layer base {
   :root {
     --background: 210 25% 98%;
@@ -14,10 +14,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 35% 12%;
 
-    /* Deep blue */
-    --primary: 214 63% 20%;
+    /* Navy */
+    --primary: 215 60% 16%;
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 212 57% 30%;
+    --primary-soft: 215 55% 25%;
 
     /* Cool gray */
     --secondary: 215 20% 94%;
@@ -26,9 +26,9 @@
     --muted: 215 20% 94%;
     --muted-foreground: 215 15% 42%;
 
-    /* Bright sky blue */
-    --accent: 199 89% 56%;
-    --accent-foreground: 214 60% 12%;
+    /* Safety amber */
+    --accent: 38 95% 52%;
+    --accent-foreground: 215 50% 12%;
 
     --destructive: 0 78% 48%;
     --destructive-foreground: 0 0% 100%;
@@ -44,18 +44,18 @@
 
     --border: 215 20% 88%;
     --input: 215 20% 88%;
-    --ring: 214 63% 32%;
+    --ring: 215 60% 30%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 214 63% 20%;
+    --sidebar-background: 215 60% 16%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 199 89% 56%;
-    --sidebar-primary-foreground: 214 60% 12%;
-    --sidebar-accent: 214 49% 24%;
+    --sidebar-primary: 38 95% 52%;
+    --sidebar-primary-foreground: 215 50% 12%;
+    --sidebar-accent: 215 50% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 214 49% 24%;
-    --sidebar-ring: 199 89% 56%;
+    --sidebar-border: 215 50% 22%;
+    --sidebar-ring: 38 95% 52%;
   }
 
   .dark {
@@ -65,19 +65,19 @@
     --card-foreground: 0 0% 98%;
     --popover: 215 35% 12%;
     --popover-foreground: 0 0% 98%;
-    --primary: 199 89% 56%;
-    --primary-foreground: 214 60% 12%;
+    --primary: 38 95% 52%;
+    --primary-foreground: 215 50% 12%;
     --secondary: 215 30% 18%;
     --secondary-foreground: 0 0% 98%;
     --muted: 215 30% 18%;
     --muted-foreground: 215 15% 65%;
-    --accent: 199 89% 56%;
-    --accent-foreground: 214 60% 12%;
+    --accent: 38 95% 52%;
+    --accent-foreground: 215 50% 12%;
     --destructive: 0 78% 55%;
     --destructive-foreground: 0 0% 100%;
     --border: 215 30% 22%;
     --input: 215 30% 22%;
-    --ring: 199 89% 56%;
+    --ring: 38 95% 52%;
   }
 }
 
@@ -89,7 +89,6 @@
     -webkit-tap-highlight-color: transparent;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
-
   /* Outdoor-readable */
   h1, h2, h3 { @apply tracking-tight; letter-spacing: -0.01em; }
 }
@@ -98,7 +97,7 @@
   .touch-target { min-height: 48px; min-width: 48px; }
   .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
   .safe-top { padding-top: max(env(safe-area-inset-top), 0.5rem); }
-  .card-elev { @apply rounded-xl border bg-card shadow-sm; }
+  .card-elev { @apply bg-card rounded-xl border shadow-sm; }
   .stat-pill { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium; }
 }
 
