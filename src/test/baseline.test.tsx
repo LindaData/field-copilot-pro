@@ -381,6 +381,8 @@ describe("migration baseline", () => {
     expect(await screen.findByText("Review workspace")).toBeInTheDocument();
     expect((await screen.findAllByText("I can see your review notes live.")).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByLabelText("Latest Codex response")).toHaveValue("I can see your review notes live.");
+    expect(screen.getByRole("button", { name: /Refresh replies/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Copy exchange/i })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Owner equipment" }));
     expect(screen.getByText("Reviewing now")).toBeInTheDocument();

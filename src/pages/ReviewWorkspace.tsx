@@ -147,6 +147,25 @@ function actionToSubmission(action: ReviewAction): ReviewerSubmission | null {
   };
 }
 
+function latestExchangeText(submission: ReviewerSubmission | null, message: ReviewBridgeMessage | null) {
+  const lines = [
+    "# Field Copilot live review exchange",
+    "",
+    "## You sent",
+    submission?.text || "(No reviewer text captured yet.)",
+    "",
+    "## Source",
+    submission
+      ? `${submission.label} - ${submission.pageLabel} - ${submission.path}${submission.target ? ` - ${submission.target}` : ""}`
+      : "(No source yet.)",
+    "",
+    "## Codex replied",
+    message?.text || "(No Codex reply yet.)",
+  ];
+
+  return lines.join("\n");
+}
+
 function closestTrackable(target: EventTarget | null) {
   const element = target as Element | null;
   if (!element || typeof element.closest !== "function") return null;
@@ -223,6 +242,7 @@ export default function ReviewWorkspace() {
   const [isTrailVisible, setIsTrailVisible] = useState(true);
   const [bridgeMessages, setBridgeMessages] = useState<ReviewBridgeMessage[]>([]);
   const [lastBridgeError, setLastBridgeError] = useState<string | null>(null);
+  const [isRefreshingBridge, setIsRefreshingBridge] = useState(false);
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
@@ -265,35 +285,34 @@ export default function ReviewWorkspace() {
     saveDrafts(drafts);
   }, [drafts]);
 
-  useEffect(() => {
+  const refreshBridgeMessages = useCallback(async (showBusy = false) => {
     if (!endpointConfigured) {
       setBridgeMessages([]);
       setLastBridgeError(null);
-      return undefined;
+      return;
     }
 
-    let cancelled = false;
-    const loadMessages = async () => {
-      try {
-        const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
-        if (!cancelled) {
-          setBridgeMessages(messages);
-          setLastBridgeError(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
-        }
-      }
-    };
+    if (showBusy) setIsRefreshingBridge(true);
+    try {
+      const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
+      setBridgeMessages(messages);
+      setLastBridgeError(null);
+    } catch (error) {
+      setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+    } finally {
+      if (showBusy) setIsRefreshingBridge(false);
+    }
+  }, [endpointConfigured, reviewEndpoint, sessionId]);
 
-    void loadMessages();
-    const interval = window.setInterval(loadMessages, 3500);
+  useEffect(() => {
+    void refreshBridgeMessages();
+    const interval = window.setInterval(() => {
+      void refreshBridgeMessages();
+    }, 3500);
     return () => {
-      cancelled = true;
       window.clearInterval(interval);
     };
-  }, [endpointConfigured, reviewEndpoint, sessionId]);
+  }, [refreshBridgeMessages]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -626,6 +645,15 @@ export default function ReviewWorkspace() {
     }
   };
 
+  const copyLatestExchange = async () => {
+    try {
+      await navigator.clipboard.writeText(latestExchangeText(latestReviewerSubmission, latestBridgeMessage));
+      toast.success("Copied latest exchange");
+    } catch {
+      toast.error("Could not copy exchange");
+    }
+  };
+
   const sendChatMessage = () => {
     const text = chatDraft.trim();
     if (!text) return;
@@ -723,8 +751,8 @@ export default function ReviewWorkspace() {
       </header>
 
       <main className="mx-auto grid max-w-[1800px] gap-4 p-4 xl:grid-cols-[320px_minmax(440px,1fr)_380px]">
-        <aside className="space-y-4">
-          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+        <aside className="order-2 flex flex-col gap-4 xl:order-none">
+          <section className="order-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
             <div className="text-sm font-semibold">AI review coach</div>
             <div className="mt-1 text-xs text-slate-400">Use these prompts while moving through the centered app.</div>
             <div className="mt-3 space-y-2">
@@ -736,7 +764,7 @@ export default function ReviewWorkspace() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+          <section className="order-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
             <div className="text-sm font-semibold">Open a screen</div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {REVIEW_ROUTE_SHORTCUTS.map((route) => (
@@ -759,7 +787,7 @@ export default function ReviewWorkspace() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+          <section className="order-1 rounded-lg border border-white/10 bg-white/[0.04] p-3">
             <div className="text-sm font-semibold">Chat bridge</div>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
               Notes, clicks, route moves, and messages save as browser review data. With the local endpoint running, they also save as plain text this chat can read from the laptop.
@@ -806,6 +834,29 @@ export default function ReviewWorkspace() {
                   {latestBridgeMessage.pageLabel || "Codex"}{latestBridgeMessage.routePath ? ` - ${latestBridgeMessage.routePath}` : ""} - {formatWhen(latestBridgeMessage.createdAt)}
                 </div>
               ) : null}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => void refreshBridgeMessages(true)}
+                  disabled={!endpointConfigured || isRefreshingBridge}
+                >
+                  {isRefreshingBridge ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+                  Refresh replies
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={copyLatestExchange}
+                >
+                  <ClipboardCopy className="mr-1 h-3.5 w-3.5" />
+                  Copy exchange
+                </Button>
+              </div>
             </div>
             <div className="mt-3 rounded-md border border-white/10 bg-slate-950 p-2">
               <div className="flex items-center justify-between gap-2">
@@ -857,7 +908,7 @@ export default function ReviewWorkspace() {
           </section>
         </aside>
 
-        <section className="min-w-0 rounded-lg border border-white/10 bg-slate-900/80 p-3">
+        <section className="order-3 min-w-0 rounded-lg border border-white/10 bg-slate-900/80 p-3 xl:order-none">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold">{pageLabel}</div>
@@ -920,8 +971,8 @@ export default function ReviewWorkspace() {
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+        <aside className="order-1 space-y-4 xl:order-none">
+          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3 xl:sticky xl:top-24">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <div className="text-sm font-semibold">Capture UI feedback</div>
