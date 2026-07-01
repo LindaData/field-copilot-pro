@@ -624,6 +624,70 @@ describe("migration baseline", () => {
     expect(screen.queryByText("Old session action")).not.toBeInTheDocument();
   });
 
+  it("keeps scroll-only activity out of the primary review context", async () => {
+    window.localStorage.setItem("field-copilot-review-session-v1", "review-scroll-context");
+    window.localStorage.setItem("field-copilot-review-actions-v1", JSON.stringify([
+      {
+        id: "action-scroll-top",
+        sessionId: "review-scroll-context",
+        kind: "scroll",
+        path: "/",
+        pageLabel: "Main demo landing",
+        label: "Scrolled to top",
+        detail: "0% down the page",
+        createdAt: "2026-06-30T18:00:05.000Z",
+        syncState: "sent",
+      },
+      {
+        id: "action-route-root",
+        sessionId: "review-scroll-context",
+        kind: "route",
+        path: "/",
+        pageLabel: "Main demo landing",
+        label: "Viewing page",
+        createdAt: "2026-06-30T18:00:00.000Z",
+        syncState: "sent",
+      },
+    ]));
+    window.history.pushState({}, "", "/");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Reviewing: Main demo landing")).toBeInTheDocument();
+    expect(screen.queryByText("Reviewing: Scrolled to top")).not.toBeInTheDocument();
+  });
+
+  it("shows friendly live-sync fallback copy instead of raw transport errors", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return { ok: false, status: 503, json: async () => ({ ok: false }) };
+      }
+      return { ok: false, status: 500, json: async () => ({ ok: false }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "Live review should fail gracefully." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
+
+    expect(await screen.findByText("Live sync is unavailable right now.")).toBeInTheDocument();
+    expect(screen.getAllByText("Live sync is temporarily unavailable.").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Codex replies are temporarily unavailable.")).toBeInTheDocument();
+    expect(screen.queryByText("Review sync failed: 500")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review messages failed: 503")).not.toBeInTheDocument();
+  });
+
   it("streams floating review-layer drafts and tracked actions to the live endpoint", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
