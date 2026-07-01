@@ -14,6 +14,7 @@
     "doctor:ios": "cap doctor ios",
     "lint": "eslint .",
     "preview": "vite preview",
+    "postbuild": "node scripts/generate-pages-route-entrypoints.mjs",
     "review:server": "node scripts/review-local-server.mjs",
     "review:reply": "node scripts/review-reply.mjs",
     "test": "vitest run",
