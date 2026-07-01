@@ -767,7 +767,7 @@ describe("migration baseline", () => {
         };
       }
       return { ok: true, json: async () => ({ ok: true }) };
-  }, 25000);
+    });
     vi.stubGlobal("fetch", fetchMock);
     window.history.pushState(
       {},
