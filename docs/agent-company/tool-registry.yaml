@@ -1,0 +1,316 @@
+version: 1
+name: LindaData Agent Company Tool Registry
+purpose: map available tools and skills to the right agents so work is routed deliberately
+
+routing_rule: >-
+  Do not give every agent every tool. The CEO Commander routes work, the Chief of Staff logs state,
+  executives approve tool use, and specialist agents use only the tools needed for their task.
+
+tool_categories:
+  code_and_repo:
+    owner_executive: cto
+    primary_agents:
+      - github_codex_agent
+      - frontend_agent
+      - backend_api_agent
+      - devops_agent
+    available_tools:
+      - name: GitHub connector
+        use_for:
+          - inspect repositories
+          - create branches
+          - create and update files
+          - open pull requests
+          - merge approved docs or safe changes
+          - review PR metadata and diffs
+        guardrails:
+          - use focused branches
+          - inspect files before editing
+          - do not expose secrets
+          - summarize changed files
+      - name: Codex
+        use_for:
+          - larger repo edits
+          - local test execution
+          - repeated patch cycles
+          - implementation work that exceeds chat connector limits
+        guardrails:
+          - start from docs/agent-company/codex-bootstrap.md
+          - produce task packet, implementation notes, QA notes, and CEO summary
+
+  web_research:
+    owner_executive: cdo
+    primary_agents:
+      - data_source_research_agent
+      - ux_research_agent
+      - seo_agent
+    available_tools:
+      - name: Web browser/search
+        use_for:
+          - current facts
+          - source research
+          - documentation discovery
+          - market and competitor review
+          - citation-backed answers
+        guardrails:
+          - cite important claims
+          - prefer primary sources
+          - verify recent facts
+          - mark uncertainty when a source cannot be reached
+      - name: Web image search
+        use_for:
+          - visual references for people, places, products, locations, animals, or UI inspiration
+        guardrails:
+          - use only for reference
+          - do not treat reference images as editable assets
+
+  documents_and_files:
+    owner_executive: coo
+    primary_agents:
+      - chief_of_staff
+      - copy_content_agent
+      - data_source_research_agent
+    available_tools:
+      - name: File Library search
+        use_for:
+          - find prior uploads
+          - answer questions from uploaded files
+          - locate recent project documents
+        guardrails:
+          - cite file lines
+          - use nav lists when finding files
+      - name: PDF, docs, slides, and spreadsheet creation tools
+        use_for:
+          - produce reviewable artifacts
+          - package reports
+          - create analysis files
+          - create executive summaries
+        guardrails:
+          - follow artifact-specific style rules
+          - link final files for review
+
+  transcription_and_media:
+    owner_executive: cpo
+    primary_agents:
+      - review_layer_intake_agent
+      - ux_research_agent
+      - copy_content_agent
+    available_tools:
+      - name: AccurateScribe
+        use_for:
+          - transcribe uploaded audio or video files
+          - generate readable notes from recordings
+          - create subtitles or captions
+        current_limitations:
+          - requires media file upload through its widget
+          - cannot reliably transcribe a YouTube Short from URL alone in this workflow
+        guardrails:
+          - when direct video access fails, be explicit about the limitation
+          - request or use an uploaded media file only when needed
+
+  personal_productivity:
+    owner_executive: coo
+    primary_agents:
+      - chief_of_staff
+      - project_planning_agent
+      - release_manager_agent
+    available_tools:
+      - name: Gmail
+        use_for:
+          - read GitHub notification emails
+          - find deployment or failure notices
+          - draft or send explicit user-approved messages
+        guardrails:
+          - do not send unless user explicitly asks
+          - use card-style summaries for displayed emails
+      - name: Google Calendar
+        use_for:
+          - check schedule constraints
+          - create events when explicitly requested
+          - plan work blocks
+        guardrails:
+          - search availability before scheduling
+          - do not create events without clear user intent
+      - name: Google Contacts
+        use_for:
+          - resolve people or email addresses for user-approved communication
+        guardrails:
+          - read-only contact use
+      - name: Notion
+        use_for:
+          - persistent project notes
+          - task logs
+          - agent-company playbooks
+        guardrails:
+          - use when the user wants durable notes beyond repo docs
+
+  design_and_demo:
+    owner_executive: cgo
+    primary_agents:
+      - ui_design_agent
+      - demo_story_agent
+      - onboarding_agent
+    available_tools:
+      - name: Canva
+        use_for:
+          - visual demos
+          - decks
+          - marketing assets
+          - mobile-friendly presentation material
+        guardrails:
+          - do not copy protected brand identity
+          - keep assets reviewable
+      - name: Image generation
+        use_for:
+          - original diagrams
+          - mockups
+          - concepts
+          - visual explanations
+        guardrails:
+          - ask for a user photo before generating the user
+          - do not use web reference images as edit targets
+
+  automation_and_integrations:
+    owner_executive: cto
+    primary_agents:
+      - backend_api_agent
+      - devops_agent
+      - github_codex_agent
+    available_tools:
+      - name: Replit
+        use_for:
+          - demos
+          - quick app prototypes
+          - preview hosting flows
+        guardrails:
+          - keep source of truth in GitHub when possible
+      - name: Lovable
+        use_for:
+          - rapid app drafts
+          - UI prototype generation
+        guardrails:
+          - migrate durable code into GitHub
+      - name: Airtable
+        use_for:
+          - lightweight operational data
+          - task inventory
+          - structured review feedback
+        guardrails:
+          - define schema before use
+      - name: n8n or workflow automation
+        status: planned_external_tool
+        use_for:
+          - cross-tool automation
+          - GitHub issue creation from feedback
+          - notification routing
+        guardrails:
+          - keep credentials in secret stores
+          - log every automated action
+
+  cloud_and_data_platform:
+    owner_executive: cdo
+    primary_agents:
+      - data_engineering_agent
+      - metadata_agent
+      - devops_agent
+    available_tools:
+      - name: Python execution
+        use_for:
+          - data cleaning
+          - validation scripts
+          - artifact generation
+          - local reasoning checks
+        guardrails:
+          - do not assume internet access inside Python
+      - name: AWS planning and future services
+        status: planned_external_platform
+        use_for:
+          - durable backend
+          - data storage
+          - Bedrock AI layer
+          - app infrastructure
+        guardrails:
+          - secrets never in frontend code
+          - cost-aware architecture
+          - demo versus production clearly labeled
+      - name: Oracle VM / cloud dev environment
+        status: planned_external_platform
+        use_for:
+          - persistent low-cost dev machine
+          - long-running builds
+          - code-server and JupyterLab
+        guardrails:
+          - secure with Tailscale
+          - keep repos under standard LindaData workspace
+
+agent_tool_permissions:
+  ceo_commander:
+    can_use:
+      - GitHub connector
+      - Web browser/search
+      - File Library search
+    can_delegate_all: true
+  chief_of_staff:
+    can_use:
+      - GitHub connector
+      - File Library search
+      - Gmail
+      - Google Calendar
+      - Notion
+  cto:
+    can_use:
+      - GitHub connector
+      - Codex
+      - Web browser/search
+      - Replit
+      - Lovable
+  cpo:
+    can_use:
+      - Web browser/search
+      - AccurateScribe
+      - Canva
+      - File Library search
+  cdo:
+    can_use:
+      - Web browser/search
+      - File Library search
+      - Python execution
+      - GitHub connector
+  coo:
+    can_use:
+      - Gmail
+      - Google Calendar
+      - Notion
+      - GitHub connector
+  csso:
+    can_use:
+      - GitHub connector
+      - Web browser/search
+      - File Library search
+  cqo:
+    can_use:
+      - GitHub connector
+      - Web browser/search
+      - Python execution
+  cgo:
+    can_use:
+      - Canva
+      - Web browser/search
+      - Image generation
+
+missing_or_external_tools_to_prioritize:
+  - name: durable task database
+    candidate: GitHub Issues, Airtable, Notion, or small backend table
+    why_needed: store agent tasks, review-layer feedback, decisions, and status across sessions
+  - name: feedback ingestion endpoint
+    candidate: AWS Lambda/API Gateway, Supabase, Firebase, or repo-specific backend
+    why_needed: persist review-layer notes beyond localStorage
+  - name: CI quality checklist
+    candidate: GitHub Actions
+    why_needed: run lint, test, build, and schema validation automatically
+  - name: schema validator
+    candidate: ajv or python jsonschema
+    why_needed: validate agent message packets against message-contract.schema.json
+  - name: workflow runner
+    candidate: n8n, GitHub Actions, or small Node CLI
+    why_needed: convert approved feedback into issues, branches, and Codex task prompts
