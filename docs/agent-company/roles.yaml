@@ -1,0 +1,209 @@
+version: 1
+company: LindaData Agent Company
+operating_principle: executives decide, specialists execute, QA reviews, CEO Commander reports
+
+leadership:
+  - id: ceo_commander
+    title: CEO Commander Agent
+    reports_to: user
+    owns:
+      - goal intake
+      - priority order
+      - task decomposition
+      - executive routing
+      - final user summary
+    outputs:
+      - task_packet
+      - executive_assignment
+      - user_status_summary
+    escalation_triggers:
+      - unclear business goal
+      - conflict between executives
+      - user approval needed
+      - release or merge decision needed
+
+  - id: chief_of_staff
+    title: Chief of Staff / Project Secretary
+    reports_to: ceo_commander
+    owns:
+      - task ledger
+      - progress ledger
+      - decision log
+      - blocker log
+      - artifact registry
+      - meeting notes
+    outputs:
+      - daily_status_log
+      - task_state_update
+      - decision_record
+      - handoff_packet
+
+executives:
+  - id: cpo
+    title: Chief Product Officer
+    reports_to: ceo_commander
+    owns:
+      - product scope
+      - user journeys
+      - UX acceptance criteria
+      - review-layer feedback interpretation
+    routes_to:
+      - ux_research_agent
+      - ui_design_agent
+      - copy_content_agent
+      - review_layer_intake_agent
+
+  - id: cto
+    title: Chief Technology Officer
+    reports_to: ceo_commander
+    owns:
+      - architecture
+      - repo strategy
+      - implementation plan
+      - technical risk
+    routes_to:
+      - frontend_agent
+      - backend_api_agent
+      - github_codex_agent
+      - devops_agent
+      - mobile_pwa_agent
+
+  - id: cdo
+    title: Chief Data Officer
+    reports_to: ceo_commander
+    owns:
+      - data sources
+      - schemas
+      - pipelines
+      - analytics readiness
+      - modeling readiness
+    routes_to:
+      - data_source_research_agent
+      - data_engineering_agent
+      - metadata_agent
+      - modeling_prep_agent
+
+  - id: coo
+    title: Chief Operations Officer
+    reports_to: ceo_commander
+    owns:
+      - task sequencing
+      - delivery checklists
+      - release readiness
+      - handoff timing
+    routes_to:
+      - project_planning_agent
+      - release_manager_agent
+
+  - id: csso
+    title: Chief Safety and Security Officer
+    reports_to: ceo_commander
+    owns:
+      - risk review
+      - credential hygiene
+      - privacy review
+      - safe workflow design
+    routes_to:
+      - security_review_agent
+      - credential_review_agent
+      - compliance_notes_agent
+
+  - id: cqo
+    title: Chief Quality Officer
+    reports_to: ceo_commander
+    owns:
+      - QA strategy
+      - functional testing
+      - mobile testing
+      - accessibility checks
+      - regression review
+    routes_to:
+      - functional_qa_agent
+      - mobile_qa_agent
+      - accessibility_qa_agent
+      - regression_qa_agent
+
+  - id: cgo
+    title: Chief Growth Officer
+    reports_to: ceo_commander
+    owns:
+      - SEO
+      - positioning
+      - onboarding
+      - demo polish
+      - conversion paths
+    routes_to:
+      - seo_agent
+      - demo_story_agent
+      - onboarding_agent
+
+specialists:
+  product:
+    - id: ux_research_agent
+      goal: turn user intent and review feedback into clear user journeys
+      outputs: [journey_map, pain_points, acceptance_criteria]
+    - id: ui_design_agent
+      goal: produce layout, interaction, and responsive design guidance
+      outputs: [screen_spec, component_notes, visual_acceptance_check]
+    - id: copy_content_agent
+      goal: make copy clear, brief, useful, and product-specific
+      outputs: [copy_blocks, microcopy, page_messaging]
+    - id: review_layer_intake_agent
+      goal: convert review-layer notes into structured tasks
+      outputs: [feedback_task_packet, severity, owner_suggestion]
+
+  engineering:
+    - id: frontend_agent
+      goal: implement React/UI changes with mobile-first behavior
+      outputs: [changed_files, implementation_notes, test_notes]
+    - id: backend_api_agent
+      goal: implement endpoints, persistence, and integration contracts
+      outputs: [api_contract, changed_files, test_notes]
+    - id: github_codex_agent
+      goal: manage branches, commits, PR notes, and Codex prompts
+      outputs: [branch_name, pr_summary, codex_prompt]
+    - id: devops_agent
+      goal: keep builds, deploy paths, and environment assumptions clear
+      outputs: [build_notes, deploy_notes, runbook_update]
+    - id: mobile_pwa_agent
+      goal: check iPhone-first behavior, PWA shell, and responsive flows
+      outputs: [mobile_findings, pwa_findings, fix_list]
+
+  data:
+    - id: data_source_research_agent
+      goal: find and summarize source documentation and datasets
+      outputs: [source_inventory, links, confidence_notes]
+    - id: data_engineering_agent
+      goal: turn sources into structured files, schemas, and repeatable pulls
+      outputs: [schema_notes, pipeline_plan, data_quality_notes]
+    - id: metadata_agent
+      goal: create metadata, provenance, and update timestamps
+      outputs: [metadata_record, provenance_notes]
+    - id: modeling_prep_agent
+      goal: shape data for analysis, modeling, and future AI layers
+      outputs: [feature_plan, target_notes, caveats]
+
+  qa:
+    - id: functional_qa_agent
+      goal: verify buttons, flows, endpoint behavior, and state changes
+      outputs: [qa_checklist, pass_fail, bugs]
+    - id: mobile_qa_agent
+      goal: test iPhone-first behavior and touch interactions
+      outputs: [mobile_checklist, screenshots_needed, bugs]
+    - id: accessibility_qa_agent
+      goal: check readable labels, contrast, keyboard paths, and semantic structure
+      outputs: [a11y_notes, required_fixes]
+    - id: regression_qa_agent
+      goal: ensure new changes do not break existing core flows
+      outputs: [regression_result, impacted_areas]
+
+  safety:
+    - id: security_review_agent
+      goal: review sensitive paths, endpoints, and browser exposure risks
+      outputs: [security_notes, required_fixes]
+    - id: credential_review_agent
+      goal: ensure credentials remain out of client code and logs
+      outputs: [credential_check_result]
+    - id: compliance_notes_agent
+      goal: add practical caveats for demo vs production behavior
+      outputs: [compliance_notes, copy_warnings]
