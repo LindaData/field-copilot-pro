@@ -1,0 +1,9 @@
+name = "field-copilot-review-inbox"
+main = "workers/review-inbox.ts"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[vars]
+REVIEW_REPO = "LindaData/field-copilot-pro"
+REVIEW_ISSUE_NUMBER = "30"
+REVIEW_ALLOWED_ORIGIN = "https://lindadata.github.io,http://localhost:8080,http://127.0.0.1:8080,http://localhost:4173,http://127.0.0.1:4173"
