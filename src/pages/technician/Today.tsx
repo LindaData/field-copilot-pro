@@ -110,7 +110,7 @@ export default function Today() {
       ? {
         kind: "open-job",
         label: "Review Follow-Up",
-        helper: `${customerOf(followUp.customerId)?.name ?? "Return visit"} - ${new Date(followUp.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
+        helper: `${state.customers.find((c) => c.id === followUp.customerId)?.name ?? "Return visit"} - ${new Date(followUp.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
         to: `/app/jobs/${followUp.id}`,
         variant: "accent",
       }
