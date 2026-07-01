@@ -1,0 +1,158 @@
+version: 1
+workflows:
+  intake_and_triage:
+    owner: ceo_commander
+    purpose: convert a user goal into structured work
+    steps:
+      - id: capture_goal
+        agent: ceo_commander
+        output: raw_goal
+      - id: create_task_packet
+        agent: ceo_commander
+        output: task_packet
+      - id: log_task
+        agent: chief_of_staff
+        output: task_ledger_entry
+      - id: assign_executives
+        agent: ceo_commander
+        output: executive_assignment
+      - id: define_acceptance
+        agent: cpo
+        output: acceptance_criteria
+      - id: define_technical_plan
+        agent: cto
+        output: implementation_plan
+      - id: define_risks
+        agent: csso
+        output: risk_notes
+
+  repo_change:
+    owner: cto
+    purpose: make safe repo changes with reviewable artifacts
+    steps:
+      - id: inspect_repo
+        agent: github_codex_agent
+        output: repo_context
+      - id: create_or_select_branch
+        agent: github_codex_agent
+        output: branch_name
+      - id: plan_change
+        agent: cto
+        output: change_plan
+      - id: implement
+        agent: frontend_agent
+        output: changed_files
+        parallel_with:
+          - backend_api_agent
+          - data_engineering_agent
+      - id: self_check
+        agent: github_codex_agent
+        output: local_check_notes
+      - id: qa_review
+        agent: cqo
+        output: qa_result
+      - id: safety_review
+        agent: csso
+        output: safety_result
+      - id: pr_or_summary
+        agent: github_codex_agent
+        output: pr_summary
+      - id: user_update
+        agent: ceo_commander
+        output: short_user_summary
+
+  review_layer_feedback:
+    owner: cpo
+    purpose: turn in-app review notes into actionable fixes
+    steps:
+      - id: collect_feedback
+        agent: review_layer_intake_agent
+        output: feedback_items
+      - id: classify_feedback
+        agent: cpo
+        output: severity_and_type
+      - id: route_feedback
+        agent: ceo_commander
+        output: owner_assignments
+      - id: implement_fixes
+        agent: frontend_agent
+        output: changed_files
+      - id: verify_feedback_loop
+        agent: backend_api_agent
+        output: endpoint_state_notes
+      - id: mobile_test
+        agent: mobile_qa_agent
+        output: mobile_result
+      - id: regression_test
+        agent: regression_qa_agent
+        output: regression_result
+      - id: summarize_to_user
+        agent: ceo_commander
+        output: short_user_summary
+
+  research_to_implementation:
+    owner: cdo
+    purpose: turn research findings into product-ready work
+    steps:
+      - id: research_sources
+        agent: data_source_research_agent
+        output: source_inventory
+      - id: judge_confidence
+        agent: cdo
+        output: confidence_notes
+      - id: create_data_contract
+        agent: data_engineering_agent
+        output: schema_plan
+      - id: productize
+        agent: cpo
+        output: user_facing_requirement
+      - id: implement
+        agent: cto
+        output: implementation_plan
+      - id: qa
+        agent: cqo
+        output: qa_result
+
+  release_readiness:
+    owner: coo
+    purpose: decide whether a change is ready for merge or deployment
+    required_inputs:
+      - branch_name
+      - changed_files
+      - acceptance_criteria
+      - qa_result
+      - safety_result
+      - known_limitations
+    pass_conditions:
+      - acceptance criteria are addressed
+      - important flows are tested
+      - sensitive configuration remains server-side or documented as local-only
+      - user-facing limitations are clear
+      - build and tests are clean when available
+    outputs:
+      - ready_for_review
+      - needs_fixes
+      - defer
+
+  debug_incident:
+    owner: cto
+    purpose: fix broken flows without guessing
+    steps:
+      - id: reproduce
+        agent: functional_qa_agent
+        output: reproduction_notes
+      - id: isolate_layer
+        agent: cto
+        output: likely_layer
+      - id: inspect_logs_or_state
+        agent: backend_api_agent
+        output: evidence
+      - id: patch
+        agent: frontend_agent
+        output: changed_files
+      - id: verify
+        agent: regression_qa_agent
+        output: qa_result
+      - id: report
+        agent: ceo_commander
+        output: short_user_summary
