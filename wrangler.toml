@@ -1,4 +1,4 @@
-name = "field-copilot-review-inbox"
+name = "soft-unit-ba5d"
 main = "workers/review-inbox.ts"
 compatibility_date = "2026-07-01"
 workers_dev = true
