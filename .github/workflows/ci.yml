@@ -27,6 +27,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Assert npm-only repo
+        run: npm run assert:npm-only
+
       - name: Install dependencies
         run: npm ci
 

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "assert:npm-only": "node scripts/assert-npm-only.mjs",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",

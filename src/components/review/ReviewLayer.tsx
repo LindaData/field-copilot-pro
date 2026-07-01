@@ -33,6 +33,7 @@ import {
   makeActionId,
   makeNoteId,
   matchesReviewSession,
+  normalizeReviewErrorMessage,
   pageLabelFor,
   reviewConversationEntries,
   postReviewAction,
@@ -43,6 +44,8 @@ import {
   REVIEW_KINDS,
   REVIEW_NOTES_KEY,
   REVIEW_PRIORITIES,
+  REVIEW_WEBHOOK_UNREACHABLE_HELP,
+  REVIEW_WEBHOOK_UNREACHABLE_MESSAGE,
   reviewPathFor,
   saveActions,
   saveDrafts,
@@ -246,6 +249,7 @@ export function ReviewLayer() {
   const [drafts, setDrafts] = useState<ReviewDrafts>(() => loadDrafts());
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
+  const [endpointReachable, setEndpointReachable] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [bridgeMessages, setBridgeMessages] = useState<ReviewBridgeMessage[]>([]);
   const [lastBridgeError, setLastBridgeError] = useState<string | null>(null);
@@ -258,11 +262,27 @@ export function ReviewLayer() {
   const path = reviewPathFor(location);
   const currentDraft = drafts[path] ?? EMPTY_REVIEW_DRAFT;
   const endpointConfigured = reviewEndpoint.length > 0;
+  const liveConnectionVerified = endpointConfigured && endpointReachable;
+  const endpointIssue = lastSyncError ?? lastBridgeError;
+  const endpointStatus = !endpointConfigured
+    ? "local"
+    : liveConnectionVerified
+      ? "live"
+      : endpointIssue
+        ? "failed"
+        : "checking";
   const hiddenForReviewWorkspace = location.pathname === "/review" || new URLSearchParams(location.search).get("reviewFrame") === "1";
 
   useEffect(() => {
     setReviewEndpoint(getReviewEndpoint(location.search));
   }, [location.search]);
+
+  useEffect(() => {
+    setEndpointReachable(false);
+    setLastSyncError(null);
+    setLastBridgeError(null);
+    setBridgeMessages([]);
+  }, [reviewEndpoint]);
 
   useEffect(() => {
     saveNotes(notes);
@@ -406,7 +426,7 @@ export function ReviewLayer() {
     : reviewContextAction?.label ?? pageLabel;
   const followChipText = lastTrackedAction ? describeAction(lastTrackedAction) : `Following ${pageLabel}`;
   const latestConversationEntry = conversationEntries[conversationEntries.length - 1] ?? null;
-  const awaitingCodexReply = endpointConfigured && latestConversationEntry?.author === "reviewer";
+  const awaitingCodexReply = liveConnectionVerified && latestConversationEntry?.author === "reviewer";
   const visibleConversationEntries = useMemo(() => {
     const recent = conversationEntries.slice(-6);
     if (!awaitingCodexReply || !latestConversationEntry) return recent;
@@ -453,6 +473,59 @@ export function ReviewLayer() {
     handoffBody = "Typed drafts can stream live, but Send note is what locks feedback into the review feed before you close.";
   }
 
+  const endpointBadgeClass = endpointStatus === "live"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : endpointStatus === "failed"
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : "border-amber-300 bg-amber-50 text-amber-800";
+  const endpointHeaderLabel = endpointStatus === "live"
+    ? "Codex live"
+    : endpointStatus === "checking"
+      ? "checking webhook"
+      : endpointStatus === "failed"
+        ? "webhook issue"
+        : "local only";
+  const followModeLabel = endpointStatus === "live"
+    ? "live"
+    : endpointStatus === "checking"
+      ? "checking"
+      : endpointStatus === "failed"
+        ? "issue"
+        : "local";
+  const followModeBody = endpointStatus === "live"
+    ? "This review link follows the screen, click trail, and notes while you move."
+    : endpointStatus === "checking"
+      ? "This phone has a review endpoint saved, but live sync is not confirmed yet."
+      : endpointStatus === "failed"
+        ? "The saved review endpoint is not responding. Notes stay local until the webhook works again."
+        : "This device can still capture a local trail until the live endpoint is connected.";
+  const sessionStatusTitle = endpointStatus === "live"
+    ? "I can see this review session live."
+    : endpointStatus === "checking"
+      ? "Checking the live webhook from this phone."
+      : endpointStatus === "failed"
+        ? REVIEW_WEBHOOK_UNREACHABLE_MESSAGE
+        : "I cannot see notes from this phone yet.";
+  const sessionStatusBody = endpointStatus === "live"
+    ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
+    : endpointStatus === "checking"
+      ? "This phone has a saved review endpoint, but I will not claim live visibility until the webhook responds."
+      : endpointStatus === "failed"
+        ? "Use Copy now, or retry after the Cloudflare deploy and secret are fixed."
+        : "Open the live review link with a reviewEndpoint so feedback reaches Codex.";
+  const launcherStatusLabel = endpointStatus === "live"
+    ? "Following live"
+    : endpointStatus === "checking"
+      ? "Checking webhook"
+      : endpointStatus === "failed"
+        ? "Webhook issue"
+        : "Tracking locally";
+  const launcherDotClass = endpointStatus === "live"
+    ? "bg-emerald-500"
+    : endpointStatus === "failed"
+      ? "bg-destructive"
+      : "bg-amber-500";
+
   const updateDraft = (patch: Partial<ReviewDraft>) => {
     const updatedAt = new Date().toISOString();
     setDrafts((existing) => ({
@@ -498,6 +571,9 @@ export function ReviewLayer() {
     try {
       const sent = await postReviewAction(reviewEndpoint, sessionId, action);
       if (sent) {
+        setEndpointReachable(true);
+        setLastBridgeError(null);
+        setLastSyncError(null);
         patchAction(action.id, {
           syncedAt: new Date().toISOString(),
           syncState: "sent",
@@ -506,12 +582,13 @@ export function ReviewLayer() {
       }
       return sent;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Review action submit failed";
+      const message = normalizeReviewErrorMessage(error, "Review action submit failed");
+      setEndpointReachable(false);
+      setLastSyncError(message);
       patchAction(action.id, {
         syncState: "error",
         lastError: message,
       });
-      setLastSyncError(message);
       return false;
     }
   }, [endpointConfigured, patchAction, reviewEndpoint, sessionId]);
@@ -575,6 +652,9 @@ export function ReviewLayer() {
     try {
       const sent = await postReviewNote(reviewEndpoint, sessionId, note);
       if (sent) {
+        setEndpointReachable(true);
+        setLastBridgeError(null);
+        setLastSyncError(null);
         const syncedAt = new Date().toISOString();
         patchNote(note.id, {
           syncedAt,
@@ -584,19 +664,21 @@ export function ReviewLayer() {
       }
       return sent;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Review submit failed";
+      const message = normalizeReviewErrorMessage(error, "Review submit failed", { localNoteFallback: true });
+      setEndpointReachable(false);
       patchNote(note.id, {
         syncState: "error",
         lastError: message,
       });
       setLastSyncError(message);
-      toast.error("Note saved locally. Live submit failed.");
+      toast.error(message);
       return false;
     }
   }, [endpointConfigured, patchNote, reviewEndpoint, sessionId]);
 
   const refreshBridgeMessages = useCallback(async () => {
     if (!endpointConfigured) {
+      setEndpointReachable(false);
       setBridgeMessages([]);
       setLastBridgeError(null);
       return;
@@ -604,10 +686,12 @@ export function ReviewLayer() {
 
     try {
       const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
+      setEndpointReachable(true);
       setBridgeMessages(messages);
       setLastBridgeError(null);
     } catch (error) {
-      setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+      setEndpointReachable(false);
+      setLastBridgeError(normalizeReviewErrorMessage(error, "Review bridge unavailable"));
     }
   }, [endpointConfigured, reviewEndpoint, sessionId]);
 
@@ -635,7 +719,11 @@ export function ReviewLayer() {
     setNotes((existing) => [note, ...existing]);
     clearCurrentDraft();
     toast.success("Review note captured", {
-      description: endpointConfigured ? "Syncing live now." : "Saved locally on this device.",
+      description: liveConnectionVerified
+        ? "Syncing live now."
+        : endpointConfigured
+          ? "Saved locally while the webhook is checked."
+          : "Saved locally on this device.",
     });
     void submitNote(note);
   };
@@ -645,8 +733,11 @@ export function ReviewLayer() {
       toast("Live endpoint not connected", { description: "Notes are saved locally and can be exported." });
       return;
     }
+    if (endpointStatus === "failed") {
+      toast("Webhook unreachable", { description: REVIEW_WEBHOOK_UNREACHABLE_MESSAGE });
+    }
     if (pendingNotes.length + pendingActions.length === 0) {
-      toast.success("All review notes and actions are already live");
+      toast.success(liveConnectionVerified ? "All review notes and actions are already live" : "No pending review items");
       return;
     }
 
@@ -907,21 +998,21 @@ export function ReviewLayer() {
 
     if (hasDraftText) {
       toast("Draft saved", {
-        description: endpointConfigured
+        description: liveConnectionVerified
           ? "Your latest text is still a draft. Reopen Review and tap Send note to submit it to Codex."
-          : "Your draft stays on this device until you copy it or reopen with a live review link.",
+          : "Your draft stays on this device until you copy it or the webhook responds successfully.",
       });
       return;
     }
 
     if (endpointConfigured && queuedOpenNotes.length > 0) {
       toast("Review layer hidden", {
-        description: `${queuedOpenNotes.length} submitted ${plural(queuedOpenNotes.length, "note")} still ${plural(queuedOpenNotes.length, "needs", "need")} live sync. Reopen Review history if you need to retry.`,
+        description: `${queuedOpenNotes.length} submitted ${plural(queuedOpenNotes.length, "note")} still ${plural(queuedOpenNotes.length, "needs", "need")} sync. Reopen Review history if you need to retry.`,
       });
       return;
     }
 
-    if (endpointConfigured && submittedNotes.length > 0) {
+    if (liveConnectionVerified && submittedNotes.length > 0) {
       toast.success("Review layer hidden", {
         description: `Codex received ${submittedNotes.length} ${plural(submittedNotes.length, "note")}. Notes stay in the live review feed for follow-up.`,
       });
@@ -929,7 +1020,7 @@ export function ReviewLayer() {
     }
 
     toast("Review layer hidden", {
-      description: endpointConfigured ? "No submitted notes in this session yet." : "Live endpoint is not connected.",
+      description: endpointConfigured ? REVIEW_WEBHOOK_UNREACHABLE_HELP : "Live endpoint is not connected.",
     });
   };
 
@@ -961,9 +1052,9 @@ export function ReviewLayer() {
                   <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
                     <StickyNote className="h-4 w-4 text-primary" />
                     Live review
-                    <Badge variant="outline" className={cn("gap-1", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-300 bg-amber-50 text-amber-800")}>
-                      {endpointConfigured ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-                      {endpointConfigured ? "Codex live" : "local only"}
+                    <Badge variant="outline" className={cn("gap-1", endpointBadgeClass)}>
+                      {endpointStatus === "live" ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
+                      {endpointHeaderLabel}
                     </Badge>
                   </div>
                   <div className="mt-1 truncate text-xs text-muted-foreground">{pageLabel}</div>
@@ -981,15 +1072,13 @@ export function ReviewLayer() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-sm font-semibold">Follow mode</div>
-                    <Badge variant="outline" className={cn("gap-1 text-[10px] uppercase tracking-normal", endpointConfigured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-300 bg-amber-50 text-amber-800")}>
-                      {endpointConfigured ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                      {endpointConfigured ? "live" : "local"}
+                    <Badge variant="outline" className={cn("gap-1 text-[10px] uppercase tracking-normal", endpointBadgeClass)}>
+                      {endpointStatus === "live" ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      {followModeLabel}
                     </Badge>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {endpointConfigured
-                      ? "This review link follows the screen, click trail, and notes while you move."
-                      : "This device can still capture a local trail until the live endpoint is connected."}
+                    {followModeBody}
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
@@ -1023,15 +1112,17 @@ export function ReviewLayer() {
 
               <div className={cn(
                 "mt-3 rounded-lg border px-3 py-2 text-xs",
-                endpointConfigured ? "border-emerald-200/80 bg-emerald-50/80 text-emerald-950" : "border-amber-300/80 bg-amber-50/80 text-amber-950",
+                endpointStatus === "live"
+                  ? "border-emerald-200/80 bg-emerald-50/80 text-emerald-950"
+                  : endpointStatus === "failed"
+                    ? "border-destructive/30 bg-destructive/10 text-foreground"
+                    : "border-amber-300/80 bg-amber-50/80 text-amber-950",
               )}>
                 <div className="font-medium">
-                  {endpointConfigured ? "I can see this review session live." : "I cannot see notes from this phone yet."}
+                  {sessionStatusTitle}
                 </div>
                 <div className="mt-1 leading-relaxed">
-                  {endpointConfigured
-                    ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
-                    : "Open the live review link with a reviewEndpoint so feedback reaches Codex."}
+                  {sessionStatusBody}
                 </div>
                 <div className="mt-2 text-[11px] text-muted-foreground">
                   Last tracked: {describeAction(lastTrackedAction)}
@@ -1216,9 +1307,11 @@ export function ReviewLayer() {
                     </div>
                   ) : (
                     <div className="mt-2 rounded-lg border border-dashed p-3 text-[11px] leading-relaxed text-muted-foreground">
-                      {endpointConfigured
+                      {liveConnectionVerified
                         ? "Send a note and I will echo the live conversation here."
-                        : "Connect the live endpoint to see the running conversation here."}
+                        : endpointConfigured
+                          ? "Webhook not confirmed yet. Notes stay local until the bridge responds."
+                          : "Connect the live endpoint to see the running conversation here."}
                     </div>
                   )}
 
@@ -1304,9 +1397,11 @@ export function ReviewLayer() {
                 </Button>
 
                 <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
-                  {endpointConfigured
+                  {liveConnectionVerified
                     ? `Live endpoint connected to review inbox #${REVIEW_INBOX_ISSUE}. Session: ${sessionId}`
-                    : "No live endpoint is connected. Notes autosave locally and can be copied for fallback review."}
+                    : endpointConfigured
+                      ? `Review endpoint saved but not yet confirmed. Session: ${sessionId}`
+                      : "No live endpoint is connected. Notes autosave locally and can be copied for fallback review."}
                   {lastSyncError ? <div className="mt-1 text-destructive">{lastSyncError}</div> : null}
                 </div>
 
@@ -1392,8 +1487,8 @@ export function ReviewLayer() {
                 aria-label={`Following ${pageLabel}. ${followChipText}`}
               >
                 <div className="flex items-center gap-2 text-xs font-semibold">
-                  <span className={cn("h-2.5 w-2.5 rounded-full", endpointConfigured ? "bg-emerald-500" : "bg-amber-500")} />
-                  {endpointConfigured ? "Following live" : "Tracking locally"}
+                  <span className={cn("h-2.5 w-2.5 rounded-full", launcherDotClass)} />
+                  {launcherStatusLabel}
                   <span className="text-muted-foreground">{sessionActions.length} actions</span>
                 </div>
                 <div className="mt-1 truncate text-sm font-medium">{pageLabel}</div>

@@ -416,6 +416,56 @@ describe("migration baseline", () => {
     expect(screen.getByText(/Opened Technician today/i)).toBeInTheDocument();
   });
 
+  it("clears a saved review endpoint when resetReviewEndpoint=1 is present", async () => {
+    window.localStorage.setItem("field-copilot-review-endpoint-v1", "https://reviews.example/review-note");
+    window.history.pushState({}, "", "/app/today?resetReviewEndpoint=1");
+
+    render(<App />);
+
+    expect(window.localStorage.getItem("field-copilot-review-endpoint-v1")).toBeNull();
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("I cannot see notes from this phone yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Following live")).not.toBeInTheDocument();
+  });
+
+  it("keeps notes local and shows webhook unreachable copy when the live webhook fails", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages") || String(url).includes("/review-note")) {
+        throw new TypeError("Load failed");
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+      target: { value: "Live webhook is broken but this note must stay local." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Webhook unreachable. Note saved locally. Use Copy or retry after Cloudflare deploy is fixed.")).toBeInTheDocument();
+    });
+
+    const notes = JSON.parse(window.localStorage.getItem("field-copilot-review-notes-v1") ?? "[]") as Array<{
+      note?: string;
+      syncState?: string;
+      lastError?: string;
+    }>;
+    expect(notes[0]?.note).toBe("Live webhook is broken but this note must stay local.");
+    expect(notes[0]?.syncState).toBe("error");
+    expect(notes[0]?.lastError).toBe("Webhook unreachable. Note saved locally. Use Copy or retry after Cloudflare deploy is fixed.");
+  });
+
   it("restores a persisted position for the closed review launcher", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
@@ -767,7 +817,7 @@ describe("migration baseline", () => {
         };
       }
       return { ok: true, json: async () => ({ ok: true }) };
-  }, 25000);
+    });
     vi.stubGlobal("fetch", fetchMock);
     window.history.pushState(
       {},
