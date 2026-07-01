@@ -1364,13 +1364,13 @@ export function ReviewLayer() {
       {!open ? (
         <div
           ref={launcherRef}
-          className="fixed z-50 w-[min(calc(100vw-1rem),22rem)] max-w-[22rem]"
+          className="fixed z-50 max-w-[min(calc(100vw-1rem),22rem)]"
           style={{
             left: `${launcherPosition.x}px`,
             top: `${launcherPosition.y}px`,
           }}
         >
-          <div className="flex w-full flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2">
             <button
               type="button"
               onPointerDown={startLauncherDrag}
@@ -1388,7 +1388,7 @@ export function ReviewLayer() {
               <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="w-full rounded-2xl border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur transition-colors hover:border-foreground/20"
+                className="max-w-[min(calc(100vw-1rem),22rem)] rounded-2xl border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur transition-colors hover:border-foreground/20"
                 aria-label={`Following ${pageLabel}. ${followChipText}`}
               >
                 <div className="flex items-center gap-2 text-xs font-semibold">
@@ -1404,7 +1404,7 @@ export function ReviewLayer() {
             <Button
               type="button"
               onClick={() => setOpen(true)}
-              className={cn("h-11 w-full justify-between rounded-full px-4 shadow-lg", openCount > 0 ? "pr-3" : "")}
+              className={cn("h-11 self-end rounded-full px-4 shadow-lg", openCount > 0 ? "pr-3" : "")}
               aria-label={`Review layer, ${openCount} open notes`}
             >
               <span className="inline-flex items-center gap-2">
