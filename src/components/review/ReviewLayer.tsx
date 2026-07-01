@@ -467,6 +467,11 @@ export function ReviewLayer() {
     ?? null;
   const latestBridgeMessage = visibleBridgeMessages[0] ?? null;
   const reviewContextTitle = pageLabel;
+  const isLocalOnly = !endpointConfigured;
+  const showPathLabel = path !== "/";
+  const showContextPathChip = reviewContextAction
+    ? reviewContextAction.pageLabel !== pageLabel || reviewContextAction.path !== path || path !== "/"
+    : path !== "/";
   const followChipText = lastMeaningfulTrackedAction
     ? describeAction(lastMeaningfulTrackedAction)
     : lastTrackedAction
@@ -500,10 +505,19 @@ export function ReviewLayer() {
       ? "This phone has a saved live review link. I will switch to live as soon as the endpoint responds."
       : endpointStatus === "failed"
         ? "You can keep reviewing. Notes stay saved on this device and can be retried when the connection comes back."
-        : "Open the live review link with a reviewEndpoint so feedback reaches Codex.";
+        : "Capture notes here, then copy them or reopen with a live review link when you want Codex replies.";
   const liveConnectionDetail = hasLiveConnectionIssue
     ? [friendlySyncIssue(lastSyncError, "sync"), friendlySyncIssue(lastBridgeError, "reply")].filter((value, index, all) => all.indexOf(value) === index).join(" ")
     : null;
+  const localReviewCoachTitle = latestSubmittedNote
+    ? "Local review saved"
+    : `Self-review prompt for ${pageLabel}`;
+  const localReviewCoachBody = latestSubmittedNote
+    ? "Keep capturing what feels crowded, unclear, or slow on this screen. I will keep the page context and timestamps with each note."
+    : `Check hierarchy, action clarity, labels, spacing, and anything that interrupts the next step on ${pageLabel}.`;
+  const localReviewCoachDetail = lastMeaningfulTrackedAction
+    ? `Tracked context: ${describeAction(lastMeaningfulTrackedAction)}.`
+    : "Tracked context starts as soon as you move through the page.";
   const visibleConversationEntries = useMemo(() => {
     const recent = conversationEntries.slice(-6);
     if (!awaitingCodexReply || !latestConversationEntry) return recent;
@@ -528,8 +542,10 @@ export function ReviewLayer() {
 
   if (!endpointConfigured) {
     handoffTone = "local";
-    handoffTitle = "Review notes are local on this device.";
-    handoffBody = "Closing keeps notes in this browser only. Copy the notes or reopen with a live review link before relying on Codex to see them.";
+    handoffTitle = latestSubmittedNote ? "Local review session is saved on this phone." : "Local review mode is active.";
+    handoffBody = latestSubmittedNote
+      ? "Close any time. Notes, page context, and timestamps stay in this browser until you copy them or reopen with a live review link."
+      : "Capture notes here. They stay in this browser until you copy them or reopen with a live review link.";
   } else if (hasDraftText) {
     handoffTone = "draft";
     handoffTitle = "Draft not submitted yet.";
@@ -1104,7 +1120,9 @@ export function ReviewLayer() {
                     </Badge>
                   </div>
                   <div className="mt-1 truncate text-xs text-muted-foreground">{pageLabel}</div>
-                  <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{path}</div>
+                  {showPathLabel ? (
+                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{path}</div>
+                  ) : null}
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={closeReviewLayer} aria-label="Close review layer">
                   <X className="h-4 w-4" />
@@ -1117,7 +1135,7 @@ export function ReviewLayer() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-semibold">Follow mode</div>
+                    <div className="text-sm font-semibold">{isLocalOnly ? "Local review mode" : "Follow mode"}</div>
                     <Badge variant="outline" className={cn("gap-1 text-[10px] uppercase tracking-normal", liveConnectionTone)}>
                       {endpointConfigured && !hasLiveConnectionIssue ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
                       {endpointConfigured
@@ -1136,7 +1154,7 @@ export function ReviewLayer() {
                         ? "This phone keeps collecting context while the live review connection is confirmed."
                         : endpointConfigured
                         ? "This device keeps your review trail locally until the live connection recovers."
-                        : "This device can still capture a local trail until the live endpoint is connected."}
+                        : "This phone can still capture notes, page context, and your click trail without a live endpoint."}
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
@@ -1144,28 +1162,38 @@ export function ReviewLayer() {
                 </Badge>
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="rounded-lg bg-muted/30 px-2 py-2">
-                  <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Pages</div>
-                  <div className="mt-1 text-sm font-semibold">{pageCountInSession || 1}</div>
+              {isLocalOnly ? (
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                  <div className="rounded-full bg-muted/40 px-3 py-1.5 text-foreground">Pages: <span className="font-semibold">{pageCountInSession || 1}</span></div>
+                  <div className="rounded-full bg-muted/40 px-3 py-1.5 text-foreground">Notes sent: <span className="font-semibold">{submittedNotes.length}</span></div>
+                  <div className="rounded-full bg-muted/40 px-3 py-1.5 text-foreground">Open notes: <span className="font-semibold">{openCount}</span></div>
                 </div>
-                <div className="rounded-lg bg-muted/30 px-2 py-2">
-                  <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Notes sent</div>
-                  <div className="mt-1 text-sm font-semibold">{submittedNotes.length}</div>
+              ) : (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-muted/30 px-2 py-2">
+                    <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Pages</div>
+                    <div className="mt-1 text-sm font-semibold">{pageCountInSession || 1}</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 px-2 py-2">
+                    <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Notes sent</div>
+                    <div className="mt-1 text-sm font-semibold">{submittedNotes.length}</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 px-2 py-2">
+                    <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Open notes</div>
+                    <div className="mt-1 text-sm font-semibold">{openCount}</div>
+                  </div>
                 </div>
-                <div className="rounded-lg bg-muted/30 px-2 py-2">
-                  <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Open notes</div>
-                  <div className="mt-1 text-sm font-semibold">{openCount}</div>
-                </div>
-              </div>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <div className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground">
                   Reviewing: {reviewContextTitle}
                 </div>
-                <div className="rounded-full bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-                  {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
-                </div>
+                {showContextPathChip ? (
+                  <div className="rounded-full bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+                    {reviewContextAction ? `${reviewContextAction.pageLabel} - ${reviewContextAction.path}` : `${pageLabel} - ${path}`}
+                  </div>
+                ) : null}
               </div>
 
               <div className={cn(
@@ -1368,6 +1396,21 @@ export function ReviewLayer() {
                         );
                       })}
                     </div>
+                  ) : isLocalOnly ? (
+                    <div className="mt-2 space-y-2">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-950 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[10px] font-semibold uppercase tracking-normal">Codex</div>
+                          <Badge variant="outline" className="text-[10px] uppercase tracking-normal">local coach</Badge>
+                        </div>
+                        <div className="mt-1 text-sm leading-relaxed">{localReviewCoachTitle}</div>
+                        <div className="mt-1 text-[12px] leading-relaxed text-slate-700">{localReviewCoachBody}</div>
+                        <div className="mt-2 text-[10px] text-slate-600">{localReviewCoachDetail}</div>
+                      </div>
+                      <div className="rounded-lg border border-dashed px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                        Send a note to save feedback with page, route, viewport, and time. Live replies appear after opening a review link with a reviewEndpoint.
+                      </div>
+                    </div>
                   ) : (
                     <div className="mt-2 rounded-lg border border-dashed p-3 text-[11px] leading-relaxed text-muted-foreground">
                       {liveConnectionVerified
@@ -1397,7 +1440,9 @@ export function ReviewLayer() {
                 "rounded-xl border p-3 text-xs shadow-sm",
                 handoffTone === "received"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-                  : handoffTone === "local" || handoffTone === "pending"
+                  : handoffTone === "local"
+                    ? "border-slate-200 bg-slate-50 text-slate-950"
+                    : handoffTone === "pending"
                     ? "border-amber-300 bg-amber-50 text-amber-950"
                     : "border-blue-200 bg-blue-50 text-blue-950",
               )}
@@ -1406,7 +1451,7 @@ export function ReviewLayer() {
               <div className="flex items-start gap-2">
                 {handoffTone === "received"
                   ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" />
-                  : <AlertCircle className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", handoffTone === "draft" ? "text-blue-700" : "text-amber-700")} />}
+                  : <AlertCircle className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", handoffTone === "draft" ? "text-blue-700" : handoffTone === "local" ? "text-slate-700" : "text-amber-700")} />}
                 <div className="min-w-0">
                   <div className="font-semibold">Review handoff</div>
                   <div className="mt-1 font-medium">{handoffTitle}</div>
@@ -1417,8 +1462,15 @@ export function ReviewLayer() {
                     </div>
                   ) : null}
                   {pendingActionCount > 0 ? (
-                    <div className="mt-2 rounded border border-amber-300/80 bg-amber-100/70 px-2 py-1 text-[11px] text-amber-950">
-                      {pendingActionCount} tracked {plural(pendingActionCount, "action")} still {plural(pendingActionCount, "needs", "need")} background sync.
+                    <div className={cn(
+                      "mt-2 rounded border px-2 py-1 text-[11px]",
+                      isLocalOnly
+                        ? "border-slate-200 bg-white/70 text-slate-700"
+                        : "border-amber-300/80 bg-amber-100/70 text-amber-950",
+                    )}>
+                      {isLocalOnly
+                        ? `${pendingActionCount} tracked ${plural(pendingActionCount, "action")} ${plural(pendingActionCount, "is", "are")} saved locally.`
+                        : `${pendingActionCount} tracked ${plural(pendingActionCount, "action")} still ${plural(pendingActionCount, "needs", "need")} background sync.`}
                     </div>
                   ) : null}
                 </div>

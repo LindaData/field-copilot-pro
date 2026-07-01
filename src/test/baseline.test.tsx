@@ -659,6 +659,33 @@ describe("migration baseline", () => {
     expect(screen.queryByText("Reviewing: Scrolled to top")).not.toBeInTheDocument();
   });
 
+  it("shows a guided local review state instead of an empty offline exchange", async () => {
+    window.localStorage.setItem("field-copilot-review-session-v1", "review-local-mode");
+    window.localStorage.setItem("field-copilot-review-actions-v1", JSON.stringify([
+      {
+        id: "action-route-root",
+        sessionId: "review-local-mode",
+        kind: "route",
+        path: "/",
+        pageLabel: "Main demo landing",
+        label: "Viewing page",
+        createdAt: "2026-06-30T18:00:00.000Z",
+        syncState: "local",
+      },
+    ]));
+    window.history.pushState({}, "", "/");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Local review mode")).toBeInTheDocument();
+    expect(screen.getByText("Self-review prompt for Main demo landing")).toBeInTheDocument();
+    expect(screen.getByText(/Send a note to save feedback with page, route, viewport, and time/i)).toBeInTheDocument();
+    expect(screen.getByText(/saved locally/i)).toBeInTheDocument();
+    expect(screen.queryByText("Main demo landing - /")).not.toBeInTheDocument();
+  });
+
   it("shows friendly live-sync fallback copy instead of raw transport errors", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
