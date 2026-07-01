@@ -1,0 +1,74 @@
+name: Agent Company Task
+description: Structured task for LindaData agent-company work
+title: "[Agent Task]: "
+labels:
+  - agent-company
+body:
+  - type: input
+    id: task_id
+    attributes:
+      label: Task ID
+      description: Short unique task id
+      placeholder: hvac-review-feedback-loop
+    validations:
+      required: true
+  - type: dropdown
+    id: owner_executive
+    attributes:
+      label: Owner executive
+      options:
+        - CEO Commander
+        - Chief of Staff
+        - CPO
+        - CTO
+        - CDO
+        - COO
+        - CSSO
+        - CQO
+        - CGO
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when this is done?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List clear pass/fail checks.
+      placeholder: |
+        - User can...
+        - QA confirms...
+        - Mobile behavior works...
+    validations:
+      required: true
+  - type: input
+    id: repo_branch
+    attributes:
+      label: Repo / branch
+      placeholder: LindaData/field-copilot-pro / fix/example
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tools needed
+      placeholder: GitHub, Codex, Web, AccurateScribe, Canva, Notion, etc.
+  - type: textarea
+    id: caveats
+    attributes:
+      label: Caveats or blockers
+      placeholder: Known limitations, missing credentials, blocked data, not yet tested.
+  - type: dropdown
+    id: qa_status
+    attributes:
+      label: QA status
+      options:
+        - not_run
+        - partial
+        - pass
+        - fail
+    validations:
+      required: true
