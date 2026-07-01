@@ -271,6 +271,7 @@ export function ReviewLayer() {
   const launcherRef = useRef<HTMLDivElement | null>(null);
   const conversationRef = useRef<HTMLDivElement | null>(null);
   const launcherDragRef = useRef<{
+    pointerId: number;
     startX: number;
     startY: number;
     originX: number;
@@ -361,12 +362,13 @@ export function ReviewLayer() {
       setLauncherPosition((current) => clampLauncherPosition(current));
     };
 
-    const handleDragMove = (event: PointerEvent | MouseEvent) => {
+    const handleDragMove = (event: PointerEvent) => {
       const activeDrag = launcherDragRef.current;
       if (!activeDrag) return;
+      if (event.pointerId !== activeDrag.pointerId) return;
       const dx = event.clientX - activeDrag.startX;
       const dy = event.clientY - activeDrag.startY;
-      if (!activeDrag.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      if (!activeDrag.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         activeDrag.moved = true;
         setDraggingLauncher(true);
       }
@@ -376,25 +378,22 @@ export function ReviewLayer() {
       }));
     };
 
-    const handlePointerEnd = () => {
+    const handlePointerEnd = (event: PointerEvent) => {
       if (!launcherDragRef.current) return;
+      if (event.pointerId !== launcherDragRef.current.pointerId) return;
       launcherDragRef.current = null;
       setDraggingLauncher(false);
     };
 
     window.addEventListener("resize", handleResize);
     window.addEventListener("pointermove", handleDragMove);
-    window.addEventListener("mousemove", handleDragMove);
     window.addEventListener("pointerup", handlePointerEnd);
     window.addEventListener("pointercancel", handlePointerEnd);
-    window.addEventListener("mouseup", handlePointerEnd);
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("pointermove", handleDragMove);
-      window.removeEventListener("mousemove", handleDragMove);
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
-      window.removeEventListener("mouseup", handlePointerEnd);
     };
   }, []);
 
@@ -1067,7 +1066,14 @@ export function ReviewLayer() {
   const startLauncherDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
+    event.stopPropagation();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // pointer capture is best effort
+    }
     launcherDragRef.current = {
+      pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       originX: launcherPosition.x,
@@ -1522,34 +1528,35 @@ export function ReviewLayer() {
             top: `${launcherPosition.y}px`,
           }}
         >
-          <div className="flex flex-col items-end gap-2">
+          <div className={cn("flex items-center justify-end gap-2", draggingLauncher && "scale-[1.01]")}>
             <button
               type="button"
               onPointerDown={startLauncherDrag}
               aria-label="Move review launcher"
               className={cn(
-                "inline-flex max-w-full items-center gap-2 self-end rounded-full border bg-background/95 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur transition-colors touch-none select-none",
-                draggingLauncher ? "cursor-grabbing border-primary text-foreground" : "cursor-grab hover:border-foreground/20 hover:text-foreground",
+                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-lg backdrop-blur transition-all touch-none select-none",
+                draggingLauncher ? "cursor-grabbing border-primary text-foreground shadow-xl" : "cursor-grab hover:border-foreground/20 hover:text-foreground",
               )}
             >
               <GripHorizontal className="h-3.5 w-3.5" />
-              {draggingLauncher ? "Moving review" : "Drag to move"}
+              <span className="sr-only">{draggingLauncher ? "Moving review" : "Move review launcher"}</span>
             </button>
 
             {(endpointConfigured || sessionActions.length > 0) ? (
               <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="max-w-[min(calc(100vw-1rem),22rem)] rounded-2xl border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur transition-colors hover:border-foreground/20"
+                className="hidden max-w-[18rem] rounded-full border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur transition-colors hover:border-foreground/20 sm:block"
                 aria-label={`Following ${pageLabel}. ${followChipText}`}
               >
                 <div className="flex items-center gap-2 text-xs font-semibold">
                   <span className={cn("h-2.5 w-2.5 rounded-full", launcherDotClass)} />
-                  {launcherStatusLabel}
-                  <span className="text-muted-foreground">{sessionActions.length} actions</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[11px] font-semibold">{pageLabel}</div>
+                    <div className="truncate text-[10px] font-normal text-muted-foreground">{followChipText}</div>
+                  </div>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{sessionActions.length}</span>
                 </div>
-                <div className="mt-1 truncate text-sm font-medium">{pageLabel}</div>
-                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{followChipText}</div>
               </button>
             ) : null}
 

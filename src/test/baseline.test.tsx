@@ -411,8 +411,8 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Following live")).toBeInTheDocument();
-    expect(screen.getByText("Technician today")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Following Technician today\. Opened Technician today/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Move review launcher/i })).toBeInTheDocument();
     expect(screen.getByText(/Opened Technician today/i)).toBeInTheDocument();
   });
 
