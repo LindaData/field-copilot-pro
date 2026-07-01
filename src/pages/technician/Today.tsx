@@ -102,6 +102,9 @@ export default function Today() {
     .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor))[0];
   const next = upcoming[0];
 
+  const customerOf = (id: string) => state.customers.find((c) => c.id === id);
+  const propertyOf = (id?: string) => state.properties.find((p) => p.id === id);
+
   const diag = current ? state.diag[current.id] : undefined;
   const auth = current ? state.auths.find((a) => a.jobId === current.id) : undefined;
   const action: PrimaryAction = current
@@ -138,9 +141,6 @@ export default function Today() {
     .map((id) => state.equipment.find((e) => e.id === id))
     .filter((e): e is NonNullable<typeof e> => Boolean(e))
     .slice(0, 3);
-
-  const customerOf = (id: string) => state.customers.find((c) => c.id === id);
-  const propertyOf = (id?: string) => state.properties.find((p) => p.id === id);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t("common.good.morning") : hour < 18 ? t("common.good.afternoon") : t("common.good.evening");
