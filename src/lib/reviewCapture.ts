@@ -4,6 +4,8 @@ export const REVIEW_ACTIONS_KEY = "field-copilot-review-actions-v1";
 export const REVIEW_SESSION_KEY = "field-copilot-review-session-v1";
 export const REVIEW_ENDPOINT_KEY = "field-copilot-review-endpoint-v1";
 export const REVIEW_INBOX_ISSUE = 30;
+export const REVIEW_WEBHOOK_UNREACHABLE_MESSAGE = "Webhook unreachable. Note saved locally. Use Copy or retry after Cloudflare deploy is fixed.";
+export const REVIEW_WEBHOOK_UNREACHABLE_HELP = "Webhook unreachable. Use Copy or retry after Cloudflare deploy is fixed.";
 
 const BUILD_REVIEW_ENDPOINT = String(import.meta.env.VITE_REVIEW_ENDPOINT ?? "").trim();
 
@@ -171,6 +173,7 @@ export function pageLabelFor(pathname: string) {
 export function reviewPathFor(location: ReviewLocationLike) {
   const params = new URLSearchParams(location.search);
   params.delete("reviewEndpoint");
+  params.delete("resetReviewEndpoint");
   params.delete("cacheBust");
   params.delete("reviewFrame");
   const query = params.toString();
@@ -331,12 +334,62 @@ export function getReviewSessionId() {
 export function getReviewEndpoint(search = typeof window === "undefined" ? "" : window.location.search) {
   if (typeof window === "undefined") return BUILD_REVIEW_ENDPOINT;
   const params = new URLSearchParams(search);
+  if (params.get("resetReviewEndpoint") === "1") {
+    window.localStorage.removeItem(REVIEW_ENDPOINT_KEY);
+  }
   const fromQuery = params.get("reviewEndpoint")?.trim();
   if (fromQuery) {
     window.localStorage.setItem(REVIEW_ENDPOINT_KEY, fromQuery);
     return fromQuery;
   }
   return window.localStorage.getItem(REVIEW_ENDPOINT_KEY)?.trim() || BUILD_REVIEW_ENDPOINT;
+}
+
+interface ReviewErrorPayload {
+  detail?: unknown;
+  error?: unknown;
+  message?: unknown;
+}
+
+function isNetworkFailureMessage(message: string) {
+  return /load failed|failed to fetch|networkerror|fetch failed|network request failed/i.test(message);
+}
+
+async function readReviewError(response: Response, fallbackLabel: string) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const payload = await response.json() as ReviewErrorPayload;
+    const message = typeof payload.message === "string" ? payload.message.trim() : "";
+    const detail = typeof payload.detail === "string" ? payload.detail.trim() : "";
+    const errorCode = typeof payload.error === "string" ? payload.error.trim() : "";
+
+    if (errorCode === "missing_github_token") {
+      return "Cloudflare review webhook is missing the GITHUB_TOKEN secret.";
+    }
+
+    if (message) return message;
+    if (detail) return detail;
+    if (errorCode) return `${fallbackLabel}: ${errorCode}`;
+  }
+
+  const body = (await response.text()).trim();
+  if (body) return body;
+  return `${fallbackLabel}: ${response.status}`;
+}
+
+export function normalizeReviewErrorMessage(
+  error: unknown,
+  fallbackLabel: string,
+  options?: { localNoteFallback?: boolean },
+) {
+  const message = error instanceof Error ? error.message : fallbackLabel;
+
+  if (isNetworkFailureMessage(message)) {
+    return options?.localNoteFallback ? REVIEW_WEBHOOK_UNREACHABLE_MESSAGE : REVIEW_WEBHOOK_UNREACHABLE_HELP;
+  }
+
+  return message || fallbackLabel;
 }
 
 export function makeNoteId() {
@@ -493,7 +546,7 @@ export async function postReviewNote(endpoint: string, sessionId: string, note: 
       userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
     }),
   });
-  if (!response.ok) throw new Error(`Review sync failed: ${response.status}`);
+  if (!response.ok) throw new Error(await readReviewError(response, "Review sync failed"));
   return true;
 }
 
@@ -513,7 +566,7 @@ export async function postReviewAction(endpoint: string, sessionId: string, acti
       userAgent: typeof navigator === "undefined" ? undefined : navigator.userAgent,
     }),
   });
-  if (!response.ok) throw new Error(`Review action sync failed: ${response.status}`);
+  if (!response.ok) throw new Error(await readReviewError(response, "Review action sync failed"));
   return true;
 }
 
@@ -566,7 +619,7 @@ export async function fetchReviewMessages(endpoint: string, sessionId: string) {
     method: "GET",
     headers: { "content-type": "application/json" },
   });
-  if (!response.ok) throw new Error(`Review messages failed: ${response.status}`);
+  if (!response.ok) throw new Error(await readReviewError(response, "Review messages failed"));
   const payload = await response.json() as { messages?: unknown[] };
   return Array.isArray(payload.messages)
     ? payload.messages.map(normalizeBridgeMessage).filter((message): message is ReviewBridgeMessage => Boolean(message))

@@ -34,6 +34,7 @@ import {
   makeActionId,
   makeNoteId,
   makeSessionExport,
+  normalizeReviewErrorMessage,
   pageLabelFor,
   postReviewAction,
   postReviewNote,
@@ -45,6 +46,8 @@ import {
   REVIEW_PRIORITIES,
   REVIEW_PROMPTS,
   REVIEW_ROUTE_SHORTCUTS,
+  REVIEW_WEBHOOK_UNREACHABLE_HELP,
+  REVIEW_WEBHOOK_UNREACHABLE_MESSAGE,
   reviewPathFor,
   reviewEndpointUrl,
   saveActions,
@@ -64,6 +67,7 @@ import { cn } from "@/lib/utils";
 
 type DeviceMode = "phone" | "tablet" | "desktop";
 type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
+type ConnectionState = "local" | "checking" | "live" | "failed";
 type ReviewerSubmission = {
   text: string;
   label: string;
@@ -161,23 +165,32 @@ function isConversationAction(action: ReviewAction) {
     || (action.kind === "input" && (action.label === "Live note draft" || action.label === "Live chat draft"));
 }
 
-function submissionSyncLabel(submission: ReviewerSubmission | null, endpointConfigured: boolean) {
-  if (!submission) return endpointConfigured ? "ready" : "offline";
+function submissionSyncLabel(submission: ReviewerSubmission | null, connectionState: ConnectionState) {
+  if (!submission) {
+    if (connectionState === "live") return "ready";
+    if (connectionState === "checking") return "checking webhook";
+    if (connectionState === "failed") return "webhook issue";
+    return "local only";
+  }
   if (submission.syncState === "sending") return "sending live";
   if (submission.syncState === "error") return "needs retry";
-  if (submission.syncedAt || submission.syncState === "sent") return "sent live";
-  return endpointConfigured ? "queued" : "local only";
+  if (submission.syncedAt || submission.syncState === "sent") return connectionState === "live" ? "sent live" : "sent";
+  return connectionState === "live" ? "queued" : "saved locally";
 }
 
-function submissionSyncClass(submission: ReviewerSubmission | null, endpointConfigured: boolean) {
-  if (!submission) return endpointConfigured ? "text-slate-300" : "text-amber-100";
+function submissionSyncClass(submission: ReviewerSubmission | null, connectionState: ConnectionState) {
+  if (!submission) {
+    if (connectionState === "failed") return "border-red-300/30 bg-red-300/10 text-red-100";
+    if (connectionState === "checking") return "border-amber-300/30 bg-amber-300/10 text-amber-100";
+    return connectionState === "live" ? "text-slate-300" : "text-amber-100";
+  }
   if (submission.syncState === "sending") return "border-blue-300/30 bg-blue-300/10 text-blue-100";
   if (submission.syncState === "error") return "border-red-300/30 bg-red-300/10 text-red-100";
   if (submission.syncedAt || submission.syncState === "sent") return "border-emerald-300/30 bg-emerald-300/10 text-emerald-100";
-  return endpointConfigured ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "text-slate-300";
+  return connectionState === "live" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "text-slate-300";
 }
 
-function latestExchangeText(submission: ReviewerSubmission | null, message: ReviewBridgeMessage | null, endpointConfigured: boolean) {
+function latestExchangeText(submission: ReviewerSubmission | null, message: ReviewBridgeMessage | null, connectionState: ConnectionState) {
   const lines = [
     "# Field Copilot live review exchange",
     "",
@@ -190,7 +203,7 @@ function latestExchangeText(submission: ReviewerSubmission | null, message: Revi
       : "(No source yet.)",
     "",
     "## Sync status",
-    submissionSyncLabel(submission, endpointConfigured),
+    submissionSyncLabel(submission, connectionState),
     "",
     "## Codex replied",
     message?.text || "(No Codex reply yet.)",
@@ -304,6 +317,7 @@ export default function ReviewWorkspace() {
   const [isRefreshingBridge, setIsRefreshingBridge] = useState(false);
   const [sessionId] = useState(() => getReviewSessionId());
   const [reviewEndpoint, setReviewEndpoint] = useState(() => getReviewEndpoint());
+  const [endpointReachable, setEndpointReachable] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [liveNoteDraftState, setLiveNoteDraftState] = useState<LiveDraftState>("idle");
   const [liveNoteDraftAt, setLiveNoteDraftAt] = useState<string | null>(null);
@@ -315,6 +329,15 @@ export default function ReviewWorkspace() {
   const pageLabel = pageLabelFor(framePath.split("?")[0].split("#")[0] || framePath);
   const currentDraft = drafts[framePath] ?? EMPTY_REVIEW_DRAFT;
   const endpointConfigured = reviewEndpoint.length > 0;
+  const liveConnectionVerified = endpointConfigured && endpointReachable;
+  const endpointIssue = lastSyncError ?? lastBridgeError;
+  const connectionState: ConnectionState = !endpointConfigured
+    ? "local"
+    : liveConnectionVerified
+      ? "live"
+      : endpointIssue
+        ? "failed"
+        : "checking";
   const notesUrl = endpointNotesUrl(reviewEndpoint);
   const sessionBridgeMessages = useMemo(
     () => bridgeMessages.filter((message) => message.sessionId === sessionId),
@@ -341,7 +364,7 @@ export default function ReviewWorkspace() {
     [actions, notes, sessionId, visibleBridgeMessages],
   );
   const latestConversationEntry = conversationEntries[conversationEntries.length - 1] ?? null;
-  const awaitingCodexReply = endpointConfigured && latestConversationEntry?.author === "reviewer";
+  const awaitingCodexReply = liveConnectionVerified && latestConversationEntry?.author === "reviewer";
   const visibleConversationEntries = useMemo(() => {
     const recent = conversationEntries.slice(-10);
     if (!awaitingCodexReply || !latestConversationEntry) return recent;
@@ -369,6 +392,13 @@ export default function ReviewWorkspace() {
   }, []);
 
   useEffect(() => {
+    setEndpointReachable(false);
+    setLastSyncError(null);
+    setLastBridgeError(null);
+    setBridgeMessages([]);
+  }, [reviewEndpoint]);
+
+  useEffect(() => {
     saveNotes(notes);
   }, [notes]);
 
@@ -388,6 +418,7 @@ export default function ReviewWorkspace() {
     const requestId = ++bridgeRequestIdRef.current;
 
     if (!endpointConfigured) {
+      setEndpointReachable(false);
       setBridgeMessages([]);
       setLastBridgeError(null);
       return;
@@ -397,12 +428,14 @@ export default function ReviewWorkspace() {
     try {
       const messages = await fetchReviewMessages(reviewEndpoint, sessionId);
       if (isMountedRef.current && requestId === bridgeRequestIdRef.current) {
+        setEndpointReachable(true);
         setBridgeMessages(messages);
         setLastBridgeError(null);
       }
     } catch (error) {
       if (isMountedRef.current && requestId === bridgeRequestIdRef.current) {
-        setLastBridgeError(error instanceof Error ? error.message : "Review bridge unavailable");
+        setEndpointReachable(false);
+        setLastBridgeError(normalizeReviewErrorMessage(error, "Review bridge unavailable"));
       }
     } finally {
       if (showBusy && isMountedRef.current) setIsRefreshingBridge(false);
@@ -510,15 +543,18 @@ export default function ReviewWorkspace() {
       const sent = await postReviewNote(reviewEndpoint, sessionId, note);
       if (sent) {
         const syncedAt = new Date().toISOString();
+        setEndpointReachable(true);
+        setLastBridgeError(null);
         patchNote(note.id, { syncedAt, syncState: "sent", lastError: undefined });
         markSyncSuccess(attemptId);
       }
       return sent;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Review submit failed";
+      const message = normalizeReviewErrorMessage(error, "Review submit failed", { localNoteFallback: true });
+      setEndpointReachable(false);
       patchNote(note.id, { syncState: "error", lastError: message });
       markSyncFailure(attemptId, message);
-      toast.error("Note saved locally. Live submit failed.");
+      toast.error(message);
       return false;
     }
   }, [beginSyncAttempt, endpointConfigured, markSyncFailure, markSyncSuccess, patchNote, reviewEndpoint, sessionId]);
@@ -536,12 +572,15 @@ export default function ReviewWorkspace() {
       const sent = await postReviewAction(reviewEndpoint, sessionId, action);
       if (sent) {
         const syncedAt = new Date().toISOString();
+        setEndpointReachable(true);
+        setLastBridgeError(null);
         patchAction(action.id, { syncedAt, syncState: "sent", lastError: undefined });
         markSyncSuccess(attemptId);
       }
       return sent;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Review action submit failed";
+      const message = normalizeReviewErrorMessage(error, "Review action submit failed");
+      setEndpointReachable(false);
       patchAction(action.id, { syncState: "error", lastError: message });
       markSyncFailure(attemptId, message);
       return false;
@@ -742,7 +781,11 @@ export default function ReviewWorkspace() {
     recordAction("note", "Captured review note", text, "review-note", framePath);
     clearCurrentDraft();
     toast.success("Review note captured", {
-      description: endpointConfigured ? "Syncing live now." : "Saved locally in this browser.",
+      description: liveConnectionVerified
+        ? "Syncing live now."
+        : endpointConfigured
+          ? "Saved locally while the webhook is checked."
+          : "Saved locally in this browser.",
     });
     void submitNote(note);
   };
@@ -751,6 +794,9 @@ export default function ReviewWorkspace() {
     if (!endpointConfigured) {
       toast("Live endpoint not connected", { description: "Use Copy chat handoff or local notes instead." });
       return;
+    }
+    if (connectionState === "failed") {
+      toast("Webhook unreachable", { description: REVIEW_WEBHOOK_UNREACHABLE_MESSAGE });
     }
     for (const note of pendingNotes) {
       const sent = await submitNote(note);
@@ -784,7 +830,7 @@ export default function ReviewWorkspace() {
   const copyLatestExchange = async () => {
     try {
       await navigator.clipboard.writeText([
-        latestExchangeText(latestReviewerSubmission, latestBridgeMessage, endpointConfigured),
+        latestExchangeText(latestReviewerSubmission, latestBridgeMessage, connectionState),
         "",
         "## Conversation",
         conversationTranscriptText(conversationEntries),
@@ -801,7 +847,7 @@ export default function ReviewWorkspace() {
     recordAction("chat", "Message to Codex", text, "review-chat", framePath);
     setChatDraft("");
     toast.success("Message saved to review session", {
-      description: endpointConfigured ? "Also syncing to the local endpoint." : "Use Copy chat handoff when ready.",
+      description: liveConnectionVerified ? "Also syncing to the live endpoint." : "Use Copy chat handoff when ready.",
     });
   };
 
@@ -864,6 +910,26 @@ export default function ReviewWorkspace() {
     window.open(appUrlFor(framePath), "_blank", "noopener,noreferrer");
   };
 
+  const endpointBadgeClass = connectionState === "live"
+    ? "bg-emerald-500/15 text-emerald-100"
+    : connectionState === "failed"
+      ? "bg-red-500/15 text-red-100"
+      : "bg-amber-500/15 text-amber-100";
+  const endpointBadgeLabel = connectionState === "live"
+    ? "Endpoint live"
+    : connectionState === "checking"
+      ? "Checking webhook"
+      : connectionState === "failed"
+        ? "Webhook issue"
+        : "Local only";
+  const bridgeEmptyState = connectionState === "live"
+    ? "I can reply here once the bridge receives your session."
+    : connectionState === "checking"
+      ? "Webhook not confirmed yet. Notes stay local until the bridge responds."
+      : connectionState === "failed"
+        ? REVIEW_WEBHOOK_UNREACHABLE_MESSAGE
+        : "Open with a review endpoint to enable live replies.";
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur">
@@ -872,8 +938,8 @@ export default function ReviewWorkspace() {
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Bot className="h-4 w-4 text-cyan-300" />
               Review workspace
-              <Badge variant="outline" className={cn("border-white/15 text-slate-100", endpointConfigured ? "bg-emerald-500/15 text-emerald-100" : "bg-amber-500/15 text-amber-100")}>
-                {endpointConfigured ? "Endpoint live" : "Local only"}
+              <Badge variant="outline" className={cn("border-white/15 text-slate-100", endpointBadgeClass)}>
+                {endpointBadgeLabel}
               </Badge>
             </div>
             <div className="mt-1 text-xs text-slate-400">Centered app canvas with live action tracking, review prompts, notes, and chat handoff around it.</div>
@@ -936,8 +1002,8 @@ export default function ReviewWorkspace() {
             <div className="mt-3 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-emerald-100">Live notetaker</div>
-                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass(latestReviewerSubmission, endpointConfigured))}>
-                  {latestReviewerSubmission ? "capturing" : endpointConfigured ? "ready" : "offline"}
+                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass(latestReviewerSubmission, connectionState))}>
+                  {latestReviewerSubmission ? "capturing" : submissionSyncLabel(null, connectionState)}
                 </Badge>
               </div>
 
@@ -948,9 +1014,9 @@ export default function ReviewWorkspace() {
                 <Badge
                   aria-label="Latest submission sync status"
                   variant="outline"
-                  className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass(latestReviewerSubmission, endpointConfigured))}
+                  className={cn("border-white/15 text-[10px] uppercase", submissionSyncClass(latestReviewerSubmission, connectionState))}
                 >
-                  {submissionSyncLabel(latestReviewerSubmission, endpointConfigured)}
+                  {submissionSyncLabel(latestReviewerSubmission, connectionState)}
                 </Badge>
               </div>
               <textarea
@@ -958,7 +1024,7 @@ export default function ReviewWorkspace() {
                 aria-label="Latest thing you sent"
                 readOnly
                 value={latestReviewerSubmission?.text ?? ""}
-                placeholder={endpointConfigured ? "Your next note or message will appear here." : "Open with a review endpoint to show live notes here."}
+                placeholder={connectionState === "live" ? "Your next note or message will appear here." : "Notes stay local here until the webhook responds."}
                 className="mt-1 min-h-[74px] w-full resize-none rounded-md border border-emerald-300/20 bg-slate-950 px-2 py-2 text-xs leading-relaxed text-slate-100 outline-none placeholder:text-slate-500"
               />
               {latestReviewerSubmission ? (
@@ -977,7 +1043,7 @@ export default function ReviewWorkspace() {
                 aria-label="Latest Codex response"
                 readOnly
                 value={awaitingCodexReply ? "Waiting for Codex to answer your latest note." : latestBridgeMessage?.text ?? ""}
-                placeholder={endpointConfigured ? "Codex responses will appear here." : "Connect the review endpoint to receive replies here."}
+                placeholder={connectionState === "live" ? "Codex responses will appear here." : "Webhook replies will appear here after the worker responds."}
                 className="mt-1 min-h-[86px] w-full resize-none rounded-md border border-cyan-300/20 bg-slate-950 px-2 py-2 text-xs leading-relaxed text-slate-100 outline-none placeholder:text-slate-500"
               />
               {awaitingCodexReply ? (
@@ -1016,8 +1082,8 @@ export default function ReviewWorkspace() {
             <div className="mt-3 rounded-md border border-white/10 bg-slate-950 p-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-semibold text-cyan-100">Conversation</div>
-                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", conversationEntries.length ? "text-emerald-100" : endpointConfigured ? "text-slate-300" : "text-amber-100")}>
-                  {conversationEntries.length ? `${conversationEntries.length} messages` : endpointConfigured ? "listening" : "offline"}
+                <Badge variant="outline" className={cn("border-white/15 text-[10px] uppercase", conversationEntries.length ? "text-emerald-100" : connectionState === "failed" ? "text-red-100" : connectionState === "live" ? "text-slate-300" : "text-amber-100")}>
+                  {conversationEntries.length ? `${conversationEntries.length} messages` : submissionSyncLabel(null, connectionState)}
                 </Badge>
               </div>
               <div className="mt-1 text-[11px] leading-relaxed text-slate-400">
@@ -1058,7 +1124,7 @@ export default function ReviewWorkspace() {
                                   syncedAt: entry.syncedAt,
                                   syncState: entry.syncState,
                                   lastError: entry.lastError,
-                                }, endpointConfigured))}>
+                                }, connectionState))}>
                                   {submissionSyncLabel({
                                     text: entry.text,
                                     label: entry.channel === "chat" ? "Message to Codex" : "Review note",
@@ -1069,7 +1135,7 @@ export default function ReviewWorkspace() {
                                     syncedAt: entry.syncedAt,
                                     syncState: entry.syncState,
                                     lastError: entry.lastError,
-                                  }, endpointConfigured)}
+                                  }, connectionState)}
                                 </Badge>
                               ) : null}
                             </div>
@@ -1091,7 +1157,7 @@ export default function ReviewWorkspace() {
                 </div>
               ) : (
                 <div className="mt-2 text-xs leading-relaxed text-slate-400">
-                  {endpointConfigured ? "I can reply here once the bridge receives your session." : "Open with a review endpoint to enable live replies."}
+                  {bridgeEmptyState}
                 </div>
               )}
               {lastBridgeError ? <div className="mt-2 text-[11px] text-amber-200">{lastBridgeError}</div> : null}
@@ -1193,7 +1259,7 @@ export default function ReviewWorkspace() {
                 <div className="text-sm font-semibold">Capture UI feedback</div>
                 <div className="mt-1 text-xs text-slate-400">{currentPageNotes.length} open on this screen</div>
               </div>
-              {endpointConfigured ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : null}
+              {liveConnectionVerified ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : null}
             </div>
 
             <div className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/10 p-2">
