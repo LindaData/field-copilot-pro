@@ -1,5 +1,5 @@
 name = "soft-unit-ba5d"
-main = "workers/review-inbox.ts"
+main = "workers/review-inbox.js"
 compatibility_date = "2026-07-01"
 workers_dev = true
 
