@@ -17,6 +17,12 @@ function truncate(value, max = 4000) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+function githubToken(env) {
+  return clean(env.GITHUB_TOKEN)
+    || clean(env.hvac_review_webhook)
+    || clean(env.HVAC_REVIEW_WEBHOOK);
+}
+
 function repoName(env) {
   return clean(env.REVIEW_REPO, DEFAULT_REPO) || DEFAULT_REPO;
 }
@@ -79,7 +85,7 @@ function githubHeaders(env) {
     "x-github-api-version": "2022-11-28",
   };
 
-  const token = clean(env.GITHUB_TOKEN);
+  const token = githubToken(env);
   if (token) headers.authorization = `Bearer ${token}`;
   return headers;
 }
@@ -103,13 +109,13 @@ async function readIssueComments(env) {
 }
 
 async function writeIssueComment(env, body) {
-  if (!clean(env.GITHUB_TOKEN)) {
+  if (!githubToken(env)) {
     return {
       status: 503,
       payload: {
         ok: false,
         error: "missing_github_token",
-        message: "Set the Cloudflare Worker secret GITHUB_TOKEN before using live review sync.",
+        message: "Set the Cloudflare Worker secret GITHUB_TOKEN or hvac_review_webhook before using live review sync.",
       },
     };
   }
@@ -297,7 +303,8 @@ async function handle(request, env) {
       bridge: "field-copilot-review-inbox",
       repo: repoName(env),
       inboxIssue: issueNumber(env),
-      githubTokenConfigured: Boolean(clean(env.GITHUB_TOKEN)),
+      githubTokenConfigured: Boolean(githubToken(env)),
+      acceptedTokenSecretNames: ["GITHUB_TOKEN", "hvac_review_webhook", "HVAC_REVIEW_WEBHOOK"],
       notesUrl: `${url.origin}/notes`,
       reviewNoteUrl: `${url.origin}/review-note`,
     });
