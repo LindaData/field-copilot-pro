@@ -63,41 +63,52 @@ import { cn } from "@/lib/utils";
 
 type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
 type ReviewLauncherPosition = { x: number; y: number };
+type ReviewLauncherBounds = { width: number; height: number };
 
 const REVIEW_LAUNCHER_POSITION_KEY = "field-copilot-review-launcher-position-v1";
 const REVIEW_LAUNCHER_MARGIN = 12;
-const REVIEW_LAUNCHER_MAX_WIDTH = 352;
-const REVIEW_LAUNCHER_MAX_HEIGHT = 160;
+const REVIEW_LAUNCHER_FALLBACK_HEIGHT = 60;
 
-function clampLauncherPosition(position: ReviewLauncherPosition) {
+function estimateLauncherBounds(): ReviewLauncherBounds {
+  if (typeof window === "undefined") {
+    return { width: 220, height: REVIEW_LAUNCHER_FALLBACK_HEIGHT };
+  }
+
+  const maxWidth = Math.max(120, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2));
+  const width = Math.min(maxWidth, window.innerWidth < 640 ? 200 : 320);
+  return { width, height: REVIEW_LAUNCHER_FALLBACK_HEIGHT };
+}
+
+function clampLauncherPosition(position: ReviewLauncherPosition, bounds = estimateLauncherBounds()) {
   if (typeof window === "undefined") return position;
-  const maxWidth = Math.min(REVIEW_LAUNCHER_MAX_WIDTH, Math.max(220, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2)));
-  const maxX = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerWidth - maxWidth - REVIEW_LAUNCHER_MARGIN);
-  const maxY = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerHeight - REVIEW_LAUNCHER_MAX_HEIGHT - REVIEW_LAUNCHER_MARGIN);
+  const width = Math.min(bounds.width, Math.max(120, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2)));
+  const height = Math.min(bounds.height, Math.max(48, window.innerHeight - (REVIEW_LAUNCHER_MARGIN * 2)));
+  const maxX = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerWidth - width - REVIEW_LAUNCHER_MARGIN);
+  const maxY = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerHeight - height - REVIEW_LAUNCHER_MARGIN);
   return {
     x: Math.min(Math.max(REVIEW_LAUNCHER_MARGIN, position.x), maxX),
     y: Math.min(Math.max(REVIEW_LAUNCHER_MARGIN, position.y), maxY),
   };
 }
 
-function defaultLauncherPosition(): ReviewLauncherPosition {
+function defaultLauncherPosition(bounds = estimateLauncherBounds()): ReviewLauncherPosition {
   if (typeof window === "undefined") return { x: REVIEW_LAUNCHER_MARGIN, y: REVIEW_LAUNCHER_MARGIN };
   return clampLauncherPosition({
-    x: window.innerWidth - Math.min(REVIEW_LAUNCHER_MAX_WIDTH, Math.max(220, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2))) - REVIEW_LAUNCHER_MARGIN,
+    x: window.innerWidth - bounds.width - REVIEW_LAUNCHER_MARGIN,
     y: window.innerHeight - 132,
-  });
+  }, bounds);
 }
 
-function loadLauncherPosition(): ReviewLauncherPosition {
-  if (typeof window === "undefined") return defaultLauncherPosition();
+function loadLauncherPosition(bounds = estimateLauncherBounds()): ReviewLauncherPosition {
+  if (typeof window === "undefined") return defaultLauncherPosition(bounds);
   try {
     const raw = window.localStorage.getItem(REVIEW_LAUNCHER_POSITION_KEY);
-    if (!raw) return defaultLauncherPosition();
+    if (!raw) return defaultLauncherPosition(bounds);
     const parsed = JSON.parse(raw) as Partial<ReviewLauncherPosition>;
-    if (typeof parsed.x !== "number" || typeof parsed.y !== "number") return defaultLauncherPosition();
-    return clampLauncherPosition({ x: parsed.x, y: parsed.y });
+    if (typeof parsed.x !== "number" || typeof parsed.y !== "number") return defaultLauncherPosition(bounds);
+    return clampLauncherPosition({ x: parsed.x, y: parsed.y }, bounds);
   } catch {
-    return defaultLauncherPosition();
+    return defaultLauncherPosition(bounds);
   }
 }
 
@@ -284,6 +295,7 @@ export function ReviewLayer() {
   const lastScrollBucketRef = useRef("");
   const lastVisibilityStateRef = useRef(typeof document === "undefined" ? "visible" : document.visibilityState);
   const lastViewportRef = useRef<string | undefined>(currentViewport());
+  const [launcherBounds, setLauncherBounds] = useState<ReviewLauncherBounds>(() => estimateLauncherBounds());
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ReviewView>("page");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
@@ -297,7 +309,7 @@ export function ReviewLayer() {
   const [lastBridgeError, setLastBridgeError] = useState<string | null>(null);
   const [liveDraftState, setLiveDraftState] = useState<LiveDraftState>("idle");
   const [liveDraftAt, setLiveDraftAt] = useState<string | null>(null);
-  const [launcherPosition, setLauncherPosition] = useState<ReviewLauncherPosition>(() => loadLauncherPosition());
+  const [launcherPosition, setLauncherPosition] = useState<ReviewLauncherPosition>(() => loadLauncherPosition(estimateLauncherBounds()));
   const [draggingLauncher, setDraggingLauncher] = useState(false);
 
   const pageLabel = pageLabelFor(location.pathname);
@@ -358,8 +370,43 @@ export function ReviewLayer() {
   }, [launcherPosition]);
 
   useEffect(() => {
+    const measureLauncher = () => {
+      const nextBounds = launcherRef.current
+        ? {
+          width: Math.max(1, launcherRef.current.offsetWidth),
+          height: Math.max(1, launcherRef.current.offsetHeight),
+        }
+        : estimateLauncherBounds();
+      setLauncherBounds((current) => (
+        current.width === nextBounds.width && current.height === nextBounds.height
+          ? current
+          : nextBounds
+      ));
+      setLauncherPosition((current) => clampLauncherPosition(current, nextBounds));
+    };
+
+    measureLauncher();
+
+    const observer = typeof ResizeObserver === "undefined" || !launcherRef.current
+      ? null
+      : new ResizeObserver(() => {
+        measureLauncher();
+      });
+
+    if (observer && launcherRef.current) {
+      observer.observe(launcherRef.current);
+    }
+
+    window.addEventListener("resize", measureLauncher);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measureLauncher);
+    };
+  }, [open, endpointConfigured, actions.length]);
+
+  useEffect(() => {
     const handleResize = () => {
-      setLauncherPosition((current) => clampLauncherPosition(current));
+      setLauncherPosition((current) => clampLauncherPosition(current, launcherBounds));
     };
 
     const handleDragMove = (event: PointerEvent) => {
@@ -375,7 +422,7 @@ export function ReviewLayer() {
       setLauncherPosition(clampLauncherPosition({
         x: activeDrag.originX + dx,
         y: activeDrag.originY + dy,
-      }));
+      }, launcherBounds));
     };
 
     const handlePointerEnd = (event: PointerEvent) => {
@@ -395,7 +442,7 @@ export function ReviewLayer() {
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
     };
-  }, []);
+  }, [launcherBounds]);
 
   const sessionNotes = useMemo(
     () => notes.filter((note) => matchesReviewSession(note.sessionId, sessionId)),
