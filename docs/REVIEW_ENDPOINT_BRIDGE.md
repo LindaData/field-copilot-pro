@@ -11,8 +11,8 @@ The app-side local fallback is working. The broken piece is the remote review en
 
 ## What was added
 
-- `workers/review-inbox.ts`: Cloudflare Worker endpoint for review notes.
-- `wrangler.toml`: Worker config.
+- `workers/review-inbox.js`: Cloudflare Worker endpoint for review notes.
+- `wrangler.toml`: Worker config pointed at the connected Cloudflare service `soft-unit-ba5d`.
 
 The worker exposes:
 
@@ -55,7 +55,7 @@ https://lindadata.github.io/field-copilot-pro/app/today?reviewEndpoint=<encoded-
 Example shape only:
 
 ```text
-https://lindadata.github.io/field-copilot-pro/app/today?reviewEndpoint=https%3A%2F%2Ffield-copilot-review-inbox.<workers-subdomain>.workers.dev%2Freview-note
+https://lindadata.github.io/field-copilot-pro/app/today?reviewEndpoint=https%3A%2F%2Fsoft-unit-ba5d.<workers-subdomain>.workers.dev%2Freview-note
 ```
 
 ## Health check
