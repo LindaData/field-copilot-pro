@@ -25,7 +25,7 @@ Phone test guide:
 
 ## Agent Company Operating System
 
-This repo now includes the LindaData agent-company structure for routing work through a CEO Commander, Chief of Staff, executive council, specialist pods, QA review, and short user summaries.
+This repo includes the LindaData agent-company structure for routing work through a CEO Commander, Chief of Staff, executive council, specialist pods, QA review, tool routing, and short user summaries.
 
 Start here:
 
@@ -34,6 +34,10 @@ Start here:
 - [Role Roster](docs/agent-company/roles.yaml)
 - [Workflows](docs/agent-company/workflows.yaml)
 - [Message Contract](docs/agent-company/message-contract.schema.json)
+- [Tool Registry](docs/agent-company/tool-registry.yaml)
+- [Skills Matrix](docs/agent-company/skills-matrix.md)
+- [Tool Use Policy](docs/agent-company/tool-use-policy.md)
+- [Next Tools Roadmap](docs/agent-company/next-tools-roadmap.md)
 - [Quality Gates](docs/agent-company/safety-gates.md)
 - [Codex Bootstrap](docs/agent-company/codex-bootstrap.md)
 

@@ -30,3 +30,24 @@ Use `docs/agent-company/codex-bootstrap.md` as the starting prompt for any Codex
 - Add a lightweight CLI to create task packets from review-layer feedback.
 - Connect review-layer notes to a durable backend store.
 - Generate GitHub issues from approved feedback packets.
+
+## 2026-07-01 tool and skills upgrade
+
+Added the operating layer that maps skills and tools to agents.
+
+### Added
+
+- `tool-registry.yaml`: available tool groups, tool guardrails, agent tool routing, and missing-tool priorities.
+- `skills-matrix.md`: skill groups, maturity levels, and immediate upgrade list.
+- `tool-use-policy.md`: simple rules for when agents should use each tool.
+- `next-tools-roadmap.md`: roadmap for durable ledgers, feedback endpoint, schema validation, workflow runner, CI, and runbooks.
+- `ledgers/task-ledger-template.yaml`: reusable task ledger template.
+- `.github/ISSUE_TEMPLATE/agent-task.yml`: GitHub issue template for structured agent tasks.
+
+### Design decision
+
+The agent company now separates role design from tool access. The CEO Commander routes work; executives approve the needed capability; specialists use only the tools required for that task.
+
+### Current maturity
+
+The repo is now at Level 1 moving into Level 2: structured docs, tool routing, and task templates exist; runtime automation still needs schema validation, persistent feedback storage, and issue/branch automation.
