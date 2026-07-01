@@ -75,7 +75,7 @@ function estimateLauncherBounds(): ReviewLauncherBounds {
   }
 
   const maxWidth = Math.max(120, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2));
-  const width = Math.min(maxWidth, window.innerWidth < 640 ? 200 : 320);
+  const width = Math.min(maxWidth, window.innerWidth < 640 ? 136 : 320);
   return { width, height: REVIEW_LAUNCHER_FALLBACK_HEIGHT };
 }
 
@@ -289,6 +289,7 @@ export function ReviewLayer() {
     originY: number;
     moved: boolean;
   } | null>(null);
+  const launcherClickSuppressRef = useRef(false);
   const lastRouteRef = useRef("");
   const lastLiveDraftRef = useRef("");
   const passiveActionRef = useRef<Record<string, number>>({});
@@ -296,6 +297,7 @@ export function ReviewLayer() {
   const lastVisibilityStateRef = useRef(typeof document === "undefined" ? "visible" : document.visibilityState);
   const lastViewportRef = useRef<string | undefined>(currentViewport());
   const [launcherBounds, setLauncherBounds] = useState<ReviewLauncherBounds>(() => estimateLauncherBounds());
+  const [compactLauncherMode, setCompactLauncherMode] = useState(() => (typeof window === "undefined" ? false : window.innerWidth < 640));
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ReviewView>("page");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
@@ -371,6 +373,7 @@ export function ReviewLayer() {
 
   useEffect(() => {
     const measureLauncher = () => {
+      setCompactLauncherMode(window.innerWidth < 640);
       const nextBounds = launcherRef.current
         ? {
           width: Math.max(1, launcherRef.current.offsetWidth),
@@ -428,6 +431,9 @@ export function ReviewLayer() {
     const handlePointerEnd = (event: PointerEvent) => {
       if (!launcherDragRef.current) return;
       if (event.pointerId !== launcherDragRef.current.pointerId) return;
+      if (launcherDragRef.current.moved) {
+        launcherClickSuppressRef.current = true;
+      }
       launcherDragRef.current = null;
       setDraggingLauncher(false);
     };
@@ -1145,6 +1151,14 @@ export function ReviewLayer() {
     };
   };
 
+  const openLauncher = () => {
+    if (launcherClickSuppressRef.current) {
+      launcherClickSuppressRef.current = false;
+      return;
+    }
+    setOpen(true);
+  };
+
   if (hiddenForReviewWorkspace) return null;
 
   return (
@@ -1633,7 +1647,7 @@ export function ReviewLayer() {
               onPointerDown={startLauncherDrag}
               aria-label="Move review launcher"
               className={cn(
-                "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-lg backdrop-blur transition-all touch-none select-none",
+                "hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-lg backdrop-blur transition-all touch-none select-none sm:inline-flex",
                 draggingLauncher ? "cursor-grabbing border-primary text-foreground shadow-xl" : "cursor-grab hover:border-foreground/20 hover:text-foreground",
               )}
             >
@@ -1661,15 +1675,21 @@ export function ReviewLayer() {
 
             <Button
               type="button"
-              onClick={() => setOpen(true)}
-              className={cn("h-11 self-end rounded-full px-4 shadow-lg", openCount > 0 ? "pr-3" : "")}
+              onPointerDown={compactLauncherMode ? startLauncherDrag : undefined}
+              onClick={openLauncher}
+              className={cn(
+                "h-11 self-end rounded-full shadow-lg",
+                compactLauncherMode ? "px-3" : "px-4",
+                openCount > 0 ? (compactLauncherMode ? "pr-2.5" : "pr-3") : "",
+                compactLauncherMode ? "touch-none select-none cursor-grab active:cursor-grabbing" : "",
+              )}
               aria-label={`Review layer, ${openCount} open notes`}
             >
               <span className="inline-flex items-center gap-2">
                 <StickyNote className="h-4 w-4" />
                 Review
               </span>
-              {openCount === 0 ? <span className="text-xs text-primary-foreground/80">Open</span> : null}
+              {openCount === 0 && !compactLauncherMode ? <span className="text-xs text-primary-foreground/80">Open</span> : null}
               {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
             </Button>
           </div>

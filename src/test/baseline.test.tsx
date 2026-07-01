@@ -508,7 +508,7 @@ describe("migration baseline", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
       window.localStorage.setItem("field-copilot-review-launcher-position-v1", JSON.stringify({
-        x: 170,
+        x: 240,
         y: 188,
       }));
       window.history.pushState(
@@ -519,11 +519,13 @@ describe("migration baseline", () => {
 
       render(<App />);
 
-      const moveButton = await screen.findByRole("button", { name: /move review launcher/i });
-      const launcher = moveButton.closest("div[style]") as HTMLDivElement | null;
+      const reviewButton = await screen.findByRole("button", { name: /review layer, 0 open notes/i });
+      const launcher = reviewButton.closest("div[style]") as HTMLDivElement | null;
+      const moveButton = screen.getByRole("button", { name: /move review launcher/i });
 
       expect(launcher).not.toBeNull();
-      expect(launcher?.style.left).toBe("170px");
+      expect(moveButton.className).toContain("hidden");
+      expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBeGreaterThanOrEqual(230);
     } finally {
       Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
       Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
