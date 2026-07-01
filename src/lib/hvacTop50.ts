@@ -168,6 +168,9 @@ export function documentationQualityLabel(row: HvacDocumentationResearch) {
   if (row.documentType === "official_pdf" || row.documentationQuality === "direct_family_pdf") return "Official PDF";
   if (row.documentType === "official_product_page" || row.documentationQuality === "official_family_page") return "Official family page";
   if (row.documentType === "official_document_portal") return "Official document portal";
+  if (row.documentType === "official_product_and_document_portal") return "Product + doc portal";
+  if (row.documentType === "official_product_library" || row.documentationQuality === "official_category_page") return "Official category page";
+  if (row.documentationQuality === "official_site_review_needed") return "Official site review";
   if (row.documentType === "official_brand_site") return "Official brand site";
   if (row.documentType === "product_spec_pdf") return "Official spec PDF";
   return "Official product library";
@@ -177,7 +180,8 @@ export function documentationStatusLabel(row: HvacDocumentationResearch) {
   if (row.matchStatus === "verified_exact_match") return "Exact";
   if (row.matchStatus === "best_effort_demo_match") return "Demo match";
   if (row.matchStatus === "likely_model_family_match") return "Family match";
-  if (row.matchStatus === "manufacturer_generic") return "Generic";
+  if (row.matchStatus === "manufacturer_generic") return "Generic source";
+  if (row.matchStatus === "needs_owner_review") return "Owner review";
   return "Needs review";
 }
 
@@ -198,6 +202,18 @@ export function documentationResearchForEquipment(equipment: Equipment) {
 
 export function bestDocumentationForEquipment(equipment: Equipment) {
   return documentationResearchForEquipment(equipment)[0];
+}
+
+export function documentationSummaryForEquipment(equipment: Equipment) {
+  const rows = documentationResearchForEquipment(equipment);
+  const best = rows[0];
+  return {
+    rows,
+    best,
+    linkedDocumentCount: equipment.manualUrls.length,
+    hasOfficialPdf: rows.some((row) => documentationQualityLabel(row).includes("PDF")),
+    hasOfficialPortal: rows.some((row) => row.documentType === "official_document_portal" || row.documentType === "official_product_and_document_portal"),
+  };
 }
 
 export function top50DocItems(): DocItem[] {

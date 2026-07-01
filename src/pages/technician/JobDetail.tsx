@@ -13,6 +13,7 @@ import type { JobStage, PauseReason } from "@/lib/types";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
 import { watchFieldPosition } from "@/lib/native";
+import { documentationQualityLabel, documentationStatusLabel, documentationSummaryForEquipment } from "@/lib/hvacTop50";
 
 function fmtClock(iso?: string) {
   if (!iso) return "-";
@@ -23,6 +24,12 @@ function fmtDur(ms: number) {
   const m = Math.max(0, Math.round(ms / 60000));
   const h = Math.floor(m / 60);
   return h ? `${h}h ${m % 60}m` : `${m}m`;
+}
+
+function confidenceClass(confidence?: string) {
+  if (confidence === "high") return "border-success/40 text-success";
+  if (confidence === "medium") return "border-info/40 text-info";
+  return "border-warning/50 text-warning";
 }
 
 function distanceFt(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -100,6 +107,8 @@ export default function JobDetail() {
 
   const customer = state.customers.find((x) => x.id === job.customerId);
   const equipment = state.equipment.find((x) => x.id === job.equipmentId);
+  const equipmentDocs = equipment ? documentationSummaryForEquipment(equipment) : undefined;
+  const bestEquipmentDoc = equipmentDocs?.best;
   const diag = state.diag[job.id];
   const hasReport = diag?.completed;
   const history = state.jobs
@@ -268,7 +277,17 @@ export default function JobDetail() {
           <Link to={`/app/equipment/${equipment.id}`} className="block rounded-lg border p-3 hover:bg-muted/30">
             <div className="text-sm font-semibold">{equipment.manufacturer} {equipment.model}</div>
             <div className="text-xs text-muted-foreground">Serial {equipment.serial} - {equipment.type}</div>
-            <div className="mt-1 inline-flex items-center gap-1 text-xs text-primary"><Wrench className="h-3 w-3" /> {t("jobDetail.viewSpecs")}</div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {equipmentDocs?.linkedDocumentCount ? <Badge variant="outline"><FileText className="mr-1 h-3 w-3" /> {equipmentDocs.linkedDocumentCount} docs linked</Badge> : null}
+              {bestEquipmentDoc ? <Badge variant="outline" className={confidenceClass(bestEquipmentDoc.confidence)}>{documentationStatusLabel(bestEquipmentDoc)}</Badge> : null}
+              {bestEquipmentDoc ? <Badge variant="secondary">{documentationQualityLabel(bestEquipmentDoc)}</Badge> : null}
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              {bestEquipmentDoc
+                ? `${bestEquipmentDoc.documentTitle}. Verify the exact installed model before using literature values.`
+                : "No official manufacturer source is linked yet for this equipment record."}
+            </div>
+            <div className="mt-2 inline-flex items-center gap-1 text-xs text-primary"><Wrench className="h-3 w-3" /> View specs and documentation</div>
           </Link>
         ) : (
           <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{t("jobDetail.noEquipment")}</div>

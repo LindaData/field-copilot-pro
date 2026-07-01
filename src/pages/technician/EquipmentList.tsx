@@ -4,6 +4,13 @@ import { useStore } from "@/lib/store";
 import { Wrench, FileText, History, ListChecks, Play, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDynamicText } from "@/i18n/dynamic";
+import { documentationQualityLabel, documentationStatusLabel, documentationSummaryForEquipment } from "@/lib/hvacTop50";
+
+function confidenceClass(confidence?: string) {
+  if (confidence === "high") return "bg-success/15 text-success";
+  if (confidence === "medium") return "bg-info/15 text-info";
+  return "bg-warning/15 text-warning";
+}
 
 export default function EquipmentList() {
   const { state } = useStore();
@@ -28,6 +35,8 @@ export default function EquipmentList() {
           const verifiedCount = eq.specs.filter((s) => (s.verificationStatus ?? "Manufacturer Verified") === "Manufacturer Verified").length;
           const isVerified = eq.verificationStatus === "Manufacturer Verified";
           const warranty = property?.warrantyActive ? t("equipmentList.warrantyActive") : t("equipmentList.warrantyUnknown");
+          const docSummary = documentationSummaryForEquipment(eq);
+          const bestDoc = docSummary.best;
 
           return (
             <Link
@@ -65,6 +74,27 @@ export default function EquipmentList() {
                 {lastService && <div>{t("equipmentList.lastService")} <span className="text-foreground">{lastService}</span></div>}
                 <div>{t("equipmentList.warranty")} <span className="text-foreground">{warranty}</span></div>
                 {openJob && <div className="col-span-2 text-warning">{t("equipmentList.openIssue", { value: tx(openJob.complaint) })}</div>}
+              </div>
+
+              <div className="rounded-lg border bg-muted/20 p-2 text-[11px]">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {docSummary.linkedDocumentCount > 0 ? (
+                    <span className="stat-pill bg-info/15 text-info">
+                      <FileText className="h-3 w-3" /> {docSummary.linkedDocumentCount} docs linked
+                    </span>
+                  ) : (
+                    <span className="stat-pill bg-warning/15 text-warning">
+                      <AlertTriangle className="h-3 w-3" /> No docs linked
+                    </span>
+                  )}
+                  {bestDoc ? <span className={`stat-pill ${confidenceClass(bestDoc.confidence)}`}>{documentationStatusLabel(bestDoc)}</span> : null}
+                  {bestDoc ? <span className="stat-pill bg-secondary text-secondary-foreground">{documentationQualityLabel(bestDoc)}</span> : null}
+                </div>
+                <div className="mt-1 text-muted-foreground">
+                  {bestDoc
+                    ? `${bestDoc.documentTitle}. Verify the exact installed model before using source values.`
+                    : "This record still needs an official manufacturer source before field-use guidance can rely on it."}
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-1.5">

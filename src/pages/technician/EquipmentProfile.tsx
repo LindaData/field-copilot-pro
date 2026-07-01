@@ -214,6 +214,9 @@ export default function EquipmentProfile() {
 
       <div id="assistant" className="card-elev scroll-mt-24 p-4">
         <div className="mb-2 text-sm font-semibold">{t("equipmentProfile.askAbout")}</div>
+        <div className="mb-3 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          The document reader stays inside linked manufacturer sources and family matches. It does not promote unverified numeric values for demo equipment.
+        </div>
         <form onSubmit={(event) => { event.preventDefault(); ask(q); }} className="flex gap-2">
           <Input value={q} onChange={(event) => setQ(event.target.value)} placeholder={t("equipmentProfile.askPlaceholder")} className="touch-target" />
           <Button type="submit" size="icon" className="touch-target"><Search className="h-5 w-5" /></Button>
