@@ -23,6 +23,26 @@ Phone test guide:
 
 - https://lindadata.github.io/field-copilot-pro/phone-test.html
 
+## Agent Company Operating System
+
+This repo now includes the LindaData agent-company structure for routing work through a CEO Commander, Chief of Staff, executive council, specialist pods, QA review, and short user summaries.
+
+Start here:
+
+- [Agent Company Overview](docs/agent-company/README.md)
+- [Org Chart](docs/agent-company/org-chart.md)
+- [Role Roster](docs/agent-company/roles.yaml)
+- [Workflows](docs/agent-company/workflows.yaml)
+- [Message Contract](docs/agent-company/message-contract.schema.json)
+- [Quality Gates](docs/agent-company/safety-gates.md)
+- [Codex Bootstrap](docs/agent-company/codex-bootstrap.md)
+
+Recommended Codex starting point:
+
+```text
+docs/agent-company/codex-bootstrap.md
+```
+
 ## AWS Start
 
 Use these docs next:
