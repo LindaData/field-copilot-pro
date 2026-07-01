@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lindadata.github.io/field-copilot-pro/schemas/agent-message-contract.schema.json",
+  "title": "LindaData Agent Message Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message_id", "timestamp", "from_agent", "to_agent", "workflow", "message_type", "task", "status"],
+  "properties": {
+    "message_id": {
+      "type": "string",
+      "description": "Unique message identifier."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "from_agent": {
+      "type": "string"
+    },
+    "to_agent": {
+      "type": "string"
+    },
+    "workflow": {
+      "type": "string",
+      "enum": [
+        "intake_and_triage",
+        "repo_change",
+        "review_layer_feedback",
+        "research_to_implementation",
+        "release_readiness",
+        "debug_incident",
+        "ad_hoc"
+      ]
+    },
+    "message_type": {
+      "type": "string",
+      "enum": [
+        "task_packet",
+        "handoff",
+        "decision_request",
+        "decision_record",
+        "status_update",
+        "qa_result",
+        "safety_result",
+        "blocker",
+        "artifact_record",
+        "user_summary"
+      ]
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "normal", "high", "urgent"],
+      "default": "normal"
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "title", "goal", "acceptance_criteria"],
+      "properties": {
+        "task_id": { "type": "string" },
+        "title": { "type": "string" },
+        "goal": { "type": "string" },
+        "background": { "type": "string" },
+        "repository": { "type": "string" },
+        "branch": { "type": "string" },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["new", "assigned", "in_progress", "blocked", "needs_review", "needs_fixes", "done", "deferred"]
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decision", "reason"],
+        "properties": {
+          "decision": { "type": "string" },
+          "reason": { "type": "string" },
+          "owner": { "type": "string" }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["blocker", "requested_resolution"],
+        "properties": {
+          "blocker": { "type": "string" },
+          "requested_resolution": { "type": "string" },
+          "owner": { "type": "string" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "path_or_url", "description"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["file", "branch", "pull_request", "demo_url", "screenshot", "log", "doc", "dataset"]
+          },
+          "path_or_url": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "qa": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checked": { "type": "boolean" },
+        "result": { "type": "string", "enum": ["pass", "fail", "partial", "not_run"] },
+        "notes": { "type": "string" }
+      }
+    },
+    "summary_for_next_agent": {
+      "type": "string"
+    },
+    "summary_for_user": {
+      "type": "string"
+    }
+  }
+}
