@@ -44,21 +44,21 @@ function focusHeading(status?: string) {
 function focusHelper(status?: string) {
   switch (status) {
     case "Scheduled":
-      return "Use this as the realistic start-of-day demo flow.";
+      return "Start here.";
     case "En Route":
     case "Near Destination":
-      return "Travel is already in motion for this stop.";
+      return "Travel underway.";
     case "On Site":
     case "Diagnosing":
     case "Repairing":
     case "Documentation":
-      return "This is the active field stop right now.";
+      return "Active stop.";
     case "Waiting for Parts":
-      return "This stop is paused until parts are available.";
+      return "Waiting on parts.";
     case "Follow-Up":
-      return "This needs a return visit or office coordination.";
+      return "Return work.";
     default:
-      return "Open the next technician action.";
+      return "Open next action.";
   }
 }
 
@@ -267,10 +267,7 @@ export default function Today() {
       )}
 
       <section className="card-elev p-4" data-review-avoid="today-primary-action">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Do next</div>
-        <div className="mt-1 text-sm text-muted-foreground">
-          Keep the technician moving through a realistic day instead of jumping around the demo.
-        </div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Next action</div>
         <div className="mt-3">
           <PrimaryCta action={action} />
         </div>
@@ -279,10 +276,7 @@ export default function Today() {
       <section className="card-elev p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Shift focus</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Keep the current stop, the next stop, and anything blocked visible without opening the full schedule first.
-            </div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Today queue</div>
           </div>
           <Link to="/app/jobs" className="text-[11px] font-medium text-primary">
             Open full schedule
@@ -301,7 +295,7 @@ export default function Today() {
                   ? `Follow-up visit - ${tx(followUp.complaint)}`
                   : next
                     ? `Scheduled next - ${tx(next.complaint)}`
-                    : "Everything in this range is already caught up."}
+                    : "No active stop."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/10 p-3">
@@ -312,7 +306,7 @@ export default function Today() {
             <div className="mt-1 text-xs text-muted-foreground">
               {next
                 ? `${new Date(next.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} - ${propertyOf(next.propertyId)?.address.split(",")[0] ?? "Open the schedule for details."}`
-                : "No later visit is waiting behind the current focus."}
+                : "No next stop queued."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/10 p-3">
@@ -321,7 +315,7 @@ export default function Today() {
             <div className="mt-1 text-xs text-muted-foreground">
               {waitingCount + followUpCount > 0
                 ? `${followUpCount} follow-up, ${waitingCount} waiting on approval, parts, or pause state.`
-                : "No blocked or return-work items are visible in this range."}
+                : "Nothing blocked."}
             </div>
           </div>
         </div>
@@ -332,9 +326,6 @@ export default function Today() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Needs follow-up</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Open the exact return visit instead of dropping back to the first scheduled stop.
-              </div>
             </div>
             <Badge variant="secondary">{followUps.length}</Badge>
           </div>

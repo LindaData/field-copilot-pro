@@ -39,9 +39,7 @@ export default function EquipmentList() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-semibold">Source trust for this fleet</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Keep the strongest source-backed units visible first, and keep the review queue in front of any unit the field team could reach for next.
-            </div>
+            <div className="mt-1 text-xs text-muted-foreground">See which units have trusted source docs.</div>
           </div>
           <span className="stat-pill bg-secondary text-secondary-foreground">{reviewQueue.length} queued</span>
         </div>
@@ -75,7 +73,7 @@ export default function EquipmentList() {
                     <div className="mt-1 text-xs text-muted-foreground">
                       {docSummary.best
                         ? `${documentationStatusLabel(docSummary.best)} - ${docSummary.best.documentTitle}`
-                        : "No official source is linked to this equipment record yet."}
+                        : "No source linked yet."}
                     </div>
                   </div>
                   <span className="shrink-0 text-[11px] text-muted-foreground">{linkedJobs} jobs</span>

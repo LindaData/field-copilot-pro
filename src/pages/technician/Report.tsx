@@ -90,10 +90,8 @@ export default function Report() {
       <div className="no-print mx-auto mb-3 max-w-2xl rounded-xl border bg-card p-3 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Customer-ready report</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Use the actions below to go back, save a text copy, print a clean PDF, or share the finished report.
-            </div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Customer report</div>
+            <div className="mt-1 text-sm text-muted-foreground">Save, print, or share when ready.</div>
           </div>
           <div className="stat-pill bg-muted text-muted-foreground">{statusLabel(job.status)}</div>
         </div>
@@ -123,41 +121,35 @@ export default function Report() {
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Closeout status</div>
-            <div className="mt-1 text-sm font-medium">{reportReadyForCustomer ? "Ready for customer handoff" : "Internal draft only"}</div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Status</div>
+            <div className="mt-1 text-sm font-medium">{reportReadyForCustomer ? "Ready to share" : "Draft only"}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {reportReadyForCustomer
-                ? "Approval is captured, so this report can be saved, printed, or shared with the customer."
-                : "Keep this report inside the technician workflow until customer approval is captured."}
+                ? "Approval is saved."
+                : "Approval still required."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/20 p-3">
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Approval gate</div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Approval</div>
             <div className="mt-1 text-sm font-medium">{approvalCaptured ? "Signed" : "Still needed"}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {approvalCaptured
-                ? "The signed approval stays attached to this job and final report."
-                : "Capture approval first, then return here for the final customer copy."}
+                ? "Attached to this report."
+                : "Open approval first."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/20 p-3">
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next move</div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next</div>
             <div className="mt-1 text-sm font-medium">
               {approvalCaptured ? "Save, print, or share the finished report." : "Open approval, then come back here."}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Keep approval before report handoff so the visit closes out in the right order.
             </div>
           </div>
         </div>
         {!approvalCaptured ? (
           <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
-            <div className="font-semibold">Customer approval still needs to be captured.</div>
+            <div className="font-semibold">Approval required before handoff.</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              This report can still be reviewed internally, but it is not ready as a final customer handoff until approval is recorded.
-            </div>
-            <div className="mt-3 rounded-lg border bg-background/80 p-3 text-xs text-muted-foreground">
-              1. Capture customer approval. 2. Return here. 3. Save, print, or share the finished report.
+              Open approval, then return here.
             </div>
             <Button variant="outline" className="mt-3 touch-target h-10" onClick={() => nav(`/app/jobs/${job.id}/approval`)}>
               Open customer approval
@@ -213,7 +205,7 @@ export default function Report() {
               <div>{eq.manufacturer} {eq.model}</div>
               <div className="text-xs text-muted-foreground">Serial {eq.serial} - {eq.type}</div>
               <div className="mt-2 text-[11px] text-muted-foreground">
-                Technical source documents stay linked in the equipment profile and office record instead of appearing as raw vendor links in the customer report.
+                Source documents stay in the equipment record, not in the customer copy.
               </div>
             </div>
           </section>
@@ -333,7 +325,10 @@ export default function Report() {
         <footer className="border-t pt-3 text-[10px] text-muted-foreground">{t("report.footer")} - {statusLabel(job.status)}</footer>
       </article>
 
-      <div className="no-print fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-lg backdrop-blur">
+      <div
+        data-review-avoid="report-bottom-actions"
+        className="no-print fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-lg backdrop-blur"
+      >
         <div className="mx-auto grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
           <Button variant="outline" className="touch-target" onClick={() => nav(`/app/jobs/${job.id}`)}>
             <ArrowLeft className="mr-1 h-4 w-4" /> {t("report.backToJob")}

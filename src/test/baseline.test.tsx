@@ -100,8 +100,8 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("First scheduled stop")).toBeInTheDocument();
-    expect(screen.getByText("Start travel in Maps")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /start travel in maps/i })).toBeInTheDocument();
+    expect(screen.getByText("Next action")).toBeInTheDocument();
     expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
   });
 
@@ -110,8 +110,8 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Next move")).toBeInTheDocument();
-    expect(screen.getByText("Start travel in Maps")).toBeInTheDocument();
+    expect(await screen.findByText("Next action")).toBeInTheDocument();
+    expect(screen.getAllByText("Start travel in Maps").length).toBeGreaterThan(0);
     expect(screen.getByText("Open the route and start travel timing for this stop")).toBeInTheDocument();
   });
 
@@ -132,7 +132,7 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Shift focus")).toBeInTheDocument();
+    expect(await screen.findByText("Today queue")).toBeInTheDocument();
     expect(screen.getByText("Current priority")).toBeInTheDocument();
     expect(screen.getByText("Queue next stop")).toBeInTheDocument();
     expect(screen.getByText("Blocked or follow-up")).toBeInTheDocument();
@@ -314,9 +314,9 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Customer-ready report")).toBeInTheDocument();
+    expect(await screen.findByText("Customer report")).toBeInTheDocument();
     expect(screen.queryByText(/fujitsugeneral\.com/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Technical source documents stay linked in the equipment profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source documents stay in the equipment record/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /back to job/i })[0]);
 
@@ -391,11 +391,11 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Visit readiness")).toBeInTheDocument();
+    expect(await screen.findByText("Stop status")).toBeInTheDocument();
     expect(screen.getAllByText("Travel").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Arrival").length).toBeGreaterThan(0);
     expect(screen.getByText("Linked source")).toBeInTheDocument();
-    expect(screen.getByText("Technician next steps")).toBeInTheDocument();
+    expect(screen.getByText("Workflow order")).toBeInTheDocument();
     expect(screen.getByText("1. Diagnose")).toBeInTheDocument();
     expect(screen.getByText("2. Approval")).toBeInTheDocument();
     expect(screen.getByText("3. Report")).toBeInTheDocument();
@@ -407,7 +407,8 @@ describe("migration baseline", () => {
     render(<App />);
 
     expect(await screen.findByText("Best next move")).toBeInTheDocument();
-    expect(screen.getByText("Leave for the stop first so the visit timeline starts in the right order.")).toBeInTheDocument();
+    expect(screen.getAllByText("Start travel in Maps").length).toBeGreaterThan(0);
+    expect(screen.getByText("Open the route and start travel timing for this stop")).toBeInTheDocument();
     expect(await screen.findByText("Arrival essentials")).toBeInTheDocument();
     expect(screen.getAllByText(/Gate code/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
@@ -418,9 +419,9 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Closeout readiness")).toBeInTheDocument();
+    expect(await screen.findAllByText("Signature")).toHaveLength(2);
     expect(screen.getByText("Awaiting signature")).toBeInTheDocument();
-    expect(screen.getByText(/Customer signature required before Approve unlocks/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sign to unlock approve/i)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: /decline and follow up/i }));
     fireEvent.click(await screen.findByRole("button", { name: /decline and create follow-up/i }));
 
@@ -462,12 +463,12 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText(/Customer approval still needs to be captured/i)).toBeInTheDocument();
-    expect(screen.getByText("Closeout status")).toBeInTheDocument();
-    expect(screen.getByText("Internal draft only")).toBeInTheDocument();
-    expect(screen.getByText(/1. Capture customer approval. 2. Return here. 3. Save, print, or share the finished report./i)).toBeInTheDocument();
+    expect(await screen.findByText(/Approval required before handoff/i)).toBeInTheDocument();
+    expect(screen.getByText("Status")).toBeInTheDocument();
+    expect(screen.getByText("Draft only")).toBeInTheDocument();
+    expect(screen.getByText(/Open approval, then return here/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /open customer approval/i })).toBeInTheDocument();
-    expect(screen.getByText(/not ready as a final customer handoff/i)).toBeInTheDocument();
+    expect(screen.getByText(/Approval still required/i)).toBeInTheDocument();
   });
 
   it("shows clean document metadata in the technician document library", async () => {
@@ -992,6 +993,87 @@ describe("migration baseline", () => {
       await waitFor(() => {
         expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBeGreaterThan(200);
         expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeGreaterThan(700);
+      });
+    } finally {
+      rectSpy.mockRestore();
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
+    }
+  });
+
+  it("keeps the compact launcher off the report bottom action bar on mobile", async () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function mockRect(this: HTMLElement) {
+      if (this.getAttribute("data-review-launcher") === "true") {
+        return {
+          x: 281,
+          y: 757,
+          left: 281,
+          top: 757,
+          right: 361,
+          bottom: 834,
+          width: 80,
+          height: 77,
+          toJSON() { return this; },
+        } as DOMRect;
+      }
+
+      if (this.getAttribute("data-review-avoid") === "report-bottom-actions") {
+        return {
+          x: 0,
+          y: 690,
+          left: 0,
+          top: 690,
+          right: 390,
+          bottom: 844,
+          width: 390,
+          height: 154,
+          toJSON() { return this; },
+        } as DOMRect;
+      }
+
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON() { return this; },
+      } as DOMRect;
+    });
+
+    try {
+      const fetchMock = vi.fn(async (url: string | URL | Request) => {
+        if (String(url).includes("/review-messages")) {
+          return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+        }
+        return { ok: true, json: async () => ({ ok: true }) };
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      window.localStorage.setItem("field-copilot-review-launcher-position-v1", JSON.stringify({
+        x: 281,
+        y: 757,
+      }));
+      window.history.pushState(
+        {},
+        "",
+        "/app/jobs/j-2/report?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+      );
+
+      render(<App />);
+
+      const reviewButton = await screen.findByRole("button", { name: /review layer, 0 open notes/i });
+      const launcher = reviewButton.closest("[data-review-launcher='true']") as HTMLDivElement | null;
+      expect(launcher).not.toBeNull();
+
+      await waitFor(() => {
+        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeLessThan(690);
       });
     } finally {
       rectSpy.mockRestore();

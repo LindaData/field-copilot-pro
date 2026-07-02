@@ -39,10 +39,10 @@ function visitContextLabel(status: string, travelStartedAt?: string, arrivedAt?:
 }
 
 function visitContextHelp(status: string, travelStartedAt?: string, arrivedAt?: string) {
-  if (arrivedAt) return "Use this stop to finish diagnosis, approval, parts, and paperwork in order.";
-  if (travelStartedAt || status === "En Route" || status === "Near Destination") return "Travel has started. Open the route, arrive, then move into diagnosis.";
-  if (status === "Follow-Up") return "This visit exists because the prior stop still needs work or office coordination.";
-  return "This job should feel like the technician is about to leave for the first stop, not already on site.";
+  if (arrivedAt) return "On-site work in progress.";
+  if (travelStartedAt || status === "En Route" || status === "Near Destination") return "Travel underway.";
+  if (status === "Follow-Up") return "Return visit.";
+  return "Scheduled stop.";
 }
 
 function confidenceClass(confidence?: string) {
@@ -54,23 +54,23 @@ function confidenceClass(confidence?: string) {
 function nextMoveReason(kind: string) {
   switch (kind) {
     case "start-travel":
-      return "Leave for the stop first so the visit timeline starts in the right order.";
+      return "Leave for this stop first.";
     case "confirm-arrival":
-      return "Confirm arrival before diagnosis and paperwork start counting as on-site work.";
+      return "Confirm arrival on site.";
     case "resume-job":
-      return "Clear the pause before adding more field work to the visit.";
+      return "Resume the visit.";
     case "start-diagnosis":
     case "continue-diagnosis":
-      return "Diagnosis should drive approval, parts, and closeout instead of guessing ahead.";
+      return "Finish diagnosis first.";
     case "request-approval":
     case "waiting-approval":
-      return "Customer approval is the blocker before parts and repair can move forward cleanly.";
+      return "Customer approval is next.";
     case "waiting-parts":
-      return "Track the parts handoff before treating this stop as ready to close.";
+      return "Wait for parts status.";
     case "complete-documentation":
-      return "The report is the clean handoff once field work is already done.";
+      return "Finish the report.";
     default:
-      return "Open the job and continue the next field action.";
+      return "Open the next action.";
   }
 }
 
@@ -359,7 +359,7 @@ export default function JobDetail() {
                 ? tx(property.accessNotes)
                 : property?.parkingNotes
                   ? property.parkingNotes
-                  : "Keep dispatch access details visible before the tech leaves for the stop."}
+                  : "Access details ready."}
             </div>
           </div>
         ) : null}
@@ -377,7 +377,7 @@ export default function JobDetail() {
                   <Navigation className="h-4 w-4 shrink-0" />
                   <span className="flex min-w-0 flex-col">
                     <span>Start travel in Maps</span>
-                    <span className="text-[11px] font-normal opacity-80">Opens directions now and starts travel timing for this stop.</span>
+                    <span className="text-[11px] font-normal opacity-80">Open directions and start travel time.</span>
                   </span>
                 </Button>
               </a>
@@ -386,7 +386,7 @@ export default function JobDetail() {
                 <Navigation className="h-4 w-4 shrink-0" />
                 <span className="flex min-w-0 flex-col">
                   <span>Start travel in Maps</span>
-                  <span className="text-[11px] font-normal opacity-80">Starts travel timing for this stop.</span>
+                  <span className="text-[11px] font-normal opacity-80">Start travel time.</span>
                 </span>
               </Button>
             )
@@ -437,10 +437,7 @@ export default function JobDetail() {
       <section className="card-elev p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold">Visit readiness</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Confirm travel, arrival, and source confidence before the tech burns time in the wrong place.
-            </div>
+            <div className="text-sm font-semibold">Stop status</div>
           </div>
           <Badge variant="outline">{job.arrivedAt ? "On site" : job.travelStartedAt ? "Traveling" : "Pre-trip"}</Badge>
         </div>
@@ -453,7 +450,7 @@ export default function JobDetail() {
             <div className="mt-1 text-xs text-muted-foreground">
               {job.travelStartedAt
                 ? `Started ${fmtClock(job.travelStartedAt)}.`
-                : "Start travel in Maps before treating this as an active stop."}
+                : "Start travel."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/10 p-3">
@@ -464,7 +461,7 @@ export default function JobDetail() {
             <div className="mt-1 text-xs text-muted-foreground">
               {job.arrivedAt
                 ? `${fmtClock(job.arrivedAt)}${job.arrivalMethod ? ` via ${job.arrivalMethod}` : ""}.`
-                : "Diagnosis and closeout stay locked behind arrival so the visit timeline stays believable."}
+                : "Mark arrival on site."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/10 p-3">
@@ -474,8 +471,8 @@ export default function JobDetail() {
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
               {bestEquipmentDoc
-                ? `${bestEquipmentDoc.documentTitle}. Open equipment specs before trusting exact literature values.`
-                : "The equipment record still needs official or best-effort documentation attached."}
+                ? bestEquipmentDoc.documentTitle
+                : "No source linked yet."}
             </div>
           </div>
         </div>
@@ -534,18 +531,10 @@ export default function JobDetail() {
         <div className="rounded-xl border bg-primary/5 px-4 py-3">
           <div className="text-sm font-semibold">Best next move</div>
           <div className="mt-1 text-base font-semibold">{nextAction.label}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {nextAction.helper ?? nextMoveReason(nextAction.kind)}
-          </div>
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            {nextMoveReason(nextAction.kind)}
-          </div>
+          <div className="mt-1 text-xs text-muted-foreground">{nextAction.helper ?? nextMoveReason(nextAction.kind)}</div>
         </div>
         <div className="rounded-xl border bg-muted/20 px-4 py-3">
-          <div className="text-sm font-semibold">Technician next steps</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            Move through diagnosis, approval, and the report in order so the visit stays easy to close out on site.
-          </div>
+          <div className="text-sm font-semibold">Workflow order</div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <span className="stat-pill bg-secondary text-secondary-foreground">1. Diagnose</span>
             <span className="stat-pill bg-secondary text-secondary-foreground">2. Approval</span>

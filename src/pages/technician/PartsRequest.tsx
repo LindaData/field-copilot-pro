@@ -103,7 +103,7 @@ export default function PartsRequest() {
 
   const handoffPreview = moveStatus
     ? `Office handoff: request ${name.trim() || "part"} for ${customer?.name ?? "customer"} and move job to Waiting for Parts.`
-    : "Keep the current visit moving and send this request for compatibility review only.";
+    : "Send this request for compatibility review only.";
   const selectedPhotoLabel = photo ? "1 photo attached for office review." : "No photo attached yet.";
 
   return (
@@ -115,9 +115,7 @@ export default function PartsRequest() {
       <div className="card-elev p-4">
         <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Parts workflow</div>
         <h1 className="mt-1 text-lg font-semibold">{t("partsRequest.title")}</h1>
-        <div className="mt-1 text-sm text-muted-foreground">
-          Capture enough context for office purchasing without forcing the technician to write a long narrative.
-        </div>
+        <div className="mt-1 text-sm text-muted-foreground">Add the part and send the handoff.</div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-lg border bg-muted/20 p-3">
             <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Equipment</div>

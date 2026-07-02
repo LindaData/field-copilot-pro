@@ -61,21 +61,21 @@ function focusHeading(status?: string) {
 function focusHelper(status?: string) {
   switch (status) {
     case "Scheduled":
-      return "Use this as the realistic start-of-day job instead of jumping ahead in the demo.";
+      return "Start here.";
     case "En Route":
     case "Near Destination":
-      return "Travel is already underway for this stop.";
+      return "Travel underway.";
     case "On Site":
     case "Diagnosing":
     case "Repairing":
     case "Documentation":
-      return "This visit is already active in the field.";
+      return "Active stop.";
     case "Waiting for Parts":
-      return "This visit is blocked until parts are ready.";
+      return "Waiting on parts.";
     case "Follow-Up":
-      return "This needs a return visit or office coordination.";
+      return "Return work.";
     default:
-      return "Open the next realistic technician task.";
+      return "Open next action.";
   }
 }
 
@@ -190,9 +190,6 @@ export default function JobsHome() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ready for this stop</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Keep travel, access, and source trust visible before opening the full job.
-              </div>
             </div>
             <Link to={`/app/jobs/${focusJob.id}`} className="text-[11px] font-medium text-primary">
               Open full job
@@ -227,7 +224,7 @@ export default function JobsHome() {
               <div className="mt-1 text-xs text-muted-foreground">
                 {focusDocs?.best
                   ? focusDocs.best.documentTitle
-                  : "This unit still needs linked literature before the field team should trust exact source values."}
+                  : "No source linked yet."}
               </div>
             </div>
           </div>
@@ -236,10 +233,7 @@ export default function JobsHome() {
 
       {(followUpJobs.length > 0 || nextScheduledJob) && (
         <section className="card-elev p-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Do next</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            Keep the list anchored to the next realistic technician move.
-          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Next action</div>
           <div className="mt-3 flex flex-col gap-2">
             {followUpJobs[0] ? (
               <Link to={`/app/jobs/${followUpJobs[0].id}`} className="rounded-xl border border-warning/40 bg-warning/10 p-3">

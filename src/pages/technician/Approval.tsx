@@ -147,31 +147,28 @@ export default function Approval() {
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Closeout readiness</div>
-            <div className="mt-1 text-sm font-medium">{signed ? "Signature captured" : "Signature still needed"}</div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Signature</div>
+            <div className="mt-1 text-sm font-medium">{signed ? "Captured" : "Needed"}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {signed
-                ? "Approve is now unlocked for this locked estimate."
-                : "Customer signature required before Approve unlocks."}
+                ? "Approve is unlocked."
+                : "Sign to unlock approve."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/20 p-3">
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Decision state</div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Decision</div>
             <div className="mt-1 text-sm font-medium">{approvalStatusLabel}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {existingAuth?.decision === "approved"
-                ? "Consent is already stored on this job."
+                ? "Saved on this job."
                 : existingAuth?.decision === "declined"
-                  ? "This estimate has already been routed to office follow-up."
-                  : "This screen is for a clear yes or no, not price editing."}
+                  ? "Sent to office follow-up."
+                  : "Choose approve or decline."}
             </div>
           </div>
           <div className="rounded-xl border bg-muted/20 p-3">
-            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next move</div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next</div>
             <div className="mt-1 text-sm font-medium">{nextMoveLabel}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Keep approval, office follow-up, and report handoff in a believable order.
-            </div>
           </div>
         </div>
 
@@ -193,7 +190,7 @@ export default function Approval() {
         <div className="mt-4 rounded-xl border p-4 text-sm">
           <div className="mb-3 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-muted-foreground">
             <div className="inline-flex items-center gap-1 font-medium text-foreground"><Lock className="h-3.5 w-3.5" /> Office pricing</div>
-            <div className="mt-1">This estimate is read-only for technicians. Approval captures customer consent. Decline sends it back for office follow-up.</div>
+            <div className="mt-1">Pricing is locked. Approve records consent. Decline sends follow-up.</div>
           </div>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <ReceiptText className="h-4 w-4 text-primary" />
@@ -220,7 +217,7 @@ export default function Approval() {
             <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold"><span>{t("approval.total")}</span><span>${total.toFixed(2)}</span></div>
           </div>
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {t("approval.pricesDemo")} This screen captures consent only. Technicians cannot rewrite pricing here.
+            {t("approval.pricesDemo")} Consent only. Pricing cannot be edited here.
           </div>
         </div>
 
@@ -240,7 +237,7 @@ export default function Approval() {
           </div>
           <div className="mt-2 flex items-center justify-between gap-3">
             <div className="text-[11px] text-muted-foreground">
-              {signed ? "Signature captured. Approval is ready to send." : "Have the customer sign here to approve the locked estimate."}
+              {signed ? "Signature captured. Ready to approve." : "Customer signs here."}
             </div>
             <Button variant="ghost" size="sm" className="shrink-0" onClick={clear}>{t("approval.clear")}</Button>
           </div>
@@ -252,7 +249,7 @@ export default function Approval() {
             <div>
               <div className="text-sm font-semibold">Customer decision</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                Approve keeps this repair moving. Decline creates a follow-up for office review and re-quote handling.
+                Approve to continue. Decline for office follow-up.
               </div>
             </div>
           </div>
@@ -260,13 +257,13 @@ export default function Approval() {
             <div className="rounded-lg border bg-background/80 p-3 text-xs">
               <div className="font-semibold text-foreground">If approved</div>
               <div className="mt-1 text-muted-foreground">
-                The visit keeps moving, the approval is saved on the job, and the technician returns to the workflow with pricing locked.
+                Approval is saved and the visit keeps moving.
               </div>
             </div>
             <div className="rounded-lg border bg-background/80 p-3 text-xs">
               <div className="font-semibold text-foreground">If declined</div>
               <div className="mt-1 text-muted-foreground">
-                The estimate is marked declined and the job moves into office follow-up for re-quote or scheduling.
+                The job moves to office follow-up.
               </div>
             </div>
           </div>
@@ -283,11 +280,11 @@ export default function Approval() {
         </div>
         <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />
-          Declining sends the estimate back for office follow-up instead of letting the technician edit pricing on site.
+          Decline sends this to office follow-up.
         </div>
         <div className="mt-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
           <Wrench className="mr-1 inline h-3.5 w-3.5" />
-          Use this screen when the customer needs a clear yes or no. Use job follow-up instead when the issue is scheduling, office coordination, or a return visit.
+          Use this screen for customer approval only.
         </div>
         {property?.address ? (
           <div className="mt-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
@@ -306,11 +303,11 @@ export default function Approval() {
         <DialogHeader>
           <DialogTitle>Send this estimate to office follow-up?</DialogTitle>
           <DialogDescription>
-            Declining will mark the estimate as declined and move the job into office follow-up without letting the technician change pricing.
+            Declining marks this estimate as declined and moves the job to office follow-up.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 text-sm">
-          <p>The technician will not change pricing here. Declining marks this approval as declined and moves the job into follow-up for office review.</p>
+          <p>Pricing stays locked. Office handles the next step.</p>
           <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
             Customer and estimate context stay tied to the job record.
           </div>
