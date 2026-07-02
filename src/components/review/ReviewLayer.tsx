@@ -79,19 +79,6 @@ const FUNCTIONALITY_TEMPLATES = [
   { label: "Navigation", text: "Navigation issue:\nExpected:\nActual:" },
   { label: "State mismatch", text: "State mismatch:\nExpected:\nActual:" },
 ];
-const KIND_HELPERS: Record<string, string> = {
-  ux: "Use UX for layout, hierarchy, spacing, or anything that feels hard to scan.",
-  bug: "Use Bug when something is broken, mismatched, or not doing what the screen promises.",
-  copy: "Use Copy for labels, wording, tone, or unclear instructions.",
-  data: "Use Data for wrong values, risky demo content, or source trust issues.",
-  workflow: "Use Flow when the next step is unclear or the screen sends you the wrong way.",
-  functionality: "Use Functionality for buttons, swipes, drag behavior, and interaction failures.",
-};
-const PRIORITY_HELPERS: Record<string, string> = {
-  low: "Later: useful cleanup, but it does not block the review.",
-  medium: "Needs fix: worth addressing in the next pass.",
-  high: "Blocking: this slows the workflow down right now.",
-};
 
 function viewportBounds() {
   if (typeof window === "undefined") {
@@ -592,7 +579,7 @@ export function ReviewLayer() {
       ));
       setLauncherPosition((current) => {
         const clamped = clampLauncherPosition(current, nextBounds);
-        return safeLauncherPosition(clamped, nextBounds);
+        return compact ? clamped : safeLauncherPosition(clamped, nextBounds);
       });
     };
 
@@ -623,7 +610,7 @@ export function ReviewLayer() {
     const handleResize = () => {
       setLauncherPosition((current) => {
         const clamped = clampLauncherPosition(current, launcherBounds);
-        return safeLauncherPosition(clamped, launcherBounds);
+        return compactLauncherMode ? clamped : safeLauncherPosition(clamped, launcherBounds);
       });
     };
 
@@ -674,7 +661,7 @@ export function ReviewLayer() {
     if (open || draggingLauncher) return;
     setLauncherPosition((current) => {
       const clamped = clampLauncherPosition(current, launcherBounds);
-      return safeLauncherPosition(clamped, launcherBounds);
+      return compactLauncherMode ? clamped : safeLauncherPosition(clamped, launcherBounds);
     });
   }, [compactLauncherMode, draggingLauncher, launcherBounds, location.pathname, open]);
 
@@ -782,24 +769,24 @@ export function ReviewLayer() {
         ? "Live sync is unavailable right now."
         : "Local capture is active on this phone.";
   const liveConnectionBody = endpointStatus === "live"
-    ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
+    ? "Tracking page, taps, and notes as you move."
     : endpointStatus === "checking"
-      ? "This phone has a saved live review link. I will switch to live as soon as the endpoint responds."
+      ? "Checking the live link. Tracking continues here."
       : endpointStatus === "failed"
-        ? "You can keep reviewing. Notes stay saved on this device and can be retried when the connection comes back."
-        : "Capture notes here, keep moving through the product, and reconnect a live review link later if you want Codex replies.";
+        ? "Keep reviewing. Notes stay on this device until sync comes back."
+        : "Notes stay on this device.";
   const liveConnectionDetail = hasLiveConnectionIssue
     ? [friendlySyncIssue(lastSyncError, "sync"), friendlySyncIssue(lastBridgeError, "reply")].filter((value, index, all) => all.indexOf(value) === index).join(" ")
     : null;
   const localReviewCoachTitle = latestSubmittedNote
-    ? "Local review saved"
-    : `Self-review prompt for ${pageLabel}`;
+    ? "Local note saved"
+    : `Check ${pageLabel}`;
   const localReviewCoachBody = latestSubmittedNote
-    ? "Keep capturing what feels crowded, unclear, or slow on this screen. I will keep the page context and timestamps with each note."
-    : `Check hierarchy, action clarity, labels, spacing, and anything that interrupts the next step on ${pageLabel}.`;
+    ? "Keep marking anything crowded, unclear, or slow."
+    : "Check hierarchy, labels, spacing, and next-step clarity.";
   const localReviewCoachDetail = lastMeaningfulTrackedAction
-    ? `Tracked context: ${describeAction(lastMeaningfulTrackedAction)}.`
-    : "Tracked context starts as soon as you move through the page.";
+    ? `Last tracked: ${describeAction(lastMeaningfulTrackedAction)}.`
+    : "Tracking starts as soon as you move through the page.";
   const captureContextLabel = reviewContextAction
     ? `${describeAction(reviewContextAction)} on ${reviewContextAction.pageLabel}`
     : `Viewing ${pageLabel}`;
@@ -1464,12 +1451,12 @@ export function ReviewLayer() {
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {endpointConfigured && !hasLiveConnectionIssue
-                      ? "This review link follows the screen, click trail, and notes while you move."
+                      ? "Tracks your place while you move."
                       : endpointStatus === "checking"
-                        ? "This phone keeps collecting context while the live review connection is confirmed."
+                        ? "Checking the live link."
                         : endpointConfigured
-                        ? "This device keeps your review trail locally until the live connection recovers."
-                        : "This phone keeps your notes, page context, and click trail even without the live endpoint."}
+                        ? "Tracking stays local until sync returns."
+                        : "Tracking stays on this phone."}
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
@@ -1534,7 +1521,7 @@ export function ReviewLayer() {
                   Last tracked: {describeAction(lastMeaningfulTrackedAction ?? lastTrackedAction)}
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
-                  Close this panel any time. The small Review button can be dragged anywhere inside this viewport if it covers the page.
+                  Drag Review if it covers the page.
                 </div>
               </div>
 
@@ -1549,9 +1536,6 @@ export function ReviewLayer() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">Capture this screen</div>
-                  <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Attach feedback to what you are looking at right now. Enter adds a new line. Use Send note or Ctrl/Cmd+Enter to submit.
-                  </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
                   {openCount} open
@@ -1596,12 +1580,6 @@ export function ReviewLayer() {
                 </button>
               </div>
 
-              <div className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                {captureMode === "functionality"
-                  ? "Use this for broken buttons, swipes, drag behavior, navigation misses, or state that does not match what the screen says. The live click trail stays attached."
-                  : "Use this for layout, copy, trust, data clarity, or anything else that feels off on this exact screen."}
-              </div>
-
               <div className="mt-3 text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                 Issue type
               </div>
@@ -1622,10 +1600,6 @@ export function ReviewLayer() {
                   </button>
                 ))}
               </div>
-              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                {KIND_HELPERS[currentDraft.kind] ?? KIND_HELPERS.ux}
-              </div>
-
               {captureMode === "functionality" ? (
                 <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
                   {FUNCTIONALITY_TEMPLATES.map((template) => (
@@ -1659,16 +1633,12 @@ export function ReviewLayer() {
                   </button>
                 ))}
               </div>
-              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                {PRIORITY_HELPERS[currentDraft.priority] ?? PRIORITY_HELPERS.medium}
-              </div>
-
               <label htmlFor="review-layer-note-text" className="mt-3 block text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                 {captureMode === "functionality" ? "Functionality note" : "Review note"}
               </label>
               <div className="mt-1 rounded-xl border bg-muted/10 p-2">
                 <div className="mb-2 rounded-lg bg-background px-2.5 py-2 text-[11px] text-muted-foreground">
-                  Sending this note with: <span className="font-medium text-foreground">{captureContextLabel}</span>
+                  Context: <span className="font-medium text-foreground">{captureContextLabel}</span>
                 </div>
                 <textarea
                   id="review-layer-note-text"
@@ -1681,8 +1651,8 @@ export function ReviewLayer() {
                     }
                   }}
                   placeholder={captureMode === "functionality"
-                    ? "Capture the interaction failure on this exact screen. Include the expected behavior and what actually happened."
-                    : "Capture what feels wrong or missing on this exact screen. Enter adds a new line. Use Send note when you are ready."}
+                    ? "What broke? Expected? Actual?"
+                    : "What feels wrong here?"}
                   className="min-h-[112px] w-full resize-none rounded-lg border-0 bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
@@ -1756,9 +1726,6 @@ export function ReviewLayer() {
                       {visibleConversationEntries.length ? `${visibleConversationEntries.length} shown` : endpointConfigured ? "listening" : "offline"}
                     </Badge>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    What you said, what Codex answered, and the order it happened.
-                  </div>
 
                   {visibleConversationEntries.length > 0 ? (
                     <div ref={conversationRef} className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
@@ -1829,7 +1796,7 @@ export function ReviewLayer() {
                         <div className="mt-2 text-[10px] text-slate-600">{localReviewCoachDetail}</div>
                       </div>
                       <div className="rounded-lg border border-dashed px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-                        Send a note to save feedback with page, route, viewport, and time. Live replies appear here after you open a review link with a reviewEndpoint.
+                        Send a note to save page, route, viewport, and time.
                       </div>
                     </div>
                   ) : (
@@ -1900,7 +1867,7 @@ export function ReviewLayer() {
 
             <details className="rounded-md border bg-muted/20">
               <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
-                Review history and sync details
+                History
               </summary>
               <div className="space-y-3 border-t p-3">
                 <div className="flex items-center justify-between gap-2">
@@ -1921,10 +1888,6 @@ export function ReviewLayer() {
                     </button>
                   </div>
                   <div className="text-xs text-muted-foreground">{visibleNotes.length} shown</div>
-                </div>
-
-                <div className="rounded-lg border border-dashed bg-background/70 px-3 py-2 text-[11px] text-muted-foreground">
-                  Capture controls are above. This section is for sync status, retries, and note cleanup.
                 </div>
 
                 <Button variant="outline" className="w-full" onClick={submitAllUnsynced} disabled={sendingCount + sendingActionCount > 0}>

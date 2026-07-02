@@ -341,13 +341,10 @@ export default function Diagnostics() {
           {step.type === "measurement" && step.measurement ? (
             <div className="space-y-3">
               <div className="rounded-xl border bg-muted/20 p-3 text-xs">
-                <div className="font-semibold text-foreground">Measurement guide</div>
-                <div className="mt-1 text-muted-foreground">
-                  Save the measured value to continue through the exact diagnostic branch instead of jumping to a guess.
-                </div>
+                <div className="font-semibold text-foreground">Measure and save</div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-lg border bg-background p-2">
-                    <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Expected range</div>
+                    <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Target</div>
                     <div className="mt-1 text-foreground">
                       {step.measurement.min !== undefined && step.measurement.max !== undefined
                         ? `${step.measurement.min} - ${step.measurement.max} ${step.measurement.unit}`
@@ -355,7 +352,7 @@ export default function Diagnostics() {
                     </div>
                   </div>
                   <div className="rounded-lg border bg-background p-2">
-                    <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next after save</div>
+                    <div className="text-[11px] uppercase tracking-normal text-muted-foreground">After save</div>
                     <div className="mt-1 text-foreground">{nextStepPreview(step.measurement.nextStepId)}</div>
                   </div>
                 </div>
@@ -452,29 +449,6 @@ export default function Diagnostics() {
           ) : null}
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">This step decides</div>
-            <div className="mt-1 font-medium text-foreground">{step.hypothesis}</div>
-          </div>
-          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Why it matters</div>
-            <div className="mt-1 text-muted-foreground">{step.why ?? "Keep the diagnostic path accurate before moving on."}</div>
-          </div>
-          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Next after this answer</div>
-            <div className="mt-1 text-muted-foreground">
-              {step.type === "measurement" && step.measurement
-                ? nextStepPreview(step.measurement.nextStepId)
-                : step.choices?.length
-                  ? nextStepPreview(step.choices[0].nextStepId, step.choices[0].branchLabel)
-                  : step.type === "info-end"
-                    ? "Generates the service report from this diagnostic path."
-                    : "Choose the handoff that matches the on-site decision."}
-            </div>
-          </div>
-        </div>
-
         {(step.why || step.detail) ? (
           <details className="mt-4 rounded-md border bg-muted/30 p-3 text-xs">
             <summary className="inline-flex cursor-pointer items-center gap-1 font-medium">{t("diagnostics.whyThisStep")} <ChevronDown className="h-3 w-3" /></summary>
@@ -495,10 +469,7 @@ export default function Diagnostics() {
 
       {step.type !== "alt-end" ? (
         <section className="rounded-xl border bg-muted/20 p-4">
-          <div className="text-sm font-semibold">Other actions from this step</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            Open specs, parts, approval, or the job record without restarting this diagnosis.
-          </div>
+          <div className="text-sm font-semibold">Need something else?</div>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button variant="destructive" className="touch-target justify-start sm:col-span-2" onClick={escalate}>
               <ShieldAlert className="mr-1 h-4 w-4" /> {t("diagnostics.stopEscalate")}

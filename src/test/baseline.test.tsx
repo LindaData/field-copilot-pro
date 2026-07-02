@@ -440,22 +440,20 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Other actions from this step")).toBeInTheDocument();
+    expect(await screen.findByText("Need something else?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /open steps breakdown/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^parts request$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^customer approval$/i })).toBeInTheDocument();
   });
 
-  it("shows what the current diagnostic step decides and where each answer goes next", async () => {
+  it("keeps the diagnostic route focused on route previews instead of extra explainer panels", async () => {
     window.history.pushState({}, "", "/app/jobs/j-2/diagnose");
 
     render(<App />);
 
-    expect(await screen.findByText("This step decides")).toBeInTheDocument();
-    expect(screen.getByText("Why it matters")).toBeInTheDocument();
-    expect(screen.getByText("Next after this answer")).toBeInTheDocument();
-    expect(screen.getAllByText(/Continues to B - Indoor blower & airflow/i).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Continues to B - Indoor blower & airflow/i)).length).toBeGreaterThan(0);
     expect(screen.getByText(/Routes into Thermostat \/ control - ALT-T/i)).toBeInTheDocument();
+    expect(screen.queryByText("This step decides")).not.toBeInTheDocument();
   });
 
   it("warns on the service report when customer approval has not been captured yet", async () => {
@@ -598,7 +596,7 @@ describe("migration baseline", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "Today page cards need stronger scan hierarchy." },
     });
     expect(screen.queryByRole("button", { name: /^Review layer,/i })).not.toBeInTheDocument();
@@ -625,7 +623,7 @@ describe("migration baseline", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "Owner equipment source cards need clearer scan hierarchy." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
@@ -685,7 +683,7 @@ describe("migration baseline", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "The current screen needs tighter spacing." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
@@ -726,7 +724,7 @@ describe("migration baseline", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "Newest live note should wait for a fresh reply." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
@@ -796,7 +794,7 @@ describe("migration baseline", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "Live webhook is broken but this note must stay local." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
@@ -919,7 +917,7 @@ describe("migration baseline", () => {
     }
   });
 
-  it("repositions the compact launcher away from primary mobile review-avoid regions", async () => {
+  it("keeps the compact launcher at the saved mobile position on primary mobile screens", async () => {
     const originalWidth = window.innerWidth;
     const originalHeight = window.innerHeight;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
@@ -991,8 +989,8 @@ describe("migration baseline", () => {
       expect(launcher).not.toBeNull();
 
       await waitFor(() => {
-        expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBeGreaterThan(200);
-        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeGreaterThan(700);
+        expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBe(26);
+        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBe(548);
       });
     } finally {
       rectSpy.mockRestore();
@@ -1001,7 +999,7 @@ describe("migration baseline", () => {
     }
   });
 
-  it("keeps the compact launcher off the report bottom action bar on mobile", async () => {
+  it("keeps the compact launcher at the saved mobile position on report screens", async () => {
     const originalWidth = window.innerWidth;
     const originalHeight = window.innerHeight;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
@@ -1073,7 +1071,7 @@ describe("migration baseline", () => {
       expect(launcher).not.toBeNull();
 
       await waitFor(() => {
-        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeLessThan(690);
+        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBe(757);
       });
     } finally {
       rectSpy.mockRestore();
@@ -1082,7 +1080,7 @@ describe("migration baseline", () => {
     }
   });
 
-  it("keeps the compact launcher off the diagnostic bottom actions on mobile", async () => {
+  it("keeps the compact launcher at the saved mobile position on diagnostic screens", async () => {
     const originalWidth = window.innerWidth;
     const originalHeight = window.innerHeight;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
@@ -1154,7 +1152,7 @@ describe("migration baseline", () => {
       expect(launcher).not.toBeNull();
 
       await waitFor(() => {
-        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeLessThan(708);
+        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBe(757);
       });
     } finally {
       rectSpy.mockRestore();
@@ -1444,12 +1442,12 @@ describe("migration baseline", () => {
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
 
     expect(await screen.findByText("Local review mode")).toBeInTheDocument();
-    expect(screen.getByText("Self-review prompt for Main demo landing")).toBeInTheDocument();
+    expect(screen.getByText("Check Main demo landing")).toBeInTheDocument();
     expect(screen.getByText("Latest note you sent")).toBeInTheDocument();
     expect(screen.getByText("No submitted note in this session yet.")).toBeInTheDocument();
     expect(screen.getByText("Latest Codex reply")).toBeInTheDocument();
     expect(screen.getByText("Open this page with a live review link to see Codex replies here.")).toBeInTheDocument();
-    expect(screen.getByText(/Send a note to save feedback with page, route, viewport, and time/i)).toBeInTheDocument();
+    expect(screen.getByText(/Send a note to save page, route, viewport, and time/i)).toBeInTheDocument();
     expect(screen.getByText(/saved locally/i)).toBeInTheDocument();
     expect(screen.queryByText("Main demo landing - /")).not.toBeInTheDocument();
   });
@@ -1589,7 +1587,7 @@ describe("migration baseline", () => {
     expect(await screen.findByText("Functionality note")).toBeInTheDocument();
 
     const textarea = screen.getByLabelText("Functionality note") as HTMLTextAreaElement;
-    expect(textarea.placeholder).toMatch(/interaction failure/i);
+    expect(textarea.placeholder).toMatch(/What broke/i);
 
     fireEvent.click(screen.getByRole("button", { name: "Broken button" }));
     await waitFor(() => {
@@ -1619,7 +1617,7 @@ describe("migration baseline", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "Live review should fail gracefully." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
@@ -1650,7 +1648,7 @@ describe("migration baseline", () => {
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
     expect(await screen.findByText("I can see this review session live.")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText(/Capture what feels wrong/i), {
+    fireEvent.change(screen.getByPlaceholderText(/What feels wrong here/i), {
       target: { value: "Testing" },
     });
 
