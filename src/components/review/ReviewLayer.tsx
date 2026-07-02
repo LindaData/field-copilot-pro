@@ -62,12 +62,22 @@ import {
 import { cn } from "@/lib/utils";
 
 type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
+type CaptureMode = "notes" | "functionality";
 type ReviewLauncherPosition = { x: number; y: number };
 type ReviewLauncherBounds = { width: number; height: number };
 
 const REVIEW_LAUNCHER_POSITION_KEY = "field-copilot-review-launcher-position-v1";
 const REVIEW_LAUNCHER_MARGIN = 12;
 const REVIEW_LAUNCHER_FALLBACK_HEIGHT = 60;
+const NOTE_CAPTURE_KINDS = REVIEW_KINDS.filter((kind) => kind.value !== "functionality");
+const FUNCTIONALITY_CAPTURE_KINDS = REVIEW_KINDS.filter((kind) => ["functionality", "bug", "workflow"].includes(kind.value));
+const FUNCTIONALITY_TEMPLATES = [
+  { label: "Broken button", text: "Broken button:\nExpected:\nActual:" },
+  { label: "Swipe issue", text: "Swipe issue:\nExpected:\nActual:" },
+  { label: "Drag issue", text: "Drag issue:\nExpected:\nActual:" },
+  { label: "Navigation", text: "Navigation issue:\nExpected:\nActual:" },
+  { label: "State mismatch", text: "State mismatch:\nExpected:\nActual:" },
+];
 
 function estimateLauncherBounds(): ReviewLauncherBounds {
   if (typeof window === "undefined") {
@@ -281,6 +291,7 @@ export function ReviewLayer() {
   const layerRef = useRef<HTMLDivElement | null>(null);
   const launcherRef = useRef<HTMLDivElement | null>(null);
   const conversationRef = useRef<HTMLDivElement | null>(null);
+  const lastDraftPathRef = useRef("");
   const launcherDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -313,6 +324,7 @@ export function ReviewLayer() {
   const [liveDraftAt, setLiveDraftAt] = useState<string | null>(null);
   const [launcherPosition, setLauncherPosition] = useState<ReviewLauncherPosition>(() => loadLauncherPosition(estimateLauncherBounds()));
   const [draggingLauncher, setDraggingLauncher] = useState(false);
+  const [captureMode, setCaptureMode] = useState<CaptureMode>("notes");
 
   const pageLabel = pageLabelFor(location.pathname);
   const path = reviewPathFor(location);
@@ -332,6 +344,12 @@ export function ReviewLayer() {
   useEffect(() => {
     setReviewEndpoint(getReviewEndpoint(location.search));
   }, [location.search]);
+
+  useEffect(() => {
+    if (lastDraftPathRef.current === path) return;
+    lastDraftPathRef.current = path;
+    setCaptureMode(currentDraft.kind === "functionality" ? "functionality" : "notes");
+  }, [currentDraft.kind, path]);
 
   useEffect(() => {
     setEndpointReachable(false);
@@ -653,6 +671,27 @@ export function ReviewLayer() {
       delete next[path];
       return next;
     });
+  };
+
+  const switchCaptureMode = (mode: CaptureMode) => {
+    setCaptureMode(mode);
+    if (mode === "functionality") {
+      if (!["functionality", "bug", "workflow"].includes(currentDraft.kind)) {
+        updateDraft({ kind: "functionality" });
+      }
+      return;
+    }
+
+    if (currentDraft.kind === "functionality") {
+      updateDraft({ kind: "ux" });
+    }
+  };
+
+  const applyCaptureTemplate = (template: string) => {
+    const nextText = currentDraft.text.trim()
+      ? `${currentDraft.text.trim()}\n\n${template}`
+      : template;
+    updateDraft({ text: nextText });
   };
 
   const patchNote = useCallback((id: string, patch: Partial<ReviewNote>) => {
@@ -1304,8 +1343,37 @@ export function ReviewLayer() {
                 </Badge>
               </div>
 
+              <div className="mt-3 inline-flex rounded-full border bg-muted/30 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => switchCaptureMode("notes")}
+                  className={cn(
+                    "h-8 rounded-full px-3 text-xs font-medium transition-colors",
+                    captureMode === "notes" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Notes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchCaptureMode("functionality")}
+                  className={cn(
+                    "h-8 rounded-full px-3 text-xs font-medium transition-colors",
+                    captureMode === "functionality" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Functionality
+                </button>
+              </div>
+
+              <div className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {captureMode === "functionality"
+                  ? "Use this for broken buttons, swipes, drag behavior, navigation misses, or state that does not match what the screen says. The live click trail stays attached."
+                  : "Use this for layout, copy, trust, data clarity, or anything else that feels off on this exact screen."}
+              </div>
+
               <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
-                {REVIEW_KINDS.map((kind) => (
+                {(captureMode === "functionality" ? FUNCTIONALITY_CAPTURE_KINDS : NOTE_CAPTURE_KINDS).map((kind) => (
                   <button
                     key={kind.value}
                     type="button"
@@ -1321,6 +1389,21 @@ export function ReviewLayer() {
                   </button>
                 ))}
               </div>
+
+              {captureMode === "functionality" ? (
+                <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
+                  {FUNCTIONALITY_TEMPLATES.map((template) => (
+                    <button
+                      key={template.label}
+                      type="button"
+                      onClick={() => applyCaptureTemplate(template.text)}
+                      className="h-8 shrink-0 rounded-full border bg-background px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="mt-2 inline-flex rounded-full border bg-muted/30 p-0.5">
                 {REVIEW_PRIORITIES.map((priority) => (
@@ -1339,7 +1422,7 @@ export function ReviewLayer() {
               </div>
 
               <label htmlFor="review-layer-note-text" className="mt-3 block text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
-                Review note
+                {captureMode === "functionality" ? "Functionality note" : "Review note"}
               </label>
               <div className="mt-1 rounded-xl border bg-muted/10 p-2">
                 <div className="mb-2 rounded-lg bg-background px-2.5 py-2 text-[11px] text-muted-foreground">
@@ -1355,7 +1438,9 @@ export function ReviewLayer() {
                       addNote();
                     }
                   }}
-                  placeholder="Capture what feels wrong or missing on this exact screen. Enter adds a new line. Use Send note when you are ready."
+                  placeholder={captureMode === "functionality"
+                    ? "Capture the interaction failure on this exact screen. Include the expected behavior and what actually happened."
+                    : "Capture what feels wrong or missing on this exact screen. Enter adds a new line. Use Send note when you are ready."}
                   className="min-h-[112px] w-full resize-none rounded-lg border-0 bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>

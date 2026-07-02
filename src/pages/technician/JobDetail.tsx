@@ -71,6 +71,7 @@ export default function JobDetail() {
   const jobArrivedAt = job?.arrivedAt;
   const hasCoords = !!(property?.lat && property?.lng);
   const radius = property?.geofenceRadiusFt ?? 200;
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(property?.address ?? "")}`;
 
   useEffect(() => {
     if (!jobId || !hasCoords || jobArrivedAt || jobStatus !== "En Route") return;
@@ -125,6 +126,9 @@ export default function JobDetail() {
     updateJob(job.id, { travelStartedAt: new Date().toISOString() });
     setJobStatus(job.id, "En Route");
     toast.success(t("jobDetail.toast.travelStarted"));
+    if (property?.address) {
+      window.open(mapsUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   const onArriveManual = () => {
@@ -214,10 +218,33 @@ export default function JobDetail() {
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
           <div className="inline-flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /> {property?.address}</div>
-          {property?.accessNotes ? <div className="rounded-md bg-muted px-2 py-1 text-xs">{t("jobDetail.accessLabel", { notes: tx(property.accessNotes) })}</div> : null}
+          {(property?.gateCode || property?.accessNotes || property?.parkingNotes) ? (
+            <div className="rounded-xl border bg-muted/20 p-3 text-xs">
+              <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">{t("jobDetail.accessHeading")}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {property?.gateCode ? (
+                  <div className="min-w-[120px] rounded-lg bg-background px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-normal text-muted-foreground">{t("jobDetail.gateCode")}</div>
+                    <div className="mt-1 font-mono text-sm font-semibold tracking-[0.2em] text-foreground">{property.gateCode}</div>
+                  </div>
+                ) : null}
+                {property?.parkingNotes ? (
+                  <div className="min-w-[140px] rounded-lg bg-background px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-normal text-muted-foreground">{t("jobDetail.parkingNotes")}</div>
+                    <div className="mt-1 leading-relaxed text-foreground">{property.parkingNotes}</div>
+                  </div>
+                ) : null}
+              </div>
+              {property?.accessNotes ? (
+                <div className="mt-2 rounded-lg bg-background px-3 py-2 leading-relaxed text-foreground">
+                  <span className="font-medium">{t("jobDetail.accessNotes")}:</span> {tx(property.accessNotes)}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <a href={`tel:${customer?.phone}`} className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Phone className="mr-1 h-4 w-4" /> {t("jobDetail.call")}</Button></a>
-            <a href={`https://maps.google.com/?q=${encodeURIComponent(property?.address ?? "")}`} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.directions")}</Button></a>
+            <a href={mapsUrl} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.directions")}</Button></a>
           </div>
         </div>
       </div>
@@ -250,7 +277,15 @@ export default function JobDetail() {
           </div>
         ) : null}
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {!job.travelStartedAt ? <Button onClick={onStartTravel} className="touch-target col-span-2 h-12"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.startTravel")}</Button> : null}
+          {!job.travelStartedAt ? (
+            <Button onClick={onStartTravel} className="touch-target col-span-2 min-h-12 h-auto justify-start gap-2 px-4 py-3 text-left">
+              <Navigation className="h-4 w-4 shrink-0" />
+              <span className="flex min-w-0 flex-col">
+                <span>{t("jobDetail.startTravel")}</span>
+                <span className="text-[11px] font-normal opacity-80">{t("jobDetail.startTravelHint")}</span>
+              </span>
+            </Button>
+          ) : null}
           {job.travelStartedAt && !job.arrivedAt ? (
             <Button onClick={onArriveManual} className="touch-target col-span-2 h-12 bg-accent text-accent-foreground hover:bg-accent/90"><MapPin className="mr-1 h-4 w-4" /> {t("jobDetail.arriveManual")}</Button>
           ) : null}

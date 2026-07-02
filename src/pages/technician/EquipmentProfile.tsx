@@ -103,6 +103,10 @@ export default function EquipmentProfile() {
             {t("equipmentProfile.demoBanner")}
           </div>
         ) : null}
+        <div className="mt-3 rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+          <div className="font-semibold text-foreground">{t("jobDetail.manufacturerVerifiedTitle")}</div>
+          <div className="mt-1 leading-relaxed">{t("jobDetail.manufacturerVerifiedBody")}</div>
+        </div>
         {eq.manualUrls.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {eq.manualUrls.map((manual) => (

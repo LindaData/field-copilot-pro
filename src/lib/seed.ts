@@ -198,7 +198,7 @@ function buildProperties(): Property[] {
   list.push({
     id: "p-1", customerId: "c-1", address: "9120 Corkscrew Palms Blvd, Estero, FL 33928",
     city: "Estero", propertyType: "Single-family", serviceClass: "Residential",
-    accessNotes: "Gate code on file at dispatch. Dog in back yard.",
+    accessNotes: "Gate keypad at vehicle entrance. Dog in back yard.",
     parkingNotes: "Driveway pad on right side.",
     pets: "Friendly retriever",
     warrantyActive: true, gateCode: "2244",
@@ -698,7 +698,7 @@ function buildJobs(): { jobs: Job[]; jobParts: JobPart[] } {
   seeds.push({
     id: "j-1", customerId: "c-1", propertyId: "p-1", systemId: "sys-1", equipmentId: "eq-1",
     technicianId: "u-alex", complaint: "No cooling. System runs but blowing warm.",
-    status: "On Site", daysAgo: 0, hour: 10, priority: "High",
+    status: "Scheduled", daysAgo: 0, hour: 10, priority: "High",
     jobType: "Repair", serviceCategory: "No Cooling", billingType: "Maintenance Plan",
   });
 

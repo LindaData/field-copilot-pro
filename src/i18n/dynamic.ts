@@ -58,7 +58,7 @@ const ES: Record<string, string> = {
   "Warranty service visit.": "Visita de servicio en garantía.",
 
   // ─── Access notes ────────────────────────────────────────────────
-  "Gate code on file at dispatch. Dog in back yard.": "Código de portón en despacho. Perro en el patio trasero.",
+  "Gate keypad at vehicle entrance. Dog in back yard.": "Teclado del portón en la entrada de vehículos. Perro en el patio trasero.",
   "Side gate unlocked": "Portón lateral sin llave",
   "Call on arrival": "Llamar al llegar",
   "Use service door": "Usar puerta de servicio",

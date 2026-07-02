@@ -12,7 +12,7 @@ const BUILD_REVIEW_ENDPOINT = String(import.meta.env.VITE_REVIEW_ENDPOINT ?? "")
 export type ReviewStatus = "open" | "resolved";
 export type NoteSyncState = "local" | "sending" | "sent" | "error";
 export type ReviewPriority = "low" | "medium" | "high";
-export type ReviewKind = "ux" | "bug" | "copy" | "data" | "workflow";
+export type ReviewKind = "ux" | "bug" | "copy" | "data" | "workflow" | "functionality";
 export type ReviewView = "page" | "all";
 export type ReviewActionKind = "route" | "click" | "input" | "submit" | "shortcut" | "device" | "chat" | "note" | "focus" | "scroll" | "visibility";
 
@@ -95,6 +95,7 @@ export const REVIEW_KINDS: Array<{ value: ReviewKind; label: string }> = [
   { value: "copy", label: "Copy" },
   { value: "data", label: "Data" },
   { value: "workflow", label: "Flow" },
+  { value: "functionality", label: "Functionality" },
 ];
 
 export const REVIEW_PRIORITIES: Array<{ value: ReviewPriority; label: string }> = [
