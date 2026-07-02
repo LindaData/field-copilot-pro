@@ -92,6 +92,16 @@ describe("migration baseline", () => {
     expect(screen.getByText("Field Copilot")).toBeInTheDocument();
   });
 
+  it("shows today's first scheduled repair as the technician focus instead of pretending the tech is already on site", async () => {
+    window.history.pushState({}, "", "/app/today");
+
+    render(<App />);
+
+    expect(await screen.findByText("Current job")).toBeInTheDocument();
+    expect(screen.getByText("Start Travel")).toBeInTheDocument();
+    expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
+  });
+
   it("preserves review endpoint parameters during the GitHub Pages SPA redirect", () => {
     const redirected = runIndexRedirect(
       "?p=%2Freview&reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note&cacheBust=123",

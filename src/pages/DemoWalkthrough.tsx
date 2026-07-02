@@ -114,18 +114,18 @@ export default function DemoWalkthrough() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="inline-flex items-center gap-2 text-sm font-semibold">
-                <Wrench className="h-4 w-4 text-primary" /> Active repair example
+                <Wrench className="h-4 w-4 text-primary" /> Today's repair example
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Goodman no-cooling scenario with manufacturer docs/specs and step-by-step diagnosis.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Goodman no-cooling scenario with manufacturer docs/specs, realistic dispatch timing, and step-by-step diagnosis.</p>
             </div>
-            <Badge variant="outline">Guided</Badge>
+            <Badge variant="outline">Scheduled</Badge>
           </div>
           <div className="mt-4 space-y-3 text-sm">
             <div className="rounded-md bg-muted p-3 text-xs">
-              Expected story: open the job, review equipment, ask the Copilot/spec reader, continue diagnosis, and verify source-linked data before relying on the answer.
+              Expected story: start travel, open the job, review equipment, ask the Copilot/spec reader, then continue diagnosis after arrival while verifying source-linked data.
             </div>
             <Button asChild className="w-full" variant="outline">
-              <Link to={activeRepair ? `/app/jobs/${activeRepair.id}` : "/app/jobs"}>Open active repair ticket</Link>
+              <Link to={activeRepair ? `/app/jobs/${activeRepair.id}` : "/app/jobs"}>Open today's repair ticket</Link>
             </Button>
             <Button asChild className="w-full" variant="outline">
               <Link to="/app/equipment/eq-1">Open verified Goodman equipment</Link>

@@ -9,6 +9,7 @@ import {
   Pause, ChevronRight,
 } from "lucide-react";
 import { primaryActionForToday, type PrimaryAction } from "@/lib/primaryAction";
+import { focusJobForTechnician } from "@/lib/technicianContext";
 import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
@@ -88,10 +89,7 @@ export default function Today() {
     (j) => j.status === "Completed" && inRange(new Date(j.scheduledFor), "day"),
   ).length;
 
-  const current =
-    myJobs.find((j) => j.status === "On Site" || j.status === "Diagnosing")
-    ?? myJobs.find((j) => j.status === "En Route")
-    ?? myJobs.find((j) => j.status === "Waiting for Approval" || j.status === "Waiting for Parts");
+  const current = focusJobForTechnician(myJobs, user.id);
 
   const upcoming = openJobs
     .filter((j) => j !== current)

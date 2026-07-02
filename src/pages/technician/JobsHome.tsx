@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { JobStatus } from "@/lib/types";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
+import { focusJobForTechnician } from "@/lib/technicianContext";
 
 const statusColor: Record<JobStatus, string> = {
   "Unassigned": "bg-muted text-muted-foreground",
@@ -67,7 +68,7 @@ export default function JobsHome() {
       .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
   }, [state, user.id, q, filter, range]);
 
-  const onSite = jobs.find((j) => j.status === "On Site");
+  const focusJob = focusJobForTechnician(jobs, user.id);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t("common.good.morning") : t("common.good.afternoon");
 
@@ -90,14 +91,14 @@ export default function JobsHome() {
         </Link>
       </section>
 
-      {onSite && (
-        <Link to={`/app/jobs/${onSite.id}`}>
+      {focusJob && (
+        <Link to={`/app/jobs/${focusJob.id}`}>
           <div className="card-elev relative overflow-hidden border-l-4 border-l-accent p-4">
-            <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel("On Site")}</Badge>
-            <div className="text-xs font-medium text-accent-foreground/80">{t("today.activeJob")}</div>
-            <div className="mt-1 text-base font-semibold">{state.customers.find(c => c.id === onSite.customerId)?.name}</div>
-            <div className="text-sm text-muted-foreground">{tx(onSite.complaint)}</div>
-            <Button className="mt-3 touch-target w-full">{t("today.resumeDiag")}</Button>
+            <Badge className={cn("absolute right-3 top-3", statusColor[focusJob.status])}>{statusLabel(focusJob.status)}</Badge>
+            <div className="text-xs font-medium text-accent-foreground/80">{t("today.currentJob")}</div>
+            <div className="mt-1 text-base font-semibold">{state.customers.find(c => c.id === focusJob.customerId)?.name}</div>
+            <div className="text-sm text-muted-foreground">{tx(focusJob.complaint)}</div>
+            <Button className="mt-3 touch-target w-full">{t("common.openJob")}</Button>
           </div>
         </Link>
       )}
