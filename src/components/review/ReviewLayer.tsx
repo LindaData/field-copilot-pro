@@ -175,6 +175,24 @@ function obstacleRects() {
     }));
 }
 
+function shellRect() {
+  if (typeof document === "undefined") return null as ReviewRect | null;
+
+  const shell = document.querySelector("[data-review-shell]") as HTMLElement | null;
+  if (!shell) return null;
+  const rect = shell.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 function dedupePositions(positions: ReviewLauncherPosition[]) {
   const seen = new Set<string>();
   return positions.filter((position) => {
@@ -201,8 +219,28 @@ function safeLauncherPosition(position: ReviewLauncherPosition, bounds = estimat
   const maxX = Math.max(minX, viewport.left + viewport.width - bounds.width - REVIEW_LAUNCHER_MARGIN);
   const maxY = Math.max(minY, viewport.top + viewport.height - bounds.height - REVIEW_LAUNCHER_MARGIN);
   const middleY = Math.min(maxY, Math.max(minY, viewport.top + Math.round((viewport.height - bounds.height) * 0.5)));
+  const shell = shellRect();
+  const desktopGutterCandidates = !isCompactViewport() && shell ? dedupePositions([
+    {
+      x: shell.left - bounds.width - REVIEW_LAUNCHER_MARGIN,
+      y: shell.bottom - bounds.height - REVIEW_LAUNCHER_MARGIN,
+    },
+    {
+      x: shell.right + REVIEW_LAUNCHER_MARGIN,
+      y: shell.bottom - bounds.height - REVIEW_LAUNCHER_MARGIN,
+    },
+    {
+      x: shell.left - bounds.width - REVIEW_LAUNCHER_MARGIN,
+      y: shell.top + REVIEW_LAUNCHER_MARGIN,
+    },
+    {
+      x: shell.right + REVIEW_LAUNCHER_MARGIN,
+      y: shell.top + REVIEW_LAUNCHER_MARGIN,
+    },
+  ].map((candidate) => clampLauncherPosition(candidate, bounds))) : [];
 
   const candidates = dedupePositions([
+    ...desktopGutterCandidates,
     defaultLauncherPosition(bounds),
     { x: maxX, y: maxY },
     { x: minX, y: maxY },
@@ -227,6 +265,25 @@ function safeLauncherPosition(position: ReviewLauncherPosition, bounds = estimat
 function defaultLauncherPosition(bounds = estimateLauncherBounds()): ReviewLauncherPosition {
   if (typeof window === "undefined") return { x: REVIEW_LAUNCHER_MARGIN, y: REVIEW_LAUNCHER_MARGIN };
   const viewport = viewportFrame();
+  const shell = shellRect();
+  if (!isCompactViewport() && shell) {
+    const gutterLeftX = shell.left - bounds.width - REVIEW_LAUNCHER_MARGIN;
+    if (gutterLeftX >= viewport.left + REVIEW_LAUNCHER_MARGIN) {
+      return clampLauncherPosition({
+        x: gutterLeftX,
+        y: shell.bottom - bounds.height - REVIEW_LAUNCHER_MARGIN,
+      }, bounds);
+    }
+
+    const gutterRightX = shell.right + REVIEW_LAUNCHER_MARGIN;
+    if (gutterRightX + bounds.width <= viewport.left + viewport.width - REVIEW_LAUNCHER_MARGIN) {
+      return clampLauncherPosition({
+        x: gutterRightX,
+        y: shell.bottom - bounds.height - REVIEW_LAUNCHER_MARGIN,
+      }, bounds);
+    }
+  }
+
   return clampLauncherPosition({
     x: viewport.left + viewport.width - bounds.width - REVIEW_LAUNCHER_MARGIN,
     y: viewport.top + viewport.height - bounds.height - 72,
@@ -535,7 +592,7 @@ export function ReviewLayer() {
       ));
       setLauncherPosition((current) => {
         const clamped = clampLauncherPosition(current, nextBounds);
-        return compact ? safeLauncherPosition(clamped, nextBounds) : clamped;
+        return safeLauncherPosition(clamped, nextBounds);
       });
     };
 
@@ -566,7 +623,7 @@ export function ReviewLayer() {
     const handleResize = () => {
       setLauncherPosition((current) => {
         const clamped = clampLauncherPosition(current, launcherBounds);
-        return compactLauncherMode ? safeLauncherPosition(clamped, launcherBounds) : clamped;
+        return safeLauncherPosition(clamped, launcherBounds);
       });
     };
 
@@ -617,7 +674,7 @@ export function ReviewLayer() {
     if (open || draggingLauncher) return;
     setLauncherPosition((current) => {
       const clamped = clampLauncherPosition(current, launcherBounds);
-      return compactLauncherMode ? safeLauncherPosition(clamped, launcherBounds) : clamped;
+      return safeLauncherPosition(clamped, launcherBounds);
     });
   }, [compactLauncherMode, draggingLauncher, launcherBounds, location.pathname, open]);
 

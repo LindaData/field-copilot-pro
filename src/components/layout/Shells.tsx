@@ -138,7 +138,7 @@ export function MobileShell() {
   const doHelp = () => toast(t("nav.help"), { description: t("owner.techHelpDesc") });
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
+    <div data-review-shell="mobile" className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background">
       <header className="safe-top sticky top-0 z-30 bg-primary text-primary-foreground">
         {/* Row 1 */}
         <div className="flex items-center justify-between gap-2 px-3 pt-2">
@@ -175,7 +175,7 @@ export function MobileShell() {
         <Outlet />
       </main>
 
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-md items-stretch justify-between border-t bg-card px-1 py-1 shadow-[0_-6px_20px_-12px_rgba(0,0,0,0.25)]">
+      <nav data-review-avoid="mobile-bottom-nav" className="safe-bottom fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-md items-stretch justify-between border-t bg-card px-1 py-1 shadow-[0_-6px_20px_-12px_rgba(0,0,0,0.25)]">
         {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={({ isActive }) => cn(
             "touch-target flex flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[11px] font-medium",
@@ -205,7 +205,7 @@ export function OwnerShell() {
   const visibleOwnerTabs = ownerTabs;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col">
+    <div data-review-shell="owner" className="mx-auto flex min-h-screen w-full max-w-6xl flex-col">
       <header className="safe-top sticky top-0 z-30 bg-primary text-primary-foreground">
         {/* Row 1 */}
         <div className="flex items-center justify-between gap-2 px-4 pt-2">
