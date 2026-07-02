@@ -236,7 +236,7 @@ export default function Today() {
       </header>
 
       {current ? (
-        <Link to={`/app/jobs/${current.id}`}>
+        <Link to={`/app/jobs/${current.id}`} data-review-avoid="today-current-stop">
           <div className="card-elev relative overflow-hidden border-l-4 border-l-accent p-4">
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel(current.status)}</Badge>
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{focusHeading(current.status)}</div>
@@ -266,7 +266,7 @@ export default function Today() {
         </div>
       )}
 
-      <section className="card-elev p-4">
+      <section className="card-elev p-4" data-review-avoid="today-primary-action">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Do next</div>
         <div className="mt-1 text-sm text-muted-foreground">
           Keep the technician moving through a realistic day instead of jumping around the demo.

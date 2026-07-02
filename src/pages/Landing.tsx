@@ -46,7 +46,7 @@ export default function Landing() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-review-avoid="landing-primary-actions">
           <Link to="/app/today" onClick={() => setRole("guest-tech", "u-alex")}>
             <Button className="touch-target h-14 w-full justify-between bg-accent text-base font-semibold text-accent-foreground hover:bg-accent/90">
               <span className="inline-flex items-center gap-2"><Wrench className="h-5 w-5" /> {t("landing.enterAsTech")}</span>

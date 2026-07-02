@@ -65,6 +65,7 @@ type LiveDraftState = "idle" | "waiting" | "sending" | "sent" | "error";
 type CaptureMode = "notes" | "functionality";
 type ReviewLauncherPosition = { x: number; y: number };
 type ReviewLauncherBounds = { width: number; height: number };
+type ReviewRect = { left: number; top: number; right: number; bottom: number; width: number; height: number };
 
 const REVIEW_LAUNCHER_POSITION_KEY = "field-copilot-review-launcher-position-v1";
 const REVIEW_LAUNCHER_MARGIN = 10;
@@ -141,6 +142,86 @@ function clampLauncherPosition(position: ReviewLauncherPosition, bounds = estima
     x: Math.min(Math.max(minX, position.x), maxX),
     y: Math.min(Math.max(minY, position.y), maxY),
   };
+}
+
+function rectForLauncher(position: ReviewLauncherPosition, bounds: ReviewLauncherBounds): ReviewRect {
+  return {
+    left: position.x,
+    top: position.y,
+    right: position.x + bounds.width,
+    bottom: position.y + bounds.height,
+    width: bounds.width,
+    height: bounds.height,
+  };
+}
+
+function rectsOverlap(a: ReviewRect, b: ReviewRect) {
+  return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+}
+
+function obstacleRects() {
+  if (typeof document === "undefined") return [] as ReviewRect[];
+
+  return Array.from(document.querySelectorAll("[data-review-avoid]"))
+    .map((node) => node.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .map((rect) => ({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    }));
+}
+
+function dedupePositions(positions: ReviewLauncherPosition[]) {
+  const seen = new Set<string>();
+  return positions.filter((position) => {
+    const key = `${Math.round(position.x)}:${Math.round(position.y)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function safeLauncherPosition(position: ReviewLauncherPosition, bounds = estimateLauncherBounds()) {
+  if (typeof window === "undefined") return position;
+
+  const obstacles = obstacleRects();
+  const current = clampLauncherPosition(position, bounds);
+  if (obstacles.length === 0) return current;
+
+  const currentRect = rectForLauncher(current, bounds);
+  if (!obstacles.some((rect) => rectsOverlap(currentRect, rect))) return current;
+
+  const viewport = viewportFrame();
+  const minX = viewport.left + REVIEW_LAUNCHER_MARGIN;
+  const minY = viewport.top + REVIEW_LAUNCHER_MARGIN;
+  const maxX = Math.max(minX, viewport.left + viewport.width - bounds.width - REVIEW_LAUNCHER_MARGIN);
+  const maxY = Math.max(minY, viewport.top + viewport.height - bounds.height - REVIEW_LAUNCHER_MARGIN);
+  const middleY = Math.min(maxY, Math.max(minY, viewport.top + Math.round((viewport.height - bounds.height) * 0.5)));
+
+  const candidates = dedupePositions([
+    defaultLauncherPosition(bounds),
+    { x: maxX, y: maxY },
+    { x: minX, y: maxY },
+    { x: maxX, y: middleY },
+    { x: minX, y: middleY },
+    { x: maxX, y: minY },
+    { x: minX, y: minY },
+    current,
+  ].map((candidate) => clampLauncherPosition(candidate, bounds)));
+
+  const ranked = candidates
+    .map((candidate, index) => {
+      const rect = rectForLauncher(candidate, bounds);
+      const overlaps = obstacles.filter((obstacle) => rectsOverlap(rect, obstacle)).length;
+      return { candidate, overlaps, index };
+    })
+    .sort((a, b) => a.overlaps - b.overlaps || a.index - b.index);
+
+  return ranked[0]?.candidate ?? current;
 }
 
 function defaultLauncherPosition(bounds = estimateLauncherBounds()): ReviewLauncherPosition {
@@ -452,7 +533,10 @@ export function ReviewLayer() {
           ? current
           : nextBounds
       ));
-      setLauncherPosition((current) => clampLauncherPosition(current, nextBounds));
+      setLauncherPosition((current) => {
+        const clamped = clampLauncherPosition(current, nextBounds);
+        return compact ? safeLauncherPosition(clamped, nextBounds) : clamped;
+      });
     };
 
     measureLauncher();
@@ -480,7 +564,10 @@ export function ReviewLayer() {
 
   useEffect(() => {
     const handleResize = () => {
-      setLauncherPosition((current) => clampLauncherPosition(current, launcherBounds));
+      setLauncherPosition((current) => {
+        const clamped = clampLauncherPosition(current, launcherBounds);
+        return compactLauncherMode ? safeLauncherPosition(clamped, launcherBounds) : clamped;
+      });
     };
 
     const handleDragMove = (event: PointerEvent) => {
@@ -524,7 +611,15 @@ export function ReviewLayer() {
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
     };
-  }, [launcherBounds]);
+  }, [compactLauncherMode, launcherBounds]);
+
+  useEffect(() => {
+    if (open || draggingLauncher) return;
+    setLauncherPosition((current) => {
+      const clamped = clampLauncherPosition(current, launcherBounds);
+      return compactLauncherMode ? safeLauncherPosition(clamped, launcherBounds) : clamped;
+    });
+  }, [compactLauncherMode, draggingLauncher, launcherBounds, location.pathname, open]);
 
   const sessionNotes = useMemo(
     () => notes.filter((note) => matchesReviewSession(note.sessionId, sessionId)),
@@ -1843,6 +1938,7 @@ export function ReviewLayer() {
       {!open ? (
         <div
           ref={launcherRef}
+          data-review-launcher="true"
           className="fixed z-50 w-fit max-w-[calc(100vw-1rem)] [touch-action:none]"
           style={{
             left: `${launcherPosition.x}px`,

@@ -912,6 +912,88 @@ describe("migration baseline", () => {
     }
   });
 
+  it("repositions the compact launcher away from primary mobile review-avoid regions", async () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function mockRect(this: HTMLElement) {
+      if (this.getAttribute("data-review-launcher") === "true") {
+        return {
+          x: 26,
+          y: 548,
+          left: 26,
+          top: 548,
+          right: 106,
+          bottom: 625,
+          width: 80,
+          height: 77,
+          toJSON() { return this; },
+        } as DOMRect;
+      }
+
+      if (this.getAttribute("data-review-avoid") === "landing-primary-actions") {
+        return {
+          x: 20,
+          y: 536,
+          left: 20,
+          top: 536,
+          right: 355,
+          bottom: 640,
+          width: 335,
+          height: 104,
+          toJSON() { return this; },
+        } as DOMRect;
+      }
+
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON() { return this; },
+      } as DOMRect;
+    });
+
+    try {
+      const fetchMock = vi.fn(async (url: string | URL | Request) => {
+        if (String(url).includes("/review-messages")) {
+          return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+        }
+        return { ok: true, json: async () => ({ ok: true }) };
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      window.localStorage.setItem("field-copilot-review-launcher-position-v1", JSON.stringify({
+        x: 26,
+        y: 548,
+      }));
+      window.history.pushState(
+        {},
+        "",
+        "/?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+      );
+
+      render(<App />);
+
+      const reviewButton = await screen.findByRole("button", { name: /review layer, 0 open notes/i });
+      const launcher = reviewButton.closest("[data-review-launcher='true']") as HTMLDivElement | null;
+      expect(launcher).not.toBeNull();
+
+      await waitFor(() => {
+        expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBeGreaterThan(200);
+        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeGreaterThan(700);
+      });
+    } finally {
+      rectSpy.mockRestore();
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
+    }
+  });
+
   it("keeps received-note handoff status after a sent note is resolved", async () => {
     window.localStorage.setItem("field-copilot-review-notes-v1", JSON.stringify([{
       id: "note-resolved-live",
