@@ -418,6 +418,9 @@ describe("migration baseline", () => {
 
     render(<App />);
 
+    expect(await screen.findByText("Closeout readiness")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting signature")).toBeInTheDocument();
+    expect(screen.getByText(/Customer signature required before Approve unlocks/i)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: /decline and follow up/i }));
     fireEvent.click(await screen.findByRole("button", { name: /decline and create follow-up/i }));
 
@@ -460,6 +463,9 @@ describe("migration baseline", () => {
     render(<App />);
 
     expect(await screen.findByText(/Customer approval still needs to be captured/i)).toBeInTheDocument();
+    expect(screen.getByText("Closeout status")).toBeInTheDocument();
+    expect(screen.getByText("Internal draft only")).toBeInTheDocument();
+    expect(screen.getByText(/1. Capture customer approval. 2. Return here. 3. Save, print, or share the finished report./i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /open customer approval/i })).toBeInTheDocument();
     expect(screen.getByText(/not ready as a final customer handoff/i)).toBeInTheDocument();
   });

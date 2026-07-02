@@ -59,6 +59,21 @@ export default function Approval() {
   const customer = state.customers.find((c) => c.id === job.customerId);
   const property = state.properties.find((item) => item.id === job.propertyId);
   const equipment = state.equipment.find((item) => item.id === job.equipmentId);
+  const existingAuth = state.auths.find((auth) => auth.jobId === job.id);
+  const approvalStatusLabel = existingAuth?.decision === "approved"
+    ? "Approved"
+    : existingAuth?.decision === "declined"
+      ? "Declined"
+      : signed
+        ? "Ready to approve"
+        : "Awaiting signature";
+  const nextMoveLabel = existingAuth?.decision === "approved"
+    ? "Return to the visit and finish the report."
+    : existingAuth?.decision === "declined"
+      ? "Office follow-up is the next stop for this job."
+      : signed
+        ? "Approve and return to the visit."
+        : "Capture the customer signature first.";
 
   const approve = () => {
     const dataUrl = sigRef.current?.toDataURL() ?? "";
@@ -127,6 +142,36 @@ export default function Approval() {
           <div className="rounded-xl border bg-muted/20 p-3">
             <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Property</div>
             <div className="mt-1 text-sm font-medium">{property?.address ?? "Property not linked"}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Closeout readiness</div>
+            <div className="mt-1 text-sm font-medium">{signed ? "Signature captured" : "Signature still needed"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {signed
+                ? "Approve is now unlocked for this locked estimate."
+                : "Customer signature required before Approve unlocks."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Decision state</div>
+            <div className="mt-1 text-sm font-medium">{approvalStatusLabel}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {existingAuth?.decision === "approved"
+                ? "Consent is already stored on this job."
+                : existingAuth?.decision === "declined"
+                  ? "This estimate has already been routed to office follow-up."
+                  : "This screen is for a clear yes or no, not price editing."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next move</div>
+            <div className="mt-1 text-sm font-medium">{nextMoveLabel}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Keep approval, office follow-up, and report handoff in a believable order.
+            </div>
           </div>
         </div>
 
@@ -231,7 +276,7 @@ export default function Approval() {
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button className="touch-target h-12 justify-between" disabled={!signed} onClick={approve}>
-              <span className="inline-flex items-center gap-2"><Check className="h-5 w-5" /> {t("approval.approve")}</span>
+              <span className="inline-flex items-center gap-2"><Check className="h-5 w-5" /> Approve and return to visit</span>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -247,7 +292,11 @@ export default function Approval() {
         {property?.address ? (
           <div className="mt-2 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
             <MapPin className="mr-1 inline h-3.5 w-3.5" />
-            Approval recorded for {property.address}.
+            {existingAuth?.decision === "approved"
+              ? `Approved for ${property.address}.`
+              : existingAuth?.decision === "declined"
+                ? `Marked for office follow-up at ${property.address}.`
+                : `This approval applies to ${property.address}.`}
           </div>
         ) : null}
       </div>

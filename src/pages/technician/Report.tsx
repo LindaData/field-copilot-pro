@@ -28,6 +28,7 @@ export default function Report() {
   const measurementsInRange = measurements.filter((measurement) => measurement.withinRange === true).length;
   const measurementsOutOfRange = measurements.filter((measurement) => measurement.withinRange === false).length;
   const approvalCaptured = Boolean(auth?.signedBy);
+  const reportReadyForCustomer = approvalCaptured;
   const shareSummary = `${state.company.name} service report for ${c?.name ?? job.id.toUpperCase()}\n${diag?.hypothesis ?? t("report.diagInProgress")}`;
 
   const partsSummary = jparts.length > 0
@@ -120,11 +121,43 @@ export default function Report() {
             <div className="mt-1 font-semibold">{approvalCaptured ? "Signed" : "Pending"}</div>
           </div>
         </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Closeout status</div>
+            <div className="mt-1 text-sm font-medium">{reportReadyForCustomer ? "Ready for customer handoff" : "Internal draft only"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {reportReadyForCustomer
+                ? "Approval is captured, so this report can be saved, printed, or shared with the customer."
+                : "Keep this report inside the technician workflow until customer approval is captured."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Approval gate</div>
+            <div className="mt-1 text-sm font-medium">{approvalCaptured ? "Signed" : "Still needed"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {approvalCaptured
+                ? "The signed approval stays attached to this job and final report."
+                : "Capture approval first, then return here for the final customer copy."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next move</div>
+            <div className="mt-1 text-sm font-medium">
+              {approvalCaptured ? "Save, print, or share the finished report." : "Open approval, then come back here."}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Keep approval before report handoff so the visit closes out in the right order.
+            </div>
+          </div>
+        </div>
         {!approvalCaptured ? (
           <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
             <div className="font-semibold">Customer approval still needs to be captured.</div>
             <div className="mt-1 text-xs text-muted-foreground">
               This report can still be reviewed internally, but it is not ready as a final customer handoff until approval is recorded.
+            </div>
+            <div className="mt-3 rounded-lg border bg-background/80 p-3 text-xs text-muted-foreground">
+              1. Capture customer approval. 2. Return here. 3. Save, print, or share the finished report.
             </div>
             <Button variant="outline" className="mt-3 touch-target h-10" onClick={() => nav(`/app/jobs/${job.id}/approval`)}>
               Open customer approval
