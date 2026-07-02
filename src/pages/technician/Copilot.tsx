@@ -1,4 +1,4 @@
-import { useStore } from "@/lib/store";
+import { useCurrentUser, useStore } from "@/lib/store";
 import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,15 @@ import { resolveAnswer } from "@/lib/answers/resolver";
 import { findSimilarJobs } from "@/lib/answers/similarJobs";
 import { AnswerCard } from "@/components/answers/AnswerCard";
 import type { Answer } from "@/lib/answers/types";
+import { focusJobForTechnician } from "@/lib/technicianContext";
 
 interface Turn { question: string; answer: Answer; jobId?: string; }
 
 export default function Copilot() {
   const { state } = useStore();
+  const user = useCurrentUser();
   const { t } = useTranslation();
-  const job = state.jobs.find((j) => j.status === "On Site") ?? state.jobs.find((j) => j.status === "Diagnosing");
+  const job = focusJobForTechnician(state.jobs, user.id);
   const eq = state.equipment.find((e) => e.id === job?.equipmentId);
   const diag = job ? state.diag[job.id] : undefined;
   const [input, setInput] = useState("");

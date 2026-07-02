@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { useStore } from "@/lib/store";
+import { useCurrentUser, useStore } from "@/lib/store";
+import { focusJobForTechnician } from "@/lib/technicianContext";
 import { useTranslation } from "react-i18next";
 import { Camera, ScanLine, Check, AlertTriangle } from "lucide-react";
 import { useState } from "react";
@@ -8,10 +9,12 @@ import { toast } from "sonner";
 
 export default function Scan() {
   const { state, updateJob } = useStore();
+  const user = useCurrentUser();
   const { t } = useTranslation();
   const [scanning, setScanning] = useState(false);
   const [recognized, setRecognized] = useState<null | { mfg: string; model: string; serial: string; voltage: string; phase: string; refrig: string; cap: string }>(null);
   const nav = useNavigate();
+  const targetJob = focusJobForTechnician(state.jobs, user.id);
 
   const simulate = () => {
     setScanning(true);
@@ -26,8 +29,7 @@ export default function Scan() {
   };
 
   const confirm = () => {
-    const job = state.jobs.find((j) => j.status === "On Site");
-    if (job) updateJob(job.id, { equipmentId: "eq-1" });
+    if (targetJob) updateJob(targetJob.id, { equipmentId: "eq-1" });
     toast.success(t("scan.toast.attached"));
     nav("/app/equipment/eq-1");
   };

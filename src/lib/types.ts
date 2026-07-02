@@ -180,7 +180,7 @@ export interface Property {
   parkingNotes?: string;
   pets?: string;
   warrantyActive?: boolean;
-  /** Role-gated in UI — do not render to technicians without dispatch context. */
+  /** Dispatch-sourced access code. Current demo surfaces it to technicians for arrival readiness. */
   gateCode?: string;
   lat?: number; lng?: number; geofenceRadiusFt?: number;
 }

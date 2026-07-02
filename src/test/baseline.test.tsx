@@ -724,6 +724,30 @@ describe("migration baseline", () => {
     expect(screen.queryByText("Main demo landing - /")).not.toBeInTheDocument();
   });
 
+  it("lets the review layer switch between notes and functionality capture modes", async () => {
+    window.history.pushState({}, "", "/");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Functionality" }));
+    expect(await screen.findByText("Functionality note")).toBeInTheDocument();
+
+    const textarea = screen.getByLabelText("Functionality note") as HTMLTextAreaElement;
+    expect(textarea.placeholder).toMatch(/interaction failure/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Broken button" }));
+    await waitFor(() => {
+      expect(textarea.value).toContain("Broken button:");
+      expect(textarea.value).toContain("Expected:");
+      expect(textarea.value).toContain("Actual:");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Notes" }));
+    expect(await screen.findByText("Review note")).toBeInTheDocument();
+  });
+
   it("shows friendly live-sync fallback copy instead of raw transport errors", async () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       if (String(url).includes("/review-messages")) {
