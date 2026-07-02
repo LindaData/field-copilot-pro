@@ -58,7 +58,7 @@
     "enterAsTech": "Entrar a la demo como Técnico",
     "enterAsOwner": "Entrar a la demo como Propietario",
     "signIn": "Iniciar sesión",
-    "tour": "Recorrido rápido",
+    "tour": "Cómo funciona",
     "disclaimer": "Para profesionales HVAC capacitados. Esta herramienta asiste — no sustituye licencias, instrucciones del fabricante, códigos, bloqueo/etiquetado, EPP ni prácticas seguras de trabajo. Métricas, clientes y casos previos son datos de demostración.",
     "fasterDiagnosis": "Diagnóstico más rápido",
     "fewerCallbacks": "Menos retornos",
@@ -66,7 +66,7 @@
     "fasterDiagnosisV": "−32% tiempo prom.",
     "fewerCallbacksV": "−18% de tasa",
     "lessPaperworkV": "Reportes en 60 s",
-    "testBuild": "Build para revisión de cliente",
+    "testBuild": "Demo de campo",
     "safariPrompt": "Abre en Safari de iPhone y prueba el flujo del tÃ©cnico desde Hoy, Ã“rdenes, Escanear y Reportes.",
     "homeScreenPrompt": "Usa Compartir y luego Agregar a pantalla de inicio despuÃ©s de abrir la vista de tÃ©cnico para probar una experiencia tipo app.",
     "tourSteps": {

@@ -17,12 +17,73 @@ export default function EquipmentList() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const tx = useDynamicText();
+  const equipmentRows = state.equipment.map((eq) => {
+    const docSummary = documentationSummaryForEquipment(eq);
+    const linkedJobs = state.jobs.filter((job) => job.equipmentId === eq.id).length;
+    return { eq, docSummary, linkedJobs };
+  });
+  const sourceBackedCount = equipmentRows.filter(({ docSummary }) => docSummary.best).length;
+  const exactSourceCount = equipmentRows.filter(({ docSummary }) => docSummary.best?.matchStatus === "verified_exact_match").length;
+  const reviewQueue = equipmentRows
+    .filter(({ eq }) => eq.verificationStatus !== "Manufacturer Verified")
+    .sort((a, b) => b.linkedJobs - a.linkedJobs)
+    .slice(0, 3);
 
   return (
     <div className="flex flex-col gap-3 p-4">
       <div>
         <h1 className="text-lg font-semibold">{t("equipmentList.title")}</h1>
         <p className="text-xs text-muted-foreground">{t("equipmentList.desc")}</p>
+      </div>
+      <div className="rounded-2xl border bg-muted/20 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Source trust for this fleet</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Keep the strongest source-backed units visible first, and keep the review queue in front of any unit the field team could reach for next.
+            </div>
+          </div>
+          <span className="stat-pill bg-secondary text-secondary-foreground">{reviewQueue.length} queued</span>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+          <div className="rounded-xl border bg-background px-3 py-2">
+            <div className="text-muted-foreground">Source-backed</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">{sourceBackedCount}</div>
+          </div>
+          <div className="rounded-xl border bg-background px-3 py-2">
+            <div className="text-muted-foreground">Exact match</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">{exactSourceCount}</div>
+          </div>
+          <div className="rounded-xl border bg-background px-3 py-2">
+            <div className="text-muted-foreground">Needs review</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">{state.equipment.length - exactSourceCount}</div>
+          </div>
+        </div>
+        {reviewQueue.length > 0 ? (
+          <div className="mt-3 rounded-xl border bg-background p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Needs source follow-up</div>
+            <div className="mt-2 space-y-2">
+              {reviewQueue.map(({ eq, docSummary, linkedJobs }) => (
+                <button
+                  key={`review-${eq.id}`}
+                  type="button"
+                  onClick={() => nav(`/app/equipment/${eq.id}`)}
+                  className="flex w-full items-start justify-between gap-3 rounded-lg border bg-muted/10 px-3 py-2 text-left hover:bg-muted/30"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">{eq.manufacturer} {eq.model}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {docSummary.best
+                        ? `${documentationStatusLabel(docSummary.best)} - ${docSummary.best.documentTitle}`
+                        : "No official source is linked to this equipment record yet."}
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">{linkedJobs} jobs</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="flex flex-col gap-2">
         {state.equipment.map((eq) => {

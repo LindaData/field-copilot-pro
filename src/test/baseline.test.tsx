@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect } from "react";
 import { readFileSync } from "node:fs";
@@ -16,6 +16,7 @@ import {
   HVAC_MARKET_SYSTEM_PRIORITIES,
 } from "@/lib/hvacMarketSystems";
 import { getPrimaryAction } from "@/lib/primaryAction";
+import { getReviewEndpoint, hostedReviewEndpointForLocation } from "@/lib/reviewCapture";
 import { DOCS, EQUIPMENT, INITIAL_DIAG, JOBS } from "@/lib/seed";
 import { DEMO_DATA_VERSION, DEMO_STORE_KEY, StoreProvider, useStore, type StoreState } from "@/lib/store";
 
@@ -90,6 +91,8 @@ describe("migration baseline", () => {
 
     expect(await screen.findByText("Enter Demo as Technician")).toBeInTheDocument();
     expect(screen.getByText("Field Copilot")).toBeInTheDocument();
+    expect(screen.getByText("Field demo")).toBeInTheDocument();
+    expect(screen.getByText("How it works")).toBeInTheDocument();
   });
 
   it("shows today's first scheduled repair as the technician focus instead of pretending the tech is already on site", async () => {
@@ -97,9 +100,43 @@ describe("migration baseline", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Current job")).toBeInTheDocument();
-    expect(screen.getByText("Start Travel")).toBeInTheDocument();
+    expect(await screen.findByText("First scheduled stop")).toBeInTheDocument();
+    expect(screen.getByText("Start travel in Maps")).toBeInTheDocument();
     expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
+  });
+
+  it("shows the same next move on the technician jobs list as the current field priority", async () => {
+    window.history.pushState({}, "", "/app/jobs");
+
+    render(<App />);
+
+    expect(await screen.findByText("Next move")).toBeInTheDocument();
+    expect(screen.getByText("Start travel in Maps")).toBeInTheDocument();
+    expect(screen.getByText("Open the route and start travel timing for this stop")).toBeInTheDocument();
+  });
+
+  it("shows travel, access, and source readiness on the technician jobs list", async () => {
+    window.history.pushState({}, "", "/app/jobs");
+
+    render(<App />);
+
+    expect(await screen.findByText("Ready for this stop")).toBeInTheDocument();
+    expect(screen.getByText("Travel")).toBeInTheDocument();
+    expect(screen.getByText("Access")).toBeInTheDocument();
+    expect(screen.getByText("Source")).toBeInTheDocument();
+    expect(screen.getByText("Open full job")).toBeInTheDocument();
+  });
+
+  it("keeps current priority, next stop, and blocked work visible on the today page", async () => {
+    window.history.pushState({}, "", "/app/today");
+
+    render(<App />);
+
+    expect(await screen.findByText("Shift focus")).toBeInTheDocument();
+    expect(screen.getByText("Current priority")).toBeInTheDocument();
+    expect(screen.getByText("Queue next stop")).toBeInTheDocument();
+    expect(screen.getByText("Blocked or follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Open full schedule")).toBeInTheDocument();
   });
 
   it("preserves review endpoint parameters during the GitHub Pages SPA redirect", () => {
@@ -164,6 +201,31 @@ describe("migration baseline", () => {
     expect(observed?.jobs.some((job) => job.id === "stale-job")).toBe(false);
   });
 
+  it("reseeds fresh demo state from a shareable resetDemo=1 link and removes the reset flag from the URL", async () => {
+    window.localStorage.setItem(DEMO_STORE_KEY, JSON.stringify({
+      demoDataVersion: DEMO_DATA_VERSION,
+      demoAnchor: todayKey(),
+      jobs: JOBS.map((job) => job.id === "j-1" ? { ...job, status: "On Site" } : job),
+      customers: [],
+    }));
+    window.history.pushState({}, "", "/app/today?resetDemo=1");
+
+    let observed: StoreState | undefined;
+
+    render(
+      <StoreProvider>
+        <StoreProbe onState={(state) => { observed = state; }} />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => expect(observed).toBeDefined());
+
+    expect(observed?.demoDataVersion).toBe(DEMO_DATA_VERSION);
+    expect(observed?.jobs.find((job) => job.id === "j-1")?.status).toBe("Scheduled");
+    expect(observed?.customers.length).toBeGreaterThan(0);
+    expect(window.location.search).not.toContain("resetDemo=1");
+  });
+
   it("initializes English, Spanish, and French translation resources", async () => {
     expect(LANGS.map((lang) => lang.code)).toEqual(["en", "es", "fr"]);
     expect(i18n.hasResourceBundle("en", "translation")).toBe(true);
@@ -175,6 +237,7 @@ describe("migration baseline", () => {
 
     await i18n.changeLanguage("es");
     expect(i18n.t("nav.today")).toBe("Hoy");
+    expect(i18n.t("nav.jobs")).toBe("Órdenes");
 
     await i18n.changeLanguage("fr");
     expect(i18n.t("nav.today")).toBe("Aujourd'hui");
@@ -190,6 +253,247 @@ describe("migration baseline", () => {
     expect(action.kind).toBe("start-diagnosis");
     expect(action.to).toBe("/app/jobs/j-1/diagnose");
     expect(action.to).not.toContain("/diagnostics");
+  });
+
+  it("shows sync as read-only status on the today page instead of a toggleable control", async () => {
+    window.history.pushState({}, "", "/app/today");
+
+    render(<App />);
+
+    expect(await screen.findByLabelText(/synced|offline/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /synced|offline/i })).not.toBeInTheDocument();
+  });
+
+  it("opens the exact follow-up visit from the today page follow-up section", async () => {
+    let observed: StoreState | undefined;
+
+    render(
+      <StoreProvider>
+        <StoreProbe onState={(state) => { observed = state; }} />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => expect(observed).toBeDefined());
+
+    const alexJobs = observed!.jobs.filter((job) => job.technicianId === "u-alex");
+    const forcedFollowUp = alexJobs[0];
+    const forcedState: StoreState = {
+      ...observed!,
+      jobs: observed!.jobs.map((job) => {
+        if (job.technicianId !== "u-alex") return job;
+        return {
+          ...job,
+          status: job.id === forcedFollowUp.id ? "Follow-Up" : "Completed",
+        };
+      }),
+    };
+
+    cleanup();
+    window.localStorage.setItem(DEMO_STORE_KEY, JSON.stringify(forcedState));
+    window.history.pushState({}, "", "/app/today");
+
+    render(<App />);
+
+    const followUpHeading = await screen.findByText("Needs follow-up");
+    const followUpSection = followUpHeading.closest("section");
+    expect(followUpSection).not.toBeNull();
+
+    const followUpLinks = within(followUpSection as HTMLElement).getAllByRole("link");
+    expect(followUpLinks.length).toBeGreaterThan(0);
+
+    const href = followUpLinks[0].getAttribute("href");
+    expect(href).toBe(`/app/jobs/${forcedFollowUp.id}`);
+
+    fireEvent.click(followUpLinks[0]);
+
+    await waitFor(() => expect(window.location.pathname).toBe(href));
+  });
+
+  it("keeps the customer report free of raw vendor links and lets the tech return to the job", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2/report");
+
+    render(<App />);
+
+    expect(await screen.findByText("Customer-ready report")).toBeInTheDocument();
+    expect(screen.queryByText(/fujitsugeneral\.com/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Technical source documents stay linked in the equipment profile/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /back to job/i })[0]);
+
+    await waitFor(() => expect(window.location.pathname).toBe("/app/jobs/j-2"));
+  });
+
+  it("submits a parts request that really moves the job to Waiting for Parts and saves the office handoff", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2/parts-request");
+
+    render(<App />);
+
+    fireEvent.change(await screen.findByPlaceholderText(/Dual-run capacitor/i), {
+      target: { value: "OEM blower motor" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/If known/i), {
+      target: { value: "MTR-220-ECM" },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Ferguson/i), {
+      target: { value: "Johnstone" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /submit part request/i }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/app/jobs/j-2"));
+
+    const persisted = JSON.parse(window.localStorage.getItem(DEMO_STORE_KEY) ?? "{}") as StoreState;
+    const savedJob = persisted.jobs.find((job) => job.id === "j-2");
+    const savedRequest = persisted.partRequests.find((request) => request.jobId === "j-2" && request.name === "OEM blower motor");
+
+    expect(savedJob?.status).toBe("Waiting for Parts");
+    expect(savedJob?.notes).toContain("Office handoff");
+    expect(savedRequest?.status).toBe("Identification Needed");
+    expect(savedRequest?.supplier).toBe("Johnstone");
+  });
+
+  it("uses time-on-site wording on the job detail instead of active labor", async () => {
+    const stored = JSON.parse(window.localStorage.getItem(DEMO_STORE_KEY) ?? "null") as StoreState | null;
+
+    if (!stored) {
+      window.history.pushState({}, "", "/app/jobs/j-2");
+      render(<App />);
+      await screen.findByText(/Owen Hall/i);
+      cleanup();
+    }
+
+    const refreshed = JSON.parse(window.localStorage.getItem(DEMO_STORE_KEY) ?? "{}") as StoreState;
+    const arrivedState: StoreState = {
+      ...refreshed,
+      jobs: refreshed.jobs.map((job) => (
+        job.id === "j-2"
+          ? {
+            ...job,
+            status: "On Site",
+            arrivedAt: "2026-07-01T14:00:00.000Z",
+            completedAt: undefined,
+          }
+          : job
+      )),
+    };
+
+    window.localStorage.setItem(DEMO_STORE_KEY, JSON.stringify(arrivedState));
+    window.history.pushState({}, "", "/app/jobs/j-2");
+
+    render(<App />);
+
+    expect(await screen.findByText(/Time on site:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Active labor:/i)).not.toBeInTheDocument();
+  });
+
+  it("shows visit readiness with travel, arrival, and linked source context on the job detail page", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2");
+
+    render(<App />);
+
+    expect(await screen.findByText("Visit readiness")).toBeInTheDocument();
+    expect(screen.getAllByText("Travel").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Arrival").length).toBeGreaterThan(0);
+    expect(screen.getByText("Linked source")).toBeInTheDocument();
+    expect(screen.getByText("Technician next steps")).toBeInTheDocument();
+    expect(screen.getByText("1. Diagnose")).toBeInTheDocument();
+    expect(screen.getByText("2. Approval")).toBeInTheDocument();
+    expect(screen.getByText("3. Report")).toBeInTheDocument();
+  });
+
+  it("keeps arrival essentials and quick gate-code access visible on the job detail page", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-1");
+
+    render(<App />);
+
+    expect(await screen.findByText("Best next move")).toBeInTheDocument();
+    expect(screen.getByText("Leave for the stop first so the visit timeline starts in the right order.")).toBeInTheDocument();
+    expect(await screen.findByText("Arrival essentials")).toBeInTheDocument();
+    expect(screen.getAllByText(/Gate code/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
+  });
+
+  it("declining approval moves the job to follow-up and records the declined decision", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2/approval");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /decline and follow up/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /decline and create follow-up/i }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/app/jobs/j-2"));
+
+    const persisted = JSON.parse(window.localStorage.getItem(DEMO_STORE_KEY) ?? "{}") as StoreState;
+    const savedJob = persisted.jobs.find((job) => job.id === "j-2");
+    const savedAuth = persisted.auths.find((auth) => auth.jobId === "j-2");
+
+    expect(savedJob?.status).toBe("Follow-Up");
+    expect(savedAuth?.decision).toBe("declined");
+  });
+
+  it("gives technicians alternate actions from the diagnostic route without forcing a restart", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2/diagnose");
+
+    render(<App />);
+
+    expect(await screen.findByText("Other actions from this step")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open steps breakdown/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^parts request$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^customer approval$/i })).toBeInTheDocument();
+  });
+
+  it("shows what the current diagnostic step decides and where each answer goes next", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2/diagnose");
+
+    render(<App />);
+
+    expect(await screen.findByText("This step decides")).toBeInTheDocument();
+    expect(screen.getByText("Why it matters")).toBeInTheDocument();
+    expect(screen.getByText("Next after this answer")).toBeInTheDocument();
+    expect(screen.getAllByText(/Continues to B - Indoor blower & airflow/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Routes into Thermostat \/ control - ALT-T/i)).toBeInTheDocument();
+  });
+
+  it("warns on the service report when customer approval has not been captured yet", async () => {
+    window.history.pushState({}, "", "/app/jobs/j-2/report");
+
+    render(<App />);
+
+    expect(await screen.findByText(/Customer approval still needs to be captured/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open customer approval/i })).toBeInTheDocument();
+    expect(screen.getByText(/not ready as a final customer handoff/i)).toBeInTheDocument();
+  });
+
+  it("shows clean document metadata in the technician document library", async () => {
+    window.history.pushState({}, "", "/app/documents");
+
+    render(<App />);
+
+    expect((await screen.findAllByText("Document library")).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Â/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Manufacturer-linked/i).length).toBeGreaterThan(0);
+  });
+
+  it("puts source-backed and review-queue document counts ahead of the document list", async () => {
+    window.history.pushState({}, "", "/app/documents");
+
+    render(<App />);
+
+    expect(await screen.findByText("Source library focus")).toBeInTheDocument();
+    expect(screen.getByText("Source-backed")).toBeInTheDocument();
+    expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
+    expect(screen.getByText("Review queue")).toBeInTheDocument();
+  });
+
+  it("shows status, linked specs, and source guidance in the document viewer", async () => {
+    window.history.pushState({}, "", "/app/documents/d-2");
+
+    render(<App />);
+
+    expect(await screen.findByText("Linked specs")).toBeInTheDocument();
+    expect(screen.getByText("Official link available")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open official source/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Back to documents/i })).toBeInTheDocument();
   });
 
   it("seeds official manufacturer source links onto matching demo equipment", () => {
@@ -259,6 +563,26 @@ describe("migration baseline", () => {
     expect(await screen.findByText("HVAC market systems")).toBeInTheDocument();
     expect(screen.getByText("One Hour Heating & Air Conditioning")).toBeInTheDocument();
     expect(screen.getByText("ServiceTitan")).toBeInTheDocument();
+  });
+
+  it("shows the owner equipment source review queue ahead of the full equipment grid", async () => {
+    window.history.pushState({}, "", "/app/owner/equipment");
+
+    render(<App />);
+
+    expect(await screen.findByText("Source review queue")).toBeInTheDocument();
+    expect(screen.getByText(/These records still need stronger literature confidence/i)).toBeInTheDocument();
+  });
+
+  it("surfaces truck stock risk and fit review counts on the parts page", async () => {
+    window.history.pushState({}, "", "/app/parts");
+
+    render(<App />);
+
+    expect(await screen.findByText("Truck stock focus")).toBeInTheDocument();
+    expect(screen.getByText("Low stock")).toBeInTheDocument();
+    expect(screen.getByText("Out of stock")).toBeInTheDocument();
+    expect(screen.getByText("Fit review required")).toBeInTheDocument();
   });
 
   it("autosaves review-layer drafts while the reviewer types", async () => {
@@ -401,7 +725,7 @@ describe("migration baseline", () => {
     fireEvent.click(screen.getByRole("button", { name: /Send note/i }));
 
     expect(await screen.findByText("Waiting for Codex to answer your latest note.")).toBeInTheDocument();
-    expect(screen.getByText("I saw your latest note. Reply pending from Codex.")).toBeInTheDocument();
+    expect(screen.getAllByText("I saw your latest note. Reply pending from Codex.").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Old broadcast message that should not replace pending state.")).not.toBeInTheDocument();
   });
 
@@ -436,8 +760,16 @@ describe("migration baseline", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
 
-    expect(await screen.findByText("I cannot see notes from this phone yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Local capture is active on this phone.")).toBeInTheDocument();
     expect(screen.queryByText("Following live")).not.toBeInTheDocument();
+  });
+
+  it("uses the production review webhook by default on the hosted GitHub Pages site", () => {
+    expect(hostedReviewEndpointForLocation("lindadata.github.io", "/field-copilot-pro/app/today", "")).toBe(
+      "https://soft-unit-ba5d.sergio-mora.workers.dev/review-note",
+    );
+    expect(hostedReviewEndpointForLocation("localhost", "/app/today", "")).toBe("");
+    expect(getReviewEndpoint()).toBe("");
   });
 
   it("keeps notes local and shows webhook unreachable copy when the live webhook fails", async () => {
@@ -504,7 +836,7 @@ describe("migration baseline", () => {
     expect(launcher?.style.top).toBe("188px");
   });
 
-  it("allows the compact mobile launcher to reach farther across the screen", async () => {
+  it("shows a dedicated drag handle for the compact mobile launcher and keeps its saved position", async () => {
     const originalWidth = window.innerWidth;
     const originalHeight = window.innerHeight;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
@@ -531,11 +863,49 @@ describe("migration baseline", () => {
 
       const reviewButton = await screen.findByRole("button", { name: /review layer, 0 open notes/i });
       const launcher = reviewButton.closest("div[style]") as HTMLDivElement | null;
-      const moveButton = screen.getByRole("button", { name: /move review launcher/i });
+      const moveButton = await screen.findByRole("button", { name: /move review launcher/i });
 
       expect(launcher).not.toBeNull();
-      expect(moveButton.className).toContain("hidden");
-      expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBeGreaterThanOrEqual(230);
+      expect(moveButton).toBeVisible();
+      expect(Number.parseInt(launcher?.style.left ?? "0", 10)).toBe(240);
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
+    }
+  });
+
+  it("keeps the compact launcher drag handle separate from the open action on mobile", async () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    try {
+      const fetchMock = vi.fn(async (url: string | URL | Request) => {
+        if (String(url).includes("/review-messages")) {
+          return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+        }
+        return { ok: true, json: async () => ({ ok: true }) };
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      window.localStorage.setItem("field-copilot-review-launcher-position-v1", JSON.stringify({
+        x: 140,
+        y: 188,
+      }));
+      window.history.pushState(
+        {},
+        "",
+        "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+      );
+
+      render(<App />);
+
+      const reviewButton = await screen.findByRole("button", { name: /review layer, 0 open notes/i });
+      const moveButton = await screen.findByRole("button", { name: /move review launcher/i });
+
+      expect(moveButton).toBeVisible();
+      fireEvent.click(reviewButton);
+
+      expect(await screen.findByText("Capture this screen")).toBeInTheDocument();
     } finally {
       Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
       Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
@@ -729,9 +1099,137 @@ describe("migration baseline", () => {
 
     expect(await screen.findByText("Local review mode")).toBeInTheDocument();
     expect(screen.getByText("Self-review prompt for Main demo landing")).toBeInTheDocument();
+    expect(screen.getByText("Latest note you sent")).toBeInTheDocument();
+    expect(screen.getByText("No submitted note in this session yet.")).toBeInTheDocument();
+    expect(screen.getByText("Latest Codex reply")).toBeInTheDocument();
+    expect(screen.getByText("Open this page with a live review link to see Codex replies here.")).toBeInTheDocument();
     expect(screen.getByText(/Send a note to save feedback with page, route, viewport, and time/i)).toBeInTheDocument();
     expect(screen.getByText(/saved locally/i)).toBeInTheDocument();
     expect(screen.queryByText("Main demo landing - /")).not.toBeInTheDocument();
+  });
+
+  it("keeps the latest sent note and latest Codex reply visible without opening the conversation trail", async () => {
+    window.localStorage.setItem("field-copilot-review-session-v1", "review-live-summary");
+    window.localStorage.setItem("field-copilot-review-notes-v1", JSON.stringify([{
+      id: "note-live-summary",
+      sessionId: "review-live-summary",
+      path: "/app/today",
+      pageLabel: "Technician today",
+      note: "The sticky review button should stay small on mobile.",
+      status: "open",
+      createdAt: "2026-06-30T20:00:00.000Z",
+      updatedAt: "2026-06-30T20:00:00.000Z",
+      kind: "ux",
+      priority: "medium",
+      syncState: "sent",
+      syncedAt: "2026-06-30T20:00:02.000Z",
+      viewport: "390x844",
+    }]));
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url).includes("/review-messages")) {
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            messages: [{
+              id: "msg-live-summary",
+              sessionId: "review-live-summary",
+              author: "codex",
+              text: "I saw that note and will keep the launcher compact.",
+              createdAt: "2026-06-30T20:00:05.000Z",
+              routePath: "/app/today",
+              pageLabel: "Technician today",
+            }],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.pushState(
+      {},
+      "",
+      "/app/today?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Latest note you sent")).toBeInTheDocument();
+    expect(screen.getAllByText("The sticky review button should stay small on mobile.").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Latest Codex reply")).toBeInTheDocument();
+    expect(screen.getAllByText("I saw that note and will keep the launcher compact.").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("surfaces critical specs first on the equipment profile specs view", async () => {
+    window.history.pushState({}, "", "/app/equipment/eq-15#specs");
+
+    render(<App />);
+
+    expect(await screen.findByText("Critical specs for this visit")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open linked documentation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open service history/i })).toBeInTheDocument();
+  });
+
+  it("starts the equipment profile with a technician brief that prioritizes source, critical values, and history", async () => {
+    window.history.pushState({}, "", "/app/equipment/eq-15");
+
+    render(<App />);
+
+    expect(await screen.findByText("Technician brief")).toBeInTheDocument();
+    expect(screen.getByText("Best source for this stop")).toBeInTheDocument();
+    expect(screen.getByText("Visit-critical values")).toBeInTheDocument();
+    expect(screen.getByText("Service pattern")).toBeInTheDocument();
+  });
+
+  it("defines manufacturer verified on the equipment profile so the reviewer can explain it", async () => {
+    window.history.pushState({}, "", "/app/equipment/eq-1");
+
+    render(<App />);
+
+    expect(await screen.findByText('What "Manufacturer Verified" means')).toBeInTheDocument();
+    expect(screen.getByText(/official manufacturer source or nameplate-backed value attached/i)).toBeInTheDocument();
+  });
+
+  it("puts source trust and source follow-up ahead of the technician equipment list", async () => {
+    window.history.pushState({}, "", "/app/equipment");
+
+    render(<App />);
+
+    expect(await screen.findByText("Source trust for this fleet")).toBeInTheDocument();
+    expect(screen.getByText("Needs source follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Source-backed")).toBeInTheDocument();
+    expect(screen.getByText("Exact match")).toBeInTheDocument();
+  });
+
+  it("starts the owner dashboard with an operations scan before the deeper tabs", async () => {
+    window.history.pushState({}, "", "/app/owner");
+
+    render(<App />);
+
+    expect(await screen.findByText("Operations scan")).toBeInTheDocument();
+    expect(screen.getByText("Needs intervention now")).toBeInTheDocument();
+    expect(screen.getByText("Crews moving today")).toBeInTheDocument();
+    expect(screen.getByText("Closeout risk")).toBeInTheDocument();
+  });
+
+  it("shows the exact screen, last action, and route before the reviewer submits a note", async () => {
+    window.history.pushState({}, "", "/");
+
+    render(<App />);
+
+    const ownerButton = await screen.findByText("Enter Demo as Owner");
+    fireEvent.focusIn(ownerButton);
+    fireEvent.click(await screen.findByRole("button", { name: /review layer/i }));
+
+    expect(await screen.findByText("Screen")).toBeInTheDocument();
+    expect(screen.getByText("Last action")).toBeInTheDocument();
+    expect(screen.getByText("Route")).toBeInTheDocument();
+    expect(screen.getAllByText("Main demo landing").length).toBeGreaterThan(0);
+    expect(screen.getByText("Focused Enter Demo as Owner")).toBeInTheDocument();
+    expect(screen.getAllByText("/").length).toBeGreaterThan(0);
   });
 
   it("lets the review layer switch between notes and functionality capture modes", async () => {

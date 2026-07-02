@@ -78,7 +78,11 @@ export default function OwnerDashboard() {
     ...state.properties.map((p) => p.city).filter(Boolean) as string[],
   ])).sort();
 
-  const ctx = { equipment: state.equipment, properties: state.properties, customers: state.customers };
+  const ctx = useMemo(() => ({
+    equipment: state.equipment,
+    properties: state.properties,
+    customers: state.customers,
+  }), [state.customers, state.equipment, state.properties]);
   const filteredJobs = useMemo(() => applyJobFilters(state.jobs, filters, ctx), [state.jobs, filters, ctx]);
 
   const prevBounds = useMemo(() => previousRangeBounds(rangeBounds(filters)), [filters]);
@@ -90,7 +94,13 @@ export default function OwnerDashboard() {
     [state.jobs, prevBounds],
   );
 
-  const mctx = { jobParts: state.jobParts, parts: state.parts, equipment: state.equipment, customers: state.customers, users: state.users };
+  const mctx = useMemo(() => ({
+    jobParts: state.jobParts,
+    parts: state.parts,
+    equipment: state.equipment,
+    customers: state.customers,
+    users: state.users,
+  }), [state.customers, state.equipment, state.jobParts, state.parts, state.users]);
   const m: Metrics = useMemo(() => computeMetrics(filteredJobs, mctx), [filteredJobs, mctx]);
   const mPrev: Metrics = useMemo(() => computeMetrics(prevJobs, mctx), [prevJobs, mctx]);
 
@@ -151,6 +161,8 @@ export default function OwnerDashboard() {
   const totalAttention = attention.length;
   const viewMatchingLabel = t("ownerDashboard.kpiSubs.viewMatching");
   const noPriorLabel = t("ownerDashboard.kpiSubs.noPrior");
+  const closeoutRiskCount = filteredJobs.filter((job) => ["Waiting for Approval", "Waiting for Parts", "Follow-Up"].includes(job.status)).length;
+  const crewsMovingCount = today.enRoute + today.onSite;
 
   return (
     <div className="space-y-4">
@@ -167,6 +179,41 @@ export default function OwnerDashboard() {
         equipmentTypes={equipmentTypes} customers={state.customers}
         onExport={exportFiltered} matchedCount={filteredJobs.length}
       />
+
+      <Card className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Operations scan</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Put the first-read decisions ahead of the deeper dashboard tabs so the owner can tell what needs intervention before drilling in.
+            </div>
+          </div>
+          <Badge variant="outline">{filteredJobs.length} matched jobs</Badge>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Needs intervention now</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{totalAttention}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Overdue, paused too long, waiting on approval or parts, and missing-report jobs rise here first.
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Crews moving today</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{crewsMovingCount}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Combines en-route and on-site work so the owner can scan active field load in one line.
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Closeout risk</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{closeoutRiskCount}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Jobs stuck before approval, parts, or follow-up are the ones most likely to slip out of a clean same-day finish.
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <Tabs defaultValue="attention">
         <TabsList>

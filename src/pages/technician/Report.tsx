@@ -1,13 +1,13 @@
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Printer, Share2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, FileText, Printer, Share2 } from "lucide-react";
 import { SourceBadge } from "@/components/SourceBadge";
 import { toast } from "sonner";
 import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
-import { shareOrCopyUrl, shareableCurrentUrl } from "@/lib/native";
+import { copyText, shareOrCopyUrl, shareableCurrentUrl } from "@/lib/native";
 
 export default function Report() {
   const { id = "" } = useParams();
@@ -15,6 +15,7 @@ export default function Report() {
   const { t } = useTranslation();
   const statusLabel = useStatusLabel();
   const tx = useDynamicText();
+  const nav = useNavigate();
   const job = state.jobs.find((j) => j.id === id);
   if (!job) return <div className="p-6">{t("common.notFound")}</div>;
   const c = state.customers.find((x) => x.id === job.customerId);
@@ -24,6 +25,10 @@ export default function Report() {
   const measurements = diag?.measurements ?? [];
   const auth = state.auths.find((a) => a.jobId === job.id);
   const jparts = state.jobParts.filter((jp) => jp.jobId === job.id);
+  const measurementsInRange = measurements.filter((measurement) => measurement.withinRange === true).length;
+  const measurementsOutOfRange = measurements.filter((measurement) => measurement.withinRange === false).length;
+  const approvalCaptured = Boolean(auth?.signedBy);
+  const shareSummary = `${state.company.name} service report for ${c?.name ?? job.id.toUpperCase()}\n${diag?.hypothesis ?? t("report.diagInProgress")}`;
 
   const partsSummary = jparts.length > 0
     ? jparts.map((jp) => {
@@ -59,25 +64,75 @@ export default function Report() {
     try {
       const result = await shareOrCopyUrl({
         title: `${t("report.title")} - ${c?.name ?? job.id.toUpperCase()}`,
-        text: reportText.slice(0, 1200),
+        text: shareSummary,
         url: shareableCurrentUrl(),
       });
-      toast.success(result === "shared" ? t("report.shareToast") : "Report link copied for sharing.");
+      if (result === "shared") {
+        toast.success(t("report.shareToast"));
+        return;
+      }
+
+      await copyText(`${reportText}\n\n${shareableCurrentUrl()}`);
+      toast.success("Native share was unavailable. Report summary and link copied.");
     } catch {
       // share sheet was dismissed
     }
   };
 
+  const printReport = () => {
+    window.print();
+    toast.success("Print dialog opened.");
+  };
+
   return (
-    <div className="bg-muted/30 p-3">
-      <div className="no-print mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Button asChild variant="outline" className="touch-target">
-          <Link to={`/app/jobs/${job.id}`}><ArrowLeft className="mr-1 h-4 w-4" /> {t("report.backToJob")}</Link>
-        </Button>
-        <Button onClick={saveSummary} variant="outline" className="touch-target"><Download className="mr-1 h-4 w-4" /> Save summary</Button>
-        <Button onClick={() => window.print()} className="touch-target"><Printer className="mr-1 h-4 w-4" /> {t("report.print")}</Button>
-        <Button variant="outline" onClick={share} className="touch-target"><Share2 className="mr-1 h-4 w-4" /> {t("report.share")}</Button>
+    <div className="bg-muted/30 p-3 pb-28">
+      <div className="no-print mx-auto mb-3 max-w-2xl rounded-xl border bg-card p-3 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Customer-ready report</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Use the actions below to go back, save a text copy, print a clean PDF, or share the finished report.
+            </div>
+          </div>
+          <div className="stat-pill bg-muted text-muted-foreground">{statusLabel(job.status)}</div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="outline" className="touch-target h-10" onClick={() => nav(`/app/jobs/${job.id}`)}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> {t("report.backToJob")}
+          </Button>
+          {!approvalCaptured ? (
+            <Button variant="outline" className="touch-target h-10" onClick={() => nav(`/app/jobs/${job.id}/approval`)}>
+              Open approval
+            </Button>
+          ) : null}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Measurements</div>
+            <div className="mt-1 font-semibold">{measurements.length}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Parts</div>
+            <div className="mt-1 font-semibold">{jparts.length}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Approval</div>
+            <div className="mt-1 font-semibold">{approvalCaptured ? "Signed" : "Pending"}</div>
+          </div>
+        </div>
+        {!approvalCaptured ? (
+          <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
+            <div className="font-semibold">Customer approval still needs to be captured.</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              This report can still be reviewed internally, but it is not ready as a final customer handoff until approval is recorded.
+            </div>
+            <Button variant="outline" className="mt-3 touch-target h-10" onClick={() => nav(`/app/jobs/${job.id}/approval`)}>
+              Open customer approval
+            </Button>
+          </div>
+        ) : null}
       </div>
+
       <article className="print-page mx-auto max-w-2xl space-y-4 rounded-xl bg-card p-6 shadow">
         <header className="flex items-start justify-between border-b pb-3">
           <div>
@@ -100,6 +155,21 @@ export default function Report() {
           <div>
             <div className="font-semibold">{t("report.property")}</div>
             <div>{p?.address}</div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-3 gap-2 text-xs">
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[10px] uppercase tracking-normal text-muted-foreground">In range</div>
+            <div className="mt-1 font-semibold">{measurementsInRange}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Out of range</div>
+            <div className="mt-1 font-semibold">{measurementsOutOfRange}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Approval</div>
+            <div className="mt-1 font-semibold">{approvalCaptured ? "Captured" : "Not signed"}</div>
           </div>
         </section>
 
@@ -171,6 +241,23 @@ export default function Report() {
           <p className="text-sm">{t("report.workSummary")}</p>
         </section>
 
+        <section className="rounded-lg border bg-muted/20 p-4">
+          <div className="inline-flex items-center gap-2 text-sm font-semibold">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            Customer summary
+          </div>
+          <p className="mt-2 text-sm leading-relaxed">
+            {diag?.hypothesis
+              ? `We identified ${diag.hypothesis.toLowerCase()}. The technician recorded ${measurements.length} field reading${measurements.length === 1 ? "" : "s"} and documented ${jparts.length || "no"} replacement part${jparts.length === 1 ? "" : "s"} on this visit.`
+              : "The technician documented the visit, captured the current condition, and left the next recommended steps in this report."}
+          </p>
+          {!approvalCaptured ? (
+            <div className="mt-3 rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+              Customer approval has not been recorded yet. Keep this as an internal draft until the approval step is complete.
+            </div>
+          ) : null}
+        </section>
+
         {jparts.length > 0 && (
           <section>
             <div className="text-sm font-semibold">{t("report.partsUsed")}</div>
@@ -212,6 +299,27 @@ export default function Report() {
 
         <footer className="border-t pt-3 text-[10px] text-muted-foreground">{t("report.footer")} - {statusLabel(job.status)}</footer>
       </article>
+
+      <div className="no-print fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 shadow-lg backdrop-blur">
+        <div className="mx-auto grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
+          <Button variant="outline" className="touch-target" onClick={() => nav(`/app/jobs/${job.id}`)}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> {t("report.backToJob")}
+          </Button>
+          <Button onClick={saveSummary} variant="outline" className="touch-target">
+            <Download className="mr-1 h-4 w-4" /> Save text copy
+          </Button>
+          <Button onClick={printReport} className="touch-target">
+            <Printer className="mr-1 h-4 w-4" /> {t("report.print")}
+          </Button>
+          <Button variant="outline" onClick={share} className="touch-target">
+            <Share2 className="mr-1 h-4 w-4" /> {t("report.share")}
+          </Button>
+        </div>
+        <div className="mx-auto mt-2 flex max-w-2xl items-center gap-2 text-[11px] text-muted-foreground">
+          <FileText className="h-3.5 w-3.5" />
+          Share opens the native share sheet when supported, or copies the report summary plus live link as fallback.
+        </div>
+      </div>
     </div>
   );
 }

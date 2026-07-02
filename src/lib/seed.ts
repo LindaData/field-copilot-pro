@@ -39,7 +39,7 @@ const companySopSource = {
 // =============================================================================
 export const COMPANY: Company = {
   name: "Caloosa Cooling",
-  phone: "239-226-0202",
+  phone: "(239) 555-0145",
   address: "14241 Jetport Loop, Unit #1, Fort Myers, FL 33913",
   laborRate: 145,
   tax: 6.5,

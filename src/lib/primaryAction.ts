@@ -47,9 +47,21 @@ export function getPrimaryAction(
 
   switch (job.status) {
     case "Scheduled":
-      return { kind: "start-travel", label: "Start Travel", helper: "Heads-up to customer", to: base, variant: "default" };
+      return {
+        kind: "start-travel",
+        label: "Start travel in Maps",
+        helper: "Open the route and start travel timing for this stop",
+        to: base,
+        variant: "default",
+      };
     case "En Route":
-      return { kind: "confirm-arrival", label: "Confirm Arrival", helper: "Tap when you’re on site", to: base, variant: "accent" };
+      return {
+        kind: "confirm-arrival",
+        label: "Confirm arrival",
+        helper: "Use this when the technician is actually on site",
+        to: base,
+        variant: "accent",
+      };
     case "On Site": {
       const started = !!diag && diag.results.length > 0;
       return started
@@ -65,13 +77,25 @@ export function getPrimaryAction(
       return { kind: "continue-diagnosis", label: "Continue Diagnosis", to: `${base}/diagnose`, variant: "default" };
     }
     case "Waiting for Approval":
-      return { kind: "waiting-approval", label: "Waiting for Approval", helper: "Open quote with customer", to: `${base}/approval`, variant: "muted" };
+      return {
+        kind: "waiting-approval",
+        label: "Waiting for Approval",
+        helper: "Open quote with customer",
+        to: `${base}/approval`,
+        variant: "muted",
+      };
     case "Waiting for Parts":
-      return { kind: "waiting-parts", label: "View Part Status", helper: "Job is on hold for parts", to: `${base}/parts-request`, variant: "muted" };
+      return {
+        kind: "waiting-parts",
+        label: "View Part Status",
+        helper: "Job is on hold for parts",
+        to: `${base}/parts-request`,
+        variant: "muted",
+      };
     case "Completed":
       return { kind: "complete-documentation", label: "View Service Report", to: `${base}/report`, variant: "muted" };
     case "Follow-Up":
-      return { kind: "open-job", label: "Open Follow-Up", to: base, variant: "default" };
+      return { kind: "open-job", label: "Open follow-up visit", to: base, variant: "default" };
     default:
       return { kind: "open-job", label: "Open Job", to: base, variant: "default" };
   }
@@ -85,5 +109,11 @@ export function primaryActionForToday(args: {
 }): PrimaryAction {
   if (args.current) return getPrimaryAction(args.current, args.diag, args.auth);
   if (args.upcoming) return getPrimaryAction(args.upcoming);
-  return { kind: "none", label: "All caught up", helper: "No more jobs scheduled today", to: "/app/jobs", variant: "muted" };
+  return {
+    kind: "none",
+    label: "All caught up",
+    helper: "No more jobs scheduled today",
+    to: "/app/jobs",
+    variant: "muted",
+  };
 }

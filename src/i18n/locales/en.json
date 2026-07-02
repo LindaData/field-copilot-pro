@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Field Copilot",
-    "tagline": "A mobile-friendly working prototype.",
+    "tagline": "Field workflow for HVAC service teams.",
     "demoBadge": "Demo Data"
   },
   "nav": {
@@ -58,7 +58,7 @@
     "enterAsTech": "Enter Demo as Technician",
     "enterAsOwner": "Enter Demo as Owner",
     "signIn": "Sign In",
-    "tour": "Quick walkthrough",
+    "tour": "How it works",
     "disclaimer": "For trained HVAC professionals. This tool assists — it does not replace licensing, manufacturer instructions, codes, lockout/tagout, PPE, or safe work practices. Business metrics, customer details, and prior cases are demo data.",
     "fasterDiagnosis": "Faster diagnosis",
     "fewerCallbacks": "Fewer callbacks",
@@ -66,7 +66,7 @@
     "fasterDiagnosisV": "−32% avg time",
     "fewerCallbacksV": "−18% rate",
     "lessPaperworkV": "Reports in 60s",
-    "testBuild": "Client review build",
+    "testBuild": "Field demo",
     "safariPrompt": "Open on iPhone Safari and test the technician workflow from Today, Jobs, Scan, and Reports.",
     "homeScreenPrompt": "Use Share, then Add to Home Screen after opening the technician view for an app-like test shell.",
     "tourSteps": {
@@ -165,14 +165,14 @@
     "travel": "Travel",
     "arrived": "Arrived",
     "completed": "Completed",
-    "activeLaborLabel": "Active labor: {{value}}",
+    "activeLaborLabel": "Time on site: {{value}}",
     "pausedLabel": "Paused: {{value}}",
     "pauses": "{{count}} pause(s)",
     "startTravel": "Start travel",
     "startTravelHint": "Starts the trip timer and opens directions",
     "arriveManual": "Arrive on site (manual)",
     "resume": "Resume",
-    "pause": "Pause…",
+    "pause": "Pause...",
     "complete": "Complete",
     "locationDeniedHelp": "Location permission denied. Use manual arrival. Privacy: we only use your location while en route to this job.",
     "scan": "Scan",
@@ -184,10 +184,10 @@
     "moveToWaitingForParts": "Move job to Waiting for Parts",
     "serviceHistory": "Service history",
     "compatibilityVerified": "Compatibility verified",
-    "compatibilityLikely": "Compatibility likely — confirm",
+    "compatibilityLikely": "Compatibility likely - confirm",
     "compatibilityUnknown": "Compatibility unknown",
     "reviewDiagnostic": "Review diagnostic",
-    "continueDiagnosis": "Continue diagnosis · step {{step}}",
+    "continueDiagnosis": "Continue diagnosis - step {{step}}",
     "startGuidedDiagnostic": "Start guided diagnostic",
     "reviewCompletedSteps": "Review completed steps",
     "viewSpecifications": "View specifications",
@@ -271,7 +271,7 @@
     "intro": "Hi {{name}}, here's the diagnosis and the quote in plain language. Approve to proceed with the repair.",
     "whatWeFound": "What we found",
     "findings": "Your outdoor unit's start capacitor is below the tolerance printed on its label. The capacitor helps the compressor start; a weak one keeps the system from cooling. Replacement restores normal operation.",
-    "partRow": "Part — {{name}}",
+    "partRow": "Part - {{name}}",
     "labor": "Labor",
     "hr": "hr",
     "perHr": "/hr",
@@ -279,7 +279,7 @@
     "subtotal": "Subtotal",
     "tax": "Tax ({{pct}}%)",
     "total": "Total",
-    "pricesDemo": "Prices are editable demo values.",
+    "pricesDemo": "Prices are demo values from seeded data.",
     "emailReceipt": "Email receipt to (optional)",
     "signature": "Signature",
     "clear": "Clear",
@@ -314,7 +314,7 @@
     "title": "Document library",
     "desc": "Manuals, spec sheets, wiring diagrams, and company SOPs. The Goodman GSXN3 docs are seeded.",
     "upload": "Upload document",
-    "uploadedToast": "Uploaded. Auto-advancing through demo extraction…",
+    "uploadedToast": "Uploaded. Auto-advancing through demo extraction...",
     "status": {
       "Uploaded": "Uploaded",
       "Processing": "Processing",
@@ -323,7 +323,7 @@
     }
   },
   "documentViewer": {
-    "backToDocuments": "← Back to documents",
+    "backToDocuments": "Back to documents",
     "uploaded": "Uploaded {{date}}",
     "openSource": "Open official source",
     "extractedSpecs": "Extracted specifications",
@@ -339,15 +339,15 @@
       "Needs Review": "Needs Review",
       "Approved": "Approved",
       "Source Unavailable": "Source Unavailable",
-      "Preview Unavailable — Open Source": "Preview Unavailable — Open Source"
+      "Preview Unavailable - Open Source": "Preview Unavailable - Open Source"
     }
   },
   "scan": {
     "title": "Scan data plate",
     "desc": "Point your camera at the equipment data plate, or upload a photo. The demo recognizer is pre-seeded for the Goodman GSXN3N2410A* unit in today's scheduled repair example.",
-    "reading": "Reading data plate…",
+    "reading": "Reading data plate...",
     "preview": "Camera preview placeholder",
-    "previewHint": "(tap “Simulate scan” below)",
+    "previewHint": "(tap \"Simulate scan\" below)",
     "simulate": "Simulate scan",
     "uploadPhoto": "Upload photo",
     "confirmValues": "Confirm recognized values",
@@ -364,7 +364,7 @@
     "activeJob": "active job",
     "noContext": "No equipment is in context. Open a job or scan a nameplate to ground answers.",
     "emptyHelp": "Ask anything about the equipment in context. Every answer shows its source, confidence, and the safest next action. AI cannot approve repairs, close jobs, or change verified specs.",
-    "askPlaceholder": "Ask Copilot…",
+    "askPlaceholder": "Ask Copilot...",
     "simulatedMode": "AI runs in simulated mode — answers come from approved docs and historical jobs only.",
     "prompts": {
       "mca": "What is the MCA?",
@@ -401,22 +401,22 @@
     "partsUsed": "Parts used",
     "before": "Before",
     "after": "After",
-    "beforeBody": "Compressor not running, capacitor HERM 27.8 µF (below tolerance).",
+    "beforeBody": "Compressor not running, capacitor HERM 27.8 uF (below tolerance).",
     "afterBody": "Outdoor unit running, total current 9.1 A (below MOP 15 A).",
     "recommendations": "Recommendations",
     "rec1": "Schedule seasonal maintenance for indoor coil cleaning and condensate line flush.",
-    "rec2": "Replace return air filter every 60–90 days.",
+    "rec2": "Replace return air filter every 60-90 days.",
     "customerSig": "Customer signature",
     "notSigned": "Not signed yet.",
     "internalNotes": "Internal notes (not shared with customer)",
-    "internalBody": "Verified Goodman SS-GSXN3 values. Capacitor µF treated as technician observation. Owner approval not required (within standard parts).",
+    "internalBody": "Verified Goodman SS-GSXN3 values. Capacitor uF treated as technician observation. Owner approval not required (within standard parts).",
     "footer": "Demo report generated by HVAC Field Copilot. Customer details, prices and prior cases are demo data.",
-    "backToJob": "← Back to job"
+    "backToJob": "Back to job"
   },
   "partsRequest": {
     "back": "Back to job",
-    "title": "Part needed — not on hand",
-    "namePlaceholder": "e.g. Dual-run capacitor 40/5 µF 440V",
+    "title": "Part needed - not on hand",
+    "namePlaceholder": "e.g. Dual-run capacitor 40/5 uF 440V",
     "fields": {
       "name": "Part name *",
       "partNumber": "Part number",
@@ -437,8 +437,8 @@
     },
     "urgency": { "Low": "Low", "Normal": "Normal", "High": "High", "Critical": "Critical" },
     "comp": {
-      "Unknown": "Unknown — needs identification",
-      "Likely": "Likely — needs office review",
+      "Unknown": "Unknown - needs identification",
+      "Likely": "Likely - needs office review",
       "Verified": "Verified by qualified user (I confirmed against installed component & docs)"
     },
     "compNotice": "Compatibility will be shown as {{value}} until a qualified user approves.",

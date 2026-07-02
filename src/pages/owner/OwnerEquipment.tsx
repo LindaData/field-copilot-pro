@@ -33,6 +33,15 @@ export default function OwnerEquipment() {
   ), [state.equipment]);
 
   const sourceMappedCount = state.equipment.filter((eq) => equipmentResearch.get(eq.id)).length;
+  const sourceQueue = state.equipment
+    .map((eq) => ({ eq, research: equipmentResearch.get(eq.id) }))
+    .filter(({ eq }) => eq.verificationStatus !== "Manufacturer Verified")
+    .sort((a, b) => {
+      const aJobs = state.jobs.filter((job) => job.equipmentId === a.eq.id).length;
+      const bJobs = state.jobs.filter((job) => job.equipmentId === b.eq.id).length;
+      return bJobs - aJobs;
+    })
+    .slice(0, 4);
 
   return (
     <div className="space-y-4">
@@ -82,6 +91,53 @@ export default function OwnerEquipment() {
           <span>{t("ownerEquipment.sourceReviewNote")}</span>
         </div>
       </div>
+
+      <Card className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-2 text-sm font-semibold">
+              <ShieldAlert className="h-4 w-4 text-warning" />
+              Source review queue
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              These records still need stronger literature confidence before the field team should lean on them as truth.
+            </p>
+          </div>
+          <Badge variant="outline">{sourceQueue.length} shown</Badge>
+        </div>
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {sourceQueue.map(({ eq, research }) => {
+            const linkedJobs = state.jobs.filter((job) => job.equipmentId === eq.id).slice(0, 3);
+            return (
+              <Link key={eq.id} to={`/app/equipment/${eq.id}`}>
+                <div className="rounded-xl border p-3 hover:bg-muted/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">{eq.manufacturer} {eq.model}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{eq.serial} · {eq.type}</div>
+                    </div>
+                    <Badge variant="secondary">{linkedJobs.length} jobs</Badge>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Badge variant="outline">{eq.manualUrls.length} docs linked</Badge>
+                    {research ? <Badge variant="outline" className={confidenceClass(research.confidence)}>{documentationStatusLabel(research)}</Badge> : <Badge variant="outline">Needs source match</Badge>}
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {research
+                      ? `${documentationQualityLabel(research)} · ${research.documentTitle}`
+                      : "No official or best-effort research document is attached to this record yet."}
+                  </div>
+                  <div className="mt-2 text-[11px] text-muted-foreground">
+                    {linkedJobs.length > 0
+                      ? `Open jobs: ${linkedJobs.map((job) => job.id).join(", ")}`
+                      : "No recent job references are tied to this equipment."}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </Card>
 
       <Card className="p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

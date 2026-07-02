@@ -54,9 +54,8 @@ function OverflowMenu({ onReset, onHelp, onFeedback }: { onReset: () => void; on
 }
 
 function SyncPill() {
-  const { state, setState, toggleOnline } = useStore();
+  const { state, setState } = useStore();
   const { t } = useTranslation();
-  const native = isNativeApp();
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -76,20 +75,17 @@ function SyncPill() {
   }, [setState]);
 
   return (
-    <button
-      type="button"
-      onClick={native ? undefined : toggleOnline}
+    <span
       className={cn(
         "stat-pill border whitespace-nowrap",
-        native && "cursor-default",
         state.online ? "border-white/30 bg-white/10" : "border-accent/60 bg-accent/20 text-accent",
       )}
-      aria-label={native ? (state.online ? t("status.synced") : t("status.offline")) : t("nav.toggleSync")}
-      title={native ? "Device network status" : "Toggle simulated sync status"}
+      aria-label={state.online ? t("status.synced") : t("status.offline")}
+      title={isNativeApp() ? "Device network status" : "Demo network status"}
     >
       {state.online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
       {state.online ? t("status.synced") : t("status.offline")}
-    </button>
+    </span>
   );
 }
 

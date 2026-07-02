@@ -15,6 +15,18 @@ function todayKey() {
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
+function consumeDemoResetQuery() {
+  if (typeof window === "undefined") return false;
+  const url = new URL(window.location.href);
+  const shouldReset = url.searchParams.get("resetDemo") === "1";
+  if (!shouldReset) return false;
+
+  url.searchParams.delete("resetDemo");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", next);
+  return true;
+}
+
 type Role = "guest-tech" | "guest-owner" | "user";
 
 export interface StoreState {
@@ -121,6 +133,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const fresh = initialState();
     if (typeof window === "undefined") return fresh;
     try {
+      if (consumeDemoResetQuery()) {
+        localStorage.removeItem(DEMO_STORE_KEY);
+        return fresh;
+      }
       const raw = localStorage.getItem(DEMO_STORE_KEY);
       if (!raw) return fresh;
       const parsed = JSON.parse(raw) as Partial<StoreState>;

@@ -17,7 +17,7 @@ export default function SignIn() {
       <div className="mx-auto max-w-md px-5 py-10 safe-top">
         <Link to="/" className="text-sm opacity-80 underline">← Back to demo</Link>
         <h1 className="mt-4 text-2xl font-bold">Sign In</h1>
-        <p className="mt-1 text-sm opacity-80">Real authentication is stubbed in this prototype. Use any email and password to continue, or go back and pick a guest role.</p>
+        <p className="mt-1 text-sm opacity-80">Sign-in is simplified for this field demo. Use any email and password to continue, or go back and pick a guest role.</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();

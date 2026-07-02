@@ -14,7 +14,7 @@ type ViewerState =
   | "Needs Review"
   | "Approved"
   | "Source Unavailable"
-  | "Preview Unavailable — Open Source";
+  | "Preview Unavailable - Open Source";
 
 export default function DocumentViewer() {
   const { id = "" } = useParams();
@@ -37,7 +37,7 @@ export default function DocumentViewer() {
   const hasRealUrl = !!doc.url && doc.url !== "#";
   const viewerState: ViewerState =
     !hasRealUrl ? "Source Unavailable" :
-    embedFailed ? "Preview Unavailable — Open Source" :
+    embedFailed ? "Preview Unavailable - Open Source" :
     (doc.status === "Approved" ? "Approved" :
       doc.status === "Needs Review" ? "Needs Review" :
       doc.status === "Processing" ? "Processing" : "Document Available");
@@ -108,7 +108,7 @@ export default function DocumentViewer() {
                   <span className="text-sm font-semibold">{s.value}{s.unit ? ` ${s.unit}` : ""}</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{s.sourcePage ?? "—"}</span>
+                  <span>{s.sourcePage ?? "-"}</span>
                   <Link to={`/app/equipment/${eq.id}#specs`} className="underline">{t("documentViewer.openOn", { name: `${eq.manufacturer} ${eq.model}` })}</Link>
                 </div>
               </li>
@@ -130,7 +130,21 @@ export default function DocumentViewer() {
           </span>
         </div>
         <div className="mt-1 text-[11px] text-muted-foreground">
-          {t("documentViewer.uploaded", { date: doc.uploadedAt })}{doc.manufacturer && ` · ${doc.manufacturer}`}{doc.model && ` ${doc.model}`}
+          {t("documentViewer.uploaded", { date: doc.uploadedAt })}{doc.manufacturer && ` - ${doc.manufacturer}`}{doc.model && ` ${doc.model}`}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Status</div>
+            <div className="mt-1 font-semibold">{viewerState}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Linked specs</div>
+            <div className="mt-1 font-semibold">{specs.length}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-[10px] uppercase tracking-normal text-muted-foreground">Source</div>
+            <div className="mt-1 font-semibold">{hasRealUrl ? "Official link available" : "Needs approved source"}</div>
+          </div>
         </div>
         {hasRealUrl && (
           <a href={doc.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-info underline">

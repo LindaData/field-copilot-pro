@@ -67,7 +67,7 @@ type ReviewLauncherPosition = { x: number; y: number };
 type ReviewLauncherBounds = { width: number; height: number };
 
 const REVIEW_LAUNCHER_POSITION_KEY = "field-copilot-review-launcher-position-v1";
-const REVIEW_LAUNCHER_MARGIN = 12;
+const REVIEW_LAUNCHER_MARGIN = 10;
 const REVIEW_LAUNCHER_FALLBACK_HEIGHT = 60;
 const NOTE_CAPTURE_KINDS = REVIEW_KINDS.filter((kind) => kind.value !== "functionality");
 const FUNCTIONALITY_CAPTURE_KINDS = REVIEW_KINDS.filter((kind) => ["functionality", "bug", "workflow"].includes(kind.value));
@@ -78,34 +78,77 @@ const FUNCTIONALITY_TEMPLATES = [
   { label: "Navigation", text: "Navigation issue:\nExpected:\nActual:" },
   { label: "State mismatch", text: "State mismatch:\nExpected:\nActual:" },
 ];
+const KIND_HELPERS: Record<string, string> = {
+  ux: "Use UX for layout, hierarchy, spacing, or anything that feels hard to scan.",
+  bug: "Use Bug when something is broken, mismatched, or not doing what the screen promises.",
+  copy: "Use Copy for labels, wording, tone, or unclear instructions.",
+  data: "Use Data for wrong values, risky demo content, or source trust issues.",
+  workflow: "Use Flow when the next step is unclear or the screen sends you the wrong way.",
+  functionality: "Use Functionality for buttons, swipes, drag behavior, and interaction failures.",
+};
+const PRIORITY_HELPERS: Record<string, string> = {
+  low: "Later: useful cleanup, but it does not block the review.",
+  medium: "Needs fix: worth addressing in the next pass.",
+  high: "Blocking: this slows the workflow down right now.",
+};
 
-function estimateLauncherBounds(): ReviewLauncherBounds {
+function viewportBounds() {
+  if (typeof window === "undefined") {
+    return { width: 220, height: 640 };
+  }
+
+  return {
+    width: Math.round(window.visualViewport?.width ?? window.innerWidth),
+    height: Math.round(window.visualViewport?.height ?? window.innerHeight),
+  };
+}
+
+function viewportFrame() {
+  if (typeof window === "undefined") {
+    return { left: 0, top: 0, width: 220, height: 640 };
+  }
+
+  return {
+    left: Math.round(window.visualViewport?.offsetLeft ?? 0),
+    top: Math.round(window.visualViewport?.offsetTop ?? 0),
+    width: Math.round(window.visualViewport?.width ?? window.innerWidth),
+    height: Math.round(window.visualViewport?.height ?? window.innerHeight),
+  };
+}
+
+function estimateLauncherBounds(compact = typeof window === "undefined" ? false : window.innerWidth < 640): ReviewLauncherBounds {
   if (typeof window === "undefined") {
     return { width: 220, height: REVIEW_LAUNCHER_FALLBACK_HEIGHT };
   }
 
-  const maxWidth = Math.max(120, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2));
-  const width = Math.min(maxWidth, window.innerWidth < 640 ? 136 : 320);
-  return { width, height: REVIEW_LAUNCHER_FALLBACK_HEIGHT };
+  const viewport = viewportBounds();
+  const maxWidth = Math.max(120, viewport.width - (REVIEW_LAUNCHER_MARGIN * 2));
+  const width = Math.min(maxWidth, compact ? 84 : 320);
+  const height = compact ? 68 : REVIEW_LAUNCHER_FALLBACK_HEIGHT;
+  return { width, height };
 }
 
 function clampLauncherPosition(position: ReviewLauncherPosition, bounds = estimateLauncherBounds()) {
   if (typeof window === "undefined") return position;
-  const width = Math.min(bounds.width, Math.max(120, window.innerWidth - (REVIEW_LAUNCHER_MARGIN * 2)));
-  const height = Math.min(bounds.height, Math.max(48, window.innerHeight - (REVIEW_LAUNCHER_MARGIN * 2)));
-  const maxX = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerWidth - width - REVIEW_LAUNCHER_MARGIN);
-  const maxY = Math.max(REVIEW_LAUNCHER_MARGIN, window.innerHeight - height - REVIEW_LAUNCHER_MARGIN);
+  const viewport = viewportFrame();
+  const width = Math.min(bounds.width, Math.max(120, viewport.width - (REVIEW_LAUNCHER_MARGIN * 2)));
+  const height = Math.min(bounds.height, Math.max(48, viewport.height - (REVIEW_LAUNCHER_MARGIN * 2)));
+  const minX = viewport.left + REVIEW_LAUNCHER_MARGIN;
+  const minY = viewport.top + REVIEW_LAUNCHER_MARGIN;
+  const maxX = Math.max(minX, viewport.left + viewport.width - width - REVIEW_LAUNCHER_MARGIN);
+  const maxY = Math.max(minY, viewport.top + viewport.height - height - REVIEW_LAUNCHER_MARGIN);
   return {
-    x: Math.min(Math.max(REVIEW_LAUNCHER_MARGIN, position.x), maxX),
-    y: Math.min(Math.max(REVIEW_LAUNCHER_MARGIN, position.y), maxY),
+    x: Math.min(Math.max(minX, position.x), maxX),
+    y: Math.min(Math.max(minY, position.y), maxY),
   };
 }
 
 function defaultLauncherPosition(bounds = estimateLauncherBounds()): ReviewLauncherPosition {
   if (typeof window === "undefined") return { x: REVIEW_LAUNCHER_MARGIN, y: REVIEW_LAUNCHER_MARGIN };
+  const viewport = viewportFrame();
   return clampLauncherPosition({
-    x: window.innerWidth - bounds.width - REVIEW_LAUNCHER_MARGIN,
-    y: window.innerHeight - 132,
+    x: viewport.left + viewport.width - bounds.width - REVIEW_LAUNCHER_MARGIN,
+    y: viewport.top + viewport.height - bounds.height - 72,
   }, bounds);
 }
 
@@ -120,6 +163,11 @@ function loadLauncherPosition(bounds = estimateLauncherBounds()): ReviewLauncher
   } catch {
     return defaultLauncherPosition(bounds);
   }
+}
+
+function isCompactViewport() {
+  if (typeof window === "undefined") return false;
+  return (window.visualViewport?.width ?? window.innerWidth) < 640;
 }
 
 function shortText(value: string | null | undefined, max = 140) {
@@ -308,7 +356,7 @@ export function ReviewLayer() {
   const lastVisibilityStateRef = useRef(typeof document === "undefined" ? "visible" : document.visibilityState);
   const lastViewportRef = useRef<string | undefined>(currentViewport());
   const [launcherBounds, setLauncherBounds] = useState<ReviewLauncherBounds>(() => estimateLauncherBounds());
-  const [compactLauncherMode, setCompactLauncherMode] = useState(() => (typeof window === "undefined" ? false : window.innerWidth < 640));
+  const [compactLauncherMode, setCompactLauncherMode] = useState(() => isCompactViewport());
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ReviewView>("page");
   const [notes, setNotes] = useState<ReviewNote[]>(() => loadNotes());
@@ -391,13 +439,14 @@ export function ReviewLayer() {
 
   useEffect(() => {
     const measureLauncher = () => {
-      setCompactLauncherMode(window.innerWidth < 640);
+      const compact = isCompactViewport();
+      setCompactLauncherMode(compact);
       const nextBounds = launcherRef.current
         ? {
           width: Math.max(1, launcherRef.current.offsetWidth),
           height: Math.max(1, launcherRef.current.offsetHeight),
         }
-        : estimateLauncherBounds();
+        : estimateLauncherBounds(compact);
       setLauncherBounds((current) => (
         current.width === nextBounds.width && current.height === nextBounds.height
           ? current
@@ -419,9 +468,13 @@ export function ReviewLayer() {
     }
 
     window.addEventListener("resize", measureLauncher);
+    window.visualViewport?.addEventListener("resize", measureLauncher);
+    window.visualViewport?.addEventListener("scroll", measureLauncher);
     return () => {
       observer?.disconnect();
       window.removeEventListener("resize", measureLauncher);
+      window.visualViewport?.removeEventListener("resize", measureLauncher);
+      window.visualViewport?.removeEventListener("scroll", measureLauncher);
     };
   }, [open, endpointConfigured, actions.length]);
 
@@ -449,7 +502,8 @@ export function ReviewLayer() {
     const handlePointerEnd = (event: PointerEvent) => {
       if (!launcherDragRef.current) return;
       if (event.pointerId !== launcherDragRef.current.pointerId) return;
-      if (launcherDragRef.current.moved) {
+      const moved = launcherDragRef.current.moved;
+      if (moved) {
         launcherClickSuppressRef.current = true;
       }
       launcherDragRef.current = null;
@@ -457,11 +511,15 @@ export function ReviewLayer() {
     };
 
     window.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("scroll", handleResize);
     window.addEventListener("pointermove", handleDragMove);
     window.addEventListener("pointerup", handlePointerEnd);
     window.addEventListener("pointercancel", handlePointerEnd);
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
       window.removeEventListener("pointermove", handleDragMove);
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
@@ -549,15 +607,16 @@ export function ReviewLayer() {
       ? describeAction(lastTrackedAction)
       : `Following ${pageLabel}`;
   const latestConversationEntry = conversationEntries[conversationEntries.length - 1] ?? null;
+  const latestReviewerEntry = [...conversationEntries].reverse().find((entry) => entry.author === "reviewer") ?? null;
   const awaitingCodexReply = liveConnectionVerified && latestConversationEntry?.author === "reviewer";
   const hasLiveConnectionIssue = endpointStatus === "failed";
   const liveConnectionLabel = !endpointConfigured
-    ? "local only"
+    ? "local capture"
     : endpointStatus === "live"
       ? "Codex live"
       : endpointStatus === "checking"
         ? "connecting"
-        : "sync issue";
+        : "retry sync";
   const liveConnectionTone = endpointStatus === "live"
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : endpointStatus === "failed"
@@ -569,14 +628,14 @@ export function ReviewLayer() {
       ? "Connecting this phone to live review."
       : endpointStatus === "failed"
         ? "Live sync is unavailable right now."
-        : "I cannot see notes from this phone yet.";
+        : "Local capture is active on this phone.";
   const liveConnectionBody = endpointStatus === "live"
     ? "I am tracking page changes, taps, focus, scrolling, and anything you type here, even while this panel is closed."
     : endpointStatus === "checking"
       ? "This phone has a saved live review link. I will switch to live as soon as the endpoint responds."
       : endpointStatus === "failed"
         ? "You can keep reviewing. Notes stay saved on this device and can be retried when the connection comes back."
-        : "Capture notes here, then copy them or reopen with a live review link when you want Codex replies.";
+        : "Capture notes here, keep moving through the product, and reconnect a live review link later if you want Codex replies.";
   const liveConnectionDetail = hasLiveConnectionIssue
     ? [friendlySyncIssue(lastSyncError, "sync"), friendlySyncIssue(lastBridgeError, "reply")].filter((value, index, all) => all.indexOf(value) === index).join(" ")
     : null;
@@ -589,6 +648,9 @@ export function ReviewLayer() {
   const localReviewCoachDetail = lastMeaningfulTrackedAction
     ? `Tracked context: ${describeAction(lastMeaningfulTrackedAction)}.`
     : "Tracked context starts as soon as you move through the page.";
+  const captureContextLabel = reviewContextAction
+    ? `${describeAction(reviewContextAction)} on ${reviewContextAction.pageLabel}`
+    : `Viewing ${pageLabel}`;
   const visibleConversationEntries = useMemo(() => {
     const recent = conversationEntries.slice(-6);
     if (!awaitingCodexReply || !latestConversationEntry) return recent;
@@ -606,6 +668,7 @@ export function ReviewLayer() {
       },
     ];
   }, [awaitingCodexReply, conversationEntries, latestConversationEntry]);
+  const latestVisibleCodexEntry = [...visibleConversationEntries].reverse().find((entry) => entry.author === "codex") ?? null;
 
   let handoffTone: "received" | "draft" | "pending" | "local";
   let handoffTitle: string;
@@ -632,7 +695,7 @@ export function ReviewLayer() {
   } else if (submittedNotes.length > 0) {
     handoffTone = "received";
     handoffTitle = `Codex received ${submittedNotes.length} submitted ${plural(submittedNotes.length, "note")}.`;
-    handoffBody = "Close with X when you are done. Submitted notes stay in this session, and I pair them with the page, click trail, route, viewport, and timestamps.";
+    handoffBody = "Close with X when you are done. Submitted notes stay tied to this page, route, click trail, viewport, and timestamps so I can turn them into fixes or follow-up questions.";
   } else {
     handoffTone = "draft";
     handoffTitle = "No submitted notes received yet.";
@@ -644,7 +707,7 @@ export function ReviewLayer() {
     : endpointStatus === "checking"
       ? "Connecting"
       : endpointStatus === "failed"
-        ? "Sync issue"
+        ? "Retry sync"
         : "Tracking locally";
   const launcherDotClass = endpointStatus === "live"
     ? "bg-emerald-500"
@@ -1171,7 +1234,7 @@ export function ReviewLayer() {
     });
   };
 
-  const startLauncherDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const startLauncherDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1254,7 +1317,7 @@ export function ReviewLayer() {
                         ? "This phone keeps collecting context while the live review connection is confirmed."
                         : endpointConfigured
                         ? "This device keeps your review trail locally until the live connection recovers."
-                        : "This phone can still capture notes, page context, and your click trail without a live endpoint."}
+                        : "This phone keeps your notes, page context, and click trail even without the live endpoint."}
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
@@ -1319,7 +1382,7 @@ export function ReviewLayer() {
                   Last tracked: {describeAction(lastMeaningfulTrackedAction ?? lastTrackedAction)}
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
-                  Close this panel any time. The floating review launcher can be dragged if it covers the page.
+                  Close this panel any time. The small Review button can be dragged anywhere inside this viewport if it covers the page.
                 </div>
               </div>
 
@@ -1341,6 +1404,21 @@ export function ReviewLayer() {
                 <Badge variant="outline" className="text-[10px] uppercase tracking-normal">
                   {openCount} open
                 </Badge>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border bg-muted/10 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">Screen</div>
+                  <div className="mt-1 text-xs font-medium text-foreground">{reviewContextTitle}</div>
+                </div>
+                <div className="rounded-xl border bg-muted/10 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">Last action</div>
+                  <div className="mt-1 text-xs font-medium text-foreground">{describeAction(lastMeaningfulTrackedAction ?? lastTrackedAction)}</div>
+                </div>
+                <div className="rounded-xl border bg-muted/10 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">Route</div>
+                  <div className="mt-1 truncate text-xs font-medium text-foreground">{path}</div>
+                </div>
               </div>
 
               <div className="mt-3 inline-flex rounded-full border bg-muted/30 p-0.5">
@@ -1372,7 +1450,10 @@ export function ReviewLayer() {
                   : "Use this for layout, copy, trust, data clarity, or anything else that feels off on this exact screen."}
               </div>
 
-              <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
+              <div className="mt-3 text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                Issue type
+              </div>
+              <div className="mt-2 flex gap-1 overflow-x-auto pb-1">
                 {(captureMode === "functionality" ? FUNCTIONALITY_CAPTURE_KINDS : NOTE_CAPTURE_KINDS).map((kind) => (
                   <button
                     key={kind.value}
@@ -1388,6 +1469,9 @@ export function ReviewLayer() {
                     {kind.label}
                   </button>
                 ))}
+              </div>
+              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                {KIND_HELPERS[currentDraft.kind] ?? KIND_HELPERS.ux}
               </div>
 
               {captureMode === "functionality" ? (
@@ -1405,6 +1489,9 @@ export function ReviewLayer() {
                 </div>
               ) : null}
 
+              <div className="mt-3 text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
+                Urgency
+              </div>
               <div className="mt-2 inline-flex rounded-full border bg-muted/30 p-0.5">
                 {REVIEW_PRIORITIES.map((priority) => (
                   <button
@@ -1420,13 +1507,16 @@ export function ReviewLayer() {
                   </button>
                 ))}
               </div>
+              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                {PRIORITY_HELPERS[currentDraft.priority] ?? PRIORITY_HELPERS.medium}
+              </div>
 
               <label htmlFor="review-layer-note-text" className="mt-3 block text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">
                 {captureMode === "functionality" ? "Functionality note" : "Review note"}
               </label>
               <div className="mt-1 rounded-xl border bg-muted/10 p-2">
                 <div className="mb-2 rounded-lg bg-background px-2.5 py-2 text-[11px] text-muted-foreground">
-                  Sending this note with: <span className="font-medium text-foreground">{reviewContextTitle}</span>
+                  Sending this note with: <span className="font-medium text-foreground">{captureContextLabel}</span>
                 </div>
                 <textarea
                   id="review-layer-note-text"
@@ -1468,6 +1558,39 @@ export function ReviewLayer() {
                 <Button variant="outline" onClick={copyExport} className="h-10 rounded-full px-3" aria-label="Copy review notes">
                   <ClipboardCopy className="h-4 w-4" />
                 </Button>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl border bg-muted/10 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">Latest note you sent</div>
+                  <div className="mt-1 min-h-[2.5rem] text-sm leading-relaxed text-foreground">
+                    {latestReviewerEntry
+                      ? shortText(latestReviewerEntry.text, 180)
+                      : "No submitted note in this session yet."}
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {latestReviewerEntry
+                      ? `${latestReviewerEntry.pageLabel ?? reviewContextTitle} - ${formatWhen(latestReviewerEntry.createdAt)}`
+                      : captureContextLabel}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-muted/10 px-3 py-2">
+                  <div className="text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">Latest Codex reply</div>
+                  <div className="mt-1 min-h-[2.5rem] text-sm leading-relaxed text-foreground">
+                    {latestVisibleCodexEntry
+                      ? shortText(latestVisibleCodexEntry.text, 180)
+                      : endpointConfigured
+                        ? "Waiting for the first live reply."
+                        : "Open this page with a live review link to see Codex replies here."}
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {latestVisibleCodexEntry
+                      ? formatWhen(latestVisibleCodexEntry.createdAt)
+                      : endpointConfigured
+                        ? "Live exchange stays attached to this session."
+                        : "Local notes still keep page and route context."}
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -1554,7 +1677,7 @@ export function ReviewLayer() {
                         <div className="mt-2 text-[10px] text-slate-600">{localReviewCoachDetail}</div>
                       </div>
                       <div className="rounded-lg border border-dashed px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-                        Send a note to save feedback with page, route, viewport, and time. Live replies appear after opening a review link with a reviewEndpoint.
+                        Send a note to save feedback with page, route, viewport, and time. Live replies appear here after you open a review link with a reviewEndpoint.
                       </div>
                     </div>
                   ) : (
@@ -1720,10 +1843,11 @@ export function ReviewLayer() {
       {!open ? (
         <div
           ref={launcherRef}
-          className="fixed z-50 max-w-[min(calc(100vw-1rem),22rem)]"
+          className="fixed z-50 w-fit max-w-[calc(100vw-1rem)] [touch-action:none]"
           style={{
             left: `${launcherPosition.x}px`,
             top: `${launcherPosition.y}px`,
+            transform: "translate3d(0, 0, 0)",
           }}
         >
           <div className={cn("flex items-center justify-end gap-2", draggingLauncher && "scale-[1.01]")}>
@@ -1731,6 +1855,8 @@ export function ReviewLayer() {
               type="button"
               onPointerDown={startLauncherDrag}
               aria-label="Move review launcher"
+              hidden={compactLauncherMode}
+              title="Drag to reposition the review button"
               className={cn(
                 "hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-lg backdrop-blur transition-all touch-none select-none sm:inline-flex",
                 draggingLauncher ? "cursor-grabbing border-primary text-foreground shadow-xl" : "cursor-grab hover:border-foreground/20 hover:text-foreground",
@@ -1744,6 +1870,7 @@ export function ReviewLayer() {
               <button
                 type="button"
                 onClick={() => setOpen(true)}
+                hidden={compactLauncherMode}
                 className="hidden max-w-[18rem] rounded-full border bg-card/95 px-3 py-2 text-left shadow-lg backdrop-blur transition-colors hover:border-foreground/20 sm:block"
                 aria-label={`Following ${pageLabel}. ${followChipText}`}
               >
@@ -1758,25 +1885,57 @@ export function ReviewLayer() {
               </button>
             ) : null}
 
-            <Button
-              type="button"
-              onPointerDown={compactLauncherMode ? startLauncherDrag : undefined}
-              onClick={openLauncher}
-              className={cn(
-                "h-11 self-end rounded-full shadow-lg",
-                compactLauncherMode ? "px-3" : "px-4",
-                openCount > 0 ? (compactLauncherMode ? "pr-2.5" : "pr-3") : "",
-                compactLauncherMode ? "touch-none select-none cursor-grab active:cursor-grabbing" : "",
-              )}
-              aria-label={`Review layer, ${openCount} open notes`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <StickyNote className="h-4 w-4" />
-                Review
-              </span>
-              {openCount === 0 && !compactLauncherMode ? <span className="text-xs text-primary-foreground/80">Open</span> : null}
-              {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
-            </Button>
+            {compactLauncherMode ? (
+              <div className="w-[5rem] rounded-[18px] border bg-card/95 p-1.5 shadow-lg backdrop-blur">
+                <button
+                  type="button"
+                  onPointerDown={startLauncherDrag}
+                  aria-label="Move review launcher"
+                  title="Drag to reposition the review button"
+                  className={cn(
+                    "inline-flex h-5 w-full items-center justify-center rounded-full text-muted-foreground transition-all touch-none select-none",
+                    draggingLauncher ? "cursor-grabbing bg-muted border border-primary text-foreground shadow-sm" : "cursor-grab hover:bg-muted/70 hover:text-foreground",
+                  )}
+                >
+                  <GripHorizontal className="h-3.5 w-3.5" />
+                  <span className="sr-only">{draggingLauncher ? "Moving review" : "Move review launcher"}</span>
+                </button>
+                <Button
+                  type="button"
+                  onClick={openLauncher}
+                  className={cn(
+                    "mt-1 h-9 w-full rounded-full px-2 shadow-none",
+                    openCount > 0 ? "pr-2.5" : "",
+                  )}
+                  aria-label={`Review layer, ${openCount} open notes`}
+                  title="Open review layer"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <StickyNote className="h-3.5 w-3.5" />
+                    <span className="text-xs">Review</span>
+                  </span>
+                  {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-1.5 py-0.5 text-[10px] text-primary">{openCount}</span> : null}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                onClick={openLauncher}
+                className={cn(
+                  "h-11 self-end rounded-full px-4 shadow-lg",
+                  openCount > 0 ? "pr-3" : "",
+                )}
+                aria-label={`Review layer, ${openCount} open notes`}
+                title="Open review layer"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" />
+                  Review
+                </span>
+                {openCount === 0 ? <span className="text-xs text-primary-foreground/80">Open</span> : null}
+                {openCount > 0 ? <span className="rounded-full bg-primary-foreground px-2 py-0.5 text-xs text-primary">{openCount}</span> : null}
+              </Button>
+            )}
           </div>
         </div>
       ) : null}

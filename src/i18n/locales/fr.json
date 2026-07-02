@@ -58,7 +58,7 @@
     "enterAsTech": "Démo technicien",
     "enterAsOwner": "Démo propriétaire",
     "signIn": "Se connecter",
-    "tour": "Parcours rapide",
+    "tour": "Voir le flux",
     "disclaimer": "Pour les professionnels CVC qualifiés. Cet outil aide — il ne remplace pas les licences, les instructions du fabricant, les codes, le verrouillage/consignation, l'EPI ou les pratiques de travail sûres. Les indicateurs, les détails clients et les cas précédents sont des données de démo.",
     "fasterDiagnosis": "Diagnostic plus rapide",
     "fewerCallbacks": "Moins de rappels",
@@ -66,7 +66,7 @@
     "fasterDiagnosisV": "-32 % temps moyen",
     "fewerCallbacksV": "-18 % taux",
     "lessPaperworkV": "Rapports en 60 s",
-    "testBuild": "Build de revue client",
+    "testBuild": "Démo terrain",
     "safariPrompt": "Ouvrez dans Safari sur iPhone et testez le flux technicien depuis Aujourd'hui, Interventions, Scan et Rapports.",
     "homeScreenPrompt": "Utilisez Partager, puis Ajouter à l'écran d'accueil après avoir ouvert la vue technicien pour tester une expérience proche d'une app.",
     "tourSteps": {

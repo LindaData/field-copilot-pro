@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
 import { findStep, NO_COOLING, type DiagStep } from "@/lib/diagTemplate";
@@ -18,6 +18,14 @@ import {
 
 const GROUPS = ["Capacity", "Compressor", "Fan", "Refrigeration", "Electrical", "Physical", "Certifications"] as const;
 
+function nextStepPreview(nextStepId: string, branchLabel?: string) {
+  const next = findStep(nextStepId);
+  if (!next) return branchLabel ? `Routes into ${branchLabel}` : `Moves to ${nextStepId}`;
+  return branchLabel
+    ? `Routes into ${branchLabel} - ${next.id}. ${next.title}`
+    : `Continues to ${next.id} - ${next.title}`;
+}
+
 export default function Diagnostics() {
   const { id = "" } = useParams();
   const { state, ensureDiag, saveStep, saveMeasurement, setHypothesis, completeDiag, setJobStatus, goToStep, clearInvalidation } = useStore();
@@ -26,8 +34,17 @@ export default function Diagnostics() {
   const [searchParams] = useSearchParams();
   const reviewMode = searchParams.get("review") === "1";
   const job = state.jobs.find((j) => j.id === id);
-  const session = useMemo(() => ensureDiag(id), [ensureDiag, id]);
-  const live = state.diag[id] ?? session;
+  const persistedSession = state.diag[id];
+  const live = persistedSession ?? {
+    id: `ds-${id}`,
+    jobId: id,
+    templateId: "no-cooling-v1",
+    currentStepId: "A",
+    results: [],
+    measurements: [],
+    visitedStepIds: ["A"],
+    invalidatedStepIds: [],
+  };
   const currentId = live.currentStepId;
   const [ack, setAck] = useState(false);
   const [val, setVal] = useState("");
@@ -36,6 +53,12 @@ export default function Diagnostics() {
   const [stepsSheetOpen, setStepsSheetOpen] = useState(false);
   const step = findStep(currentId);
   const equipment = state.equipment.find((e) => e.id === job?.equipmentId);
+  const customer = state.customers.find((c) => c.id === job?.customerId);
+  const property = state.properties.find((p) => p.id === job?.propertyId);
+
+  useEffect(() => {
+    if (!persistedSession) ensureDiag(id);
+  }, [persistedSession, ensureDiag, id]);
 
   useEffect(() => {
     setAck(false);
@@ -60,6 +83,7 @@ export default function Diagnostics() {
   const stepLabel = step.type === "alt-end"
     ? t("diagnostics.stepLabel", { id: step.id, progress: t("diagnostics.altBranch") })
     : t("diagnostics.stepLabel", { id: step.id, progress: `${completed + 1}/14` });
+  const latestResult = live.results.find((result) => result.stepId === currentId);
 
   const stepStatus = (sid: string): "complete" | "current" | "skipped" | "needs-review" | "pending" => {
     if (sid === currentId) return "current";
@@ -225,6 +249,36 @@ export default function Diagnostics() {
 
       {reviewNote}
 
+      <div className="card-elev p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Current call</div>
+            <div className="mt-1 text-sm font-semibold">{customer?.name ?? "Customer record"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {equipment ? `${equipment.manufacturer} ${equipment.model}` : "No equipment linked"}
+              {property?.address ? ` - ${property.address.split(",")[0]}` : ""}
+            </div>
+          </div>
+          <Button variant="outline" size="sm" asChild className="shrink-0">
+            <Link to={`/app/jobs/${job.id}`}>Open job</Link>
+          </Button>
+        </div>
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+          <div className="rounded-lg border bg-muted/20 p-2">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Complaint</div>
+            <div className="mt-1 font-medium">{job.complaint}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-2">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Active step</div>
+            <div className="mt-1 font-medium">{step.id} - {step.title}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/20 p-2">
+            <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Latest answer</div>
+            <div className="mt-1 font-medium">{latestResult?.answer || "No answer saved on this step yet"}</div>
+          </div>
+        </div>
+      </div>
+
       {isInvalidated ? (
         <div className="rounded-md border border-warning bg-warning/10 p-3 text-xs">
           <div className="inline-flex items-center gap-1 font-semibold"><AlertTriangle className="h-4 w-4" /> {t("diagnostics.needsReview")}</div>
@@ -257,6 +311,29 @@ export default function Diagnostics() {
           </DropdownMenu>
         </div>
 
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">This step decides</div>
+            <div className="mt-1 font-medium text-foreground">{step.hypothesis}</div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Why it matters</div>
+            <div className="mt-1 text-muted-foreground">{step.why ?? "This answer keeps the diagnostic path honest before the next action."}</div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Next after this answer</div>
+            <div className="mt-1 text-muted-foreground">
+              {step.type === "measurement" && step.measurement
+                ? nextStepPreview(step.measurement.nextStepId)
+                : step.choices?.length
+                  ? nextStepPreview(step.choices[0].nextStepId, step.choices[0].branchLabel)
+                  : step.type === "info-end"
+                    ? "Generates the service report from this diagnostic path."
+                    : "Choose the handoff that matches the on-site decision."}
+            </div>
+          </div>
+        </div>
+
         {step.toolsNeeded ? (
           <div className="mt-3 flex flex-wrap gap-1">
             {step.toolsNeeded.map((toolName) => <span key={toolName} className="stat-pill bg-secondary text-secondary-foreground"><Wrench className="h-3 w-3" /> {toolName}</span>)}
@@ -265,8 +342,13 @@ export default function Diagnostics() {
 
         <div className="mt-4 space-y-3">
           {step.type === "choice" && step.choices?.map((choice) => (
-            <Button key={choice.id} variant={choice.id === "ack" || choice.id === "next" ? "default" : "outline"} className="touch-target h-12 w-full justify-between text-left" onClick={() => tryAdvance(choice.nextStepId, { answer: choice.label })}>
-              <span className="whitespace-normal">{choice.label}</span>
+            <Button key={choice.id} variant={choice.id === "ack" || choice.id === "next" ? "default" : "outline"} className="touch-target h-auto min-h-12 w-full justify-between px-4 py-3 text-left" onClick={() => tryAdvance(choice.nextStepId, { answer: choice.label })}>
+              <span className="flex min-w-0 flex-col text-left">
+                <span className="whitespace-normal">{choice.label}</span>
+                <span className="mt-1 whitespace-normal text-[11px] font-normal opacity-80">
+                  {nextStepPreview(choice.nextStepId, choice.branchLabel)}
+                </span>
+              </span>
               <ArrowRight className="h-5 w-5 shrink-0" />
             </Button>
           ))}
@@ -280,7 +362,29 @@ export default function Diagnostics() {
           ) : null}
 
           {step.type === "measurement" && step.measurement ? (
-            <MeasurementBody m={step.measurement} val={val} setVal={setVal} onSubmit={handleMeasurement} />
+            <div className="space-y-3">
+              <div className="rounded-xl border bg-muted/20 p-3 text-xs">
+                <div className="font-semibold text-foreground">Measurement guide</div>
+                <div className="mt-1 text-muted-foreground">
+                  Save the measured value to continue through the exact diagnostic branch instead of jumping to a guess.
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-background p-2">
+                    <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Expected range</div>
+                    <div className="mt-1 text-foreground">
+                      {step.measurement.min !== undefined && step.measurement.max !== undefined
+                        ? `${step.measurement.min} - ${step.measurement.max} ${step.measurement.unit}`
+                        : step.measurement.minNote ?? "Use the installed component or linked source as the comparison point."}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-background p-2">
+                    <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Next after save</div>
+                    <div className="mt-1 text-foreground">{nextStepPreview(step.measurement.nextStepId)}</div>
+                  </div>
+                </div>
+              </div>
+              <MeasurementBody m={step.measurement} val={val} setVal={setVal} onSubmit={handleMeasurement} />
+            </div>
           ) : null}
 
           {step.type === "info-end" ? (
@@ -297,22 +401,75 @@ export default function Diagnostics() {
 
           {step.type === "alt-end" ? (
             <div className="space-y-3">
-              <div className="rounded-md border border-accent/40 bg-accent/10 p-2 text-xs">{step.detail ?? t("diagnostics.altSopText")}</div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {equipment ? (
-                  <Button asChild variant="outline" className="touch-target">
-                    <Link to={`/app/equipment/${equipment.id}#specs`}><BookOpen className="mr-1 h-4 w-4" /> Open equipment specs</Link>
-                  </Button>
-                ) : null}
-                <Button asChild variant="outline" className="touch-target">
-                  <Link to={`/app/jobs/${job.id}/parts-request`}><Wrench className="mr-1 h-4 w-4" /> Request parts</Link>
-                </Button>
-                <Button variant="outline" className="touch-target" onClick={() => setStepsSheetOpen(true)}><ListChecks className="mr-1 h-4 w-4" /> Review steps</Button>
-                <Button variant="outline" className="touch-target" onClick={() => nav(`/app/jobs/${job.id}`)}><ArrowLeft className="mr-1 h-4 w-4" /> Back to job</Button>
+              <div className="rounded-xl border border-accent/40 bg-accent/10 p-3 text-xs">
+                <div className="font-semibold text-foreground">Diagnosis handoff</div>
+                <p className="mt-1 leading-relaxed">{step.detail ?? t("diagnostics.altSopText")}</p>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button variant="ghost" className="touch-target" onClick={() => setConfirmRestart(true)}>{t("diagnostics.restartDiagnosis")}</Button>
-                <Button className="touch-target" onClick={escalate}><ShieldAlert className="mr-1 h-4 w-4" /> Move to follow-up</Button>
+              <div className="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground">
+                The diagnostic path has enough evidence. Finish by choosing the handoff that matches the on-site decision instead of restarting the whole tree.
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <HandoffActionCard
+                  title="Customer approval"
+                  body="Lock the estimate, capture signature, and move the repair decision forward."
+                  icon={<FileText className="h-4 w-4" />}
+                  to={`/app/jobs/${job.id}/approval`}
+                />
+                <HandoffActionCard
+                  title="Parts request"
+                  body="Document the required part now and keep the parts workflow attached to this job."
+                  icon={<Wrench className="h-4 w-4" />}
+                  to={`/app/jobs/${job.id}/parts-request`}
+                />
+                <button
+                  type="button"
+                  onClick={escalate}
+                  className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-left transition-colors hover:bg-warning/15"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <ShieldAlert className="h-4 w-4" />
+                        Move to follow-up
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Use this when the office or a senior technician should pick up the next move.
+                      </div>
+                    </div>
+                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  </div>
+                </button>
+              </div>
+              <div className="rounded-xl border bg-muted/20 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Support tools</div>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {equipment ? (
+                    <Button asChild variant="outline" className="touch-target justify-start">
+                      <Link to={`/app/equipment/${equipment.id}#specs`}><BookOpen className="mr-1 h-4 w-4" /> Open equipment specs</Link>
+                    </Button>
+                  ) : null}
+                  <Button variant="outline" className="touch-target justify-start" onClick={() => setStepsSheetOpen(true)}><ListChecks className="mr-1 h-4 w-4" /> Review saved steps</Button>
+                  <Button
+                    variant="outline"
+                    className="touch-target justify-start"
+                    onClick={() => {
+                      setJobStatus(job.id, "Waiting for Parts");
+                      toast.success("Job moved to Waiting for Parts.");
+                      nav(`/app/jobs/${job.id}/parts-request`);
+                    }}
+                  >
+                    <RefreshCw className="mr-1 h-4 w-4" /> Move to waiting for parts
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="touch-target justify-start"
+                    onClick={() => nav(`/app/jobs/${job.id}/report`)}
+                  >
+                    <FileText className="mr-1 h-4 w-4" /> Open service report
+                  </Button>
+                  <Button variant="outline" className="touch-target justify-start" onClick={() => nav(`/app/jobs/${job.id}`)}><ArrowLeft className="mr-1 h-4 w-4" /> Back to job</Button>
+                  <Button variant="ghost" className="touch-target justify-start" onClick={() => setConfirmRestart(true)}>{t("diagnostics.restartDiagnosis")}</Button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -336,18 +493,64 @@ export default function Diagnostics() {
         {step.id === "K" ? <LikelyCauseCard /> : null}
       </div>
 
+      {step.type !== "alt-end" ? (
+        <section className="rounded-xl border bg-muted/20 p-4">
+          <div className="text-sm font-semibold">Other actions from this step</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            You do not need to restart the diagnosis just to open specs, route the job to parts, review customer approval, or go back to the job record.
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button variant="outline" className="touch-target justify-start" onClick={() => setStepsSheetOpen(true)}>
+              <ListChecks className="mr-1 h-4 w-4" /> Open steps breakdown
+            </Button>
+            {equipment ? (
+              <Button asChild variant="outline" className="touch-target justify-start">
+                <Link to={`/app/equipment/${equipment.id}#specs`}><BookOpen className="mr-1 h-4 w-4" /> Open equipment profile</Link>
+              </Button>
+            ) : null}
+            <Button variant="outline" className="touch-target justify-start" onClick={() => nav(`/app/jobs/${job.id}/parts-request`)}>
+              <Wrench className="mr-1 h-4 w-4" /> Parts request
+            </Button>
+            <Button variant="outline" className="touch-target justify-start" onClick={() => nav(`/app/jobs/${job.id}/approval`)}>
+              <FileText className="mr-1 h-4 w-4" /> Customer approval
+            </Button>
+            <Button variant="outline" className="touch-target justify-start" onClick={() => nav(`/app/jobs/${job.id}/report`)}>
+              <FileText className="mr-1 h-4 w-4" /> Service report
+            </Button>
+            <Button variant="outline" className="touch-target justify-start" onClick={() => nav(`/app/jobs/${job.id}`)}>
+              <ArrowLeft className="mr-1 h-4 w-4" /> Back to job
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       <div className="fixed inset-x-0 bottom-16 z-20 mx-auto w-full max-w-md space-y-2 px-4">
-        <div className="flex gap-2">
-          <Button variant="outline" className="touch-target h-12 flex-1" onClick={onBack}>
-            <ArrowLeft className="mr-1 h-4 w-4" /> {t("diagnostics.back")}
-          </Button>
-          <Button variant="outline" className="touch-target h-12 flex-1" onClick={onNext} disabled={!nextVisitedId}>
-            {t("diagnostics.next")} <ArrowRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
-        <Button variant="destructive" className="touch-target w-full shadow-lg" onClick={escalate}>
-          <ShieldAlert className="mr-2 h-5 w-5" /> {t("diagnostics.stopEscalate")}
-        </Button>
+        {step.type === "alt-end" ? (
+          <div className="rounded-2xl border bg-card/95 p-2 shadow-lg backdrop-blur">
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="touch-target h-12" onClick={() => nav(`/app/jobs/${job.id}`)}>
+                <ArrowLeft className="mr-1 h-4 w-4" /> Back to job
+              </Button>
+              <Button variant="outline" className="touch-target h-12" onClick={() => setStepsSheetOpen(true)}>
+                <ListChecks className="mr-1 h-4 w-4" /> Review steps
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <Button variant="outline" className="touch-target h-12 flex-1" onClick={onBack}>
+                <ArrowLeft className="mr-1 h-4 w-4" /> {t("diagnostics.back")}
+              </Button>
+              <Button variant="outline" className="touch-target h-12 flex-1" onClick={onNext} disabled={!nextVisitedId}>
+                {t("diagnostics.next")} <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+            <Button variant="destructive" className="touch-target w-full shadow-lg" onClick={escalate}>
+              <ShieldAlert className="mr-2 h-5 w-5" /> {t("diagnostics.stopEscalate")}
+            </Button>
+          </>
+        )}
       </div>
 
       <Dialog open={!!confirmEdit} onOpenChange={(open) => !open && setConfirmEdit(null)}>
@@ -497,3 +700,34 @@ function LikelyCauseCard() {
     </div>
   );
 }
+
+function HandoffActionCard({
+  title,
+  body,
+  to,
+  icon,
+}: {
+  title: string;
+  body: string;
+  to: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="rounded-xl border bg-background p-3 transition-colors hover:bg-muted/30"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+            {icon}
+            {title}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">{body}</div>
+        </div>
+        <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      </div>
+    </Link>
+  );
+}
+

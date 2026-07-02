@@ -20,6 +20,48 @@ function fmtDur(ms: number) {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
+function focusHeading(status?: string) {
+  switch (status) {
+    case "Scheduled":
+      return "First scheduled stop";
+    case "En Route":
+    case "Near Destination":
+      return "Current stop";
+    case "On Site":
+    case "Diagnosing":
+    case "Repairing":
+    case "Documentation":
+      return "In progress now";
+    case "Waiting for Parts":
+      return "Waiting for parts";
+    case "Follow-Up":
+      return "Return visit";
+    default:
+      return "Current priority";
+  }
+}
+
+function focusHelper(status?: string) {
+  switch (status) {
+    case "Scheduled":
+      return "Use this as the realistic start-of-day demo flow.";
+    case "En Route":
+    case "Near Destination":
+      return "Travel is already in motion for this stop.";
+    case "On Site":
+    case "Diagnosing":
+    case "Repairing":
+    case "Documentation":
+      return "This is the active field stop right now.";
+    case "Waiting for Parts":
+      return "This stop is paused until parts are available.";
+    case "Follow-Up":
+      return "This needs a return visit or office coordination.";
+    default:
+      return "Open the next technician action.";
+  }
+}
+
 function PrimaryCta({ action }: { action: PrimaryAction }) {
   const color =
     action.variant === "accent"
@@ -88,6 +130,9 @@ export default function Today() {
   const doneToday = allMyJobs.filter(
     (j) => j.status === "Completed" && inRange(new Date(j.scheduledFor), "day"),
   ).length;
+  const scheduledCount = openJobs.filter((j) => j.status === "Scheduled").length;
+  const followUpCount = openJobs.filter((j) => j.status === "Follow-Up").length;
+  const waitingCount = openJobs.filter((j) => ["Waiting for Approval", "Waiting for Parts", "Paused"].includes(j.status)).length;
 
   const current = focusJobForTechnician(myJobs, user.id);
 
@@ -95,9 +140,10 @@ export default function Today() {
     .filter((j) => j !== current)
     .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
 
-  const followUp = openJobs
+  const followUps = openJobs
     .filter((j) => j.status === "Follow-Up")
-    .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor))[0];
+    .sort((a, b) => +new Date(a.scheduledFor) - +new Date(b.scheduledFor));
+  const followUp = followUps[0];
   const next = upcoming[0];
 
   const customerOf = (id: string) => state.customers.find((c) => c.id === id);
@@ -110,7 +156,7 @@ export default function Today() {
     : followUp
       ? {
         kind: "open-job",
-        label: "Review Follow-Up",
+        label: "Open follow-up visit",
         helper: `${customerOf(followUp.customerId)?.name ?? "Return visit"} - ${new Date(followUp.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
         to: `/app/jobs/${followUp.id}`,
         variant: "accent",
@@ -162,15 +208,29 @@ export default function Today() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
           <div className="rounded-md bg-white/10 px-2 py-1.5">
-            <div className="flex items-center gap-1 opacity-80"><Clock className="h-3.5 w-3.5" /> {t("today.activeLabor")}</div>
+            <div className="flex items-center gap-1 opacity-80"><Clock className="h-3.5 w-3.5" /> On-site time</div>
             <div className="mt-0.5 text-sm font-semibold">{fmtDur(activeMs)}</div>
           </div>
           <div className="rounded-md bg-white/10 px-2 py-1.5">
             <div className="flex items-center gap-1 opacity-80"><Pause className="h-3.5 w-3.5" /> {t("today.pausedTime")}</div>
             <div className="mt-0.5 text-sm font-semibold">
               {fmtDur(pausedMs)}
-              {activePauseReason && <span className="ml-1 text-[10px] font-normal opacity-80">· {activePauseReason}</span>}
+              {activePauseReason && <span className="ml-1 text-[10px] font-normal opacity-80">- {activePauseReason}</span>}
             </div>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+          <div className="rounded-md bg-white/10 px-2 py-1.5">
+            <div className="opacity-80">Scheduled</div>
+            <div className="mt-0.5 text-sm font-semibold">{scheduledCount}</div>
+          </div>
+          <div className="rounded-md bg-white/10 px-2 py-1.5">
+            <div className="opacity-80">Follow-up</div>
+            <div className="mt-0.5 text-sm font-semibold">{followUpCount}</div>
+          </div>
+          <div className="rounded-md bg-white/10 px-2 py-1.5">
+            <div className="opacity-80">Needs action</div>
+            <div className="mt-0.5 text-sm font-semibold">{waitingCount}</div>
           </div>
         </div>
       </header>
@@ -179,9 +239,10 @@ export default function Today() {
         <Link to={`/app/jobs/${current.id}`}>
           <div className="card-elev relative overflow-hidden border-l-4 border-l-accent p-4">
             <Badge className="absolute right-3 top-3 bg-accent text-accent-foreground">{statusLabel(current.status)}</Badge>
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.currentJob")}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{focusHeading(current.status)}</div>
             <div className="mt-1 text-base font-semibold leading-tight">{customerOf(current.customerId)?.name}</div>
             <div className="mt-0.5 text-sm text-muted-foreground line-clamp-2">{tx(current.complaint)}</div>
+            <div className="mt-2 text-[11px] text-muted-foreground">{focusHelper(current.status)}</div>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{propertyOf(current.propertyId)?.address.split(",")[0]}</span>
               <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{customerOf(current.customerId)?.phone}</span>
@@ -191,7 +252,7 @@ export default function Today() {
       ) : next ? (
         <Link to={`/app/jobs/${next.id}`}>
           <div className="card-elev p-4">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("today.nextJob")}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Next scheduled stop</div>
             <div className="mt-1 text-base font-semibold">{customerOf(next.customerId)?.name}</div>
             <div className="text-sm text-muted-foreground line-clamp-2">{tx(next.complaint)}</div>
             <div className="mt-1 text-[11px] text-muted-foreground">
@@ -205,7 +266,100 @@ export default function Today() {
         </div>
       )}
 
-      <PrimaryCta action={action} />
+      <section className="card-elev p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Do next</div>
+        <div className="mt-1 text-sm text-muted-foreground">
+          Keep the technician moving through a realistic day instead of jumping around the demo.
+        </div>
+        <div className="mt-3">
+          <PrimaryCta action={action} />
+        </div>
+      </section>
+
+      <section className="card-elev p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Shift focus</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Keep the current stop, the next stop, and anything blocked visible without opening the full schedule first.
+            </div>
+          </div>
+          <Link to="/app/jobs" className="text-[11px] font-medium text-primary">
+            Open full schedule
+          </Link>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Current priority</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {current ? customerOf(current.customerId)?.name : followUp ? customerOf(followUp.customerId)?.name : next ? customerOf(next.customerId)?.name : "No active stop"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {current
+                ? `${focusHeading(current.status)} - ${tx(current.complaint)}`
+                : followUp
+                  ? `Follow-up visit - ${tx(followUp.complaint)}`
+                  : next
+                    ? `Scheduled next - ${tx(next.complaint)}`
+                    : "Everything in this range is already caught up."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Queue next stop</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {next ? customerOf(next.customerId)?.name : "No later stop queued"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {next
+                ? `${new Date(next.scheduledFor).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} - ${propertyOf(next.propertyId)?.address.split(",")[0] ?? "Open the schedule for details."}`
+                : "No later visit is waiting behind the current focus."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Blocked or follow-up</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">{waitingCount + followUpCount}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {waitingCount + followUpCount > 0
+                ? `${followUpCount} follow-up, ${waitingCount} waiting on approval, parts, or pause state.`
+                : "No blocked or return-work items are visible in this range."}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {followUps.length > 0 ? (
+        <section className="card-elev p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Needs follow-up</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Open the exact return visit instead of dropping back to the first scheduled stop.
+              </div>
+            </div>
+            <Badge variant="secondary">{followUps.length}</Badge>
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {followUps.slice(0, 2).map((followUpJob) => (
+              <Link
+                key={followUpJob.id}
+                to={`/app/jobs/${followUpJob.id}`}
+                className="rounded-xl border border-warning/40 bg-warning/10 p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{customerOf(followUpJob.customerId)?.name}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{tx(followUpJob.complaint)}</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-warning" />
+                </div>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  {new Date(followUpJob.scheduledFor).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="flex items-center gap-1 rounded-md border bg-card p-1">
         {(["day", "week", "month", "all"] as const).map((r) => (
@@ -318,3 +472,4 @@ export default function Today() {
     </div>
   );
 }
+

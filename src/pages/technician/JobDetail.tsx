@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { jobActivePause, jobPausedMs, useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Bot, Camera, ClipboardList, FileText, MapPin, Phone, ShieldAlert, Wrench, Navigation, CheckCircle2, Pause, Play, Clock, History, PackageSearch, AlertTriangle, Locate } from "lucide-react";
+import { ArrowRight, Bot, Camera, ClipboardCopy, ClipboardList, FileText, MapPin, Phone, ShieldAlert, Wrench, Navigation, CheckCircle2, Pause, Play, Clock, History, PackageSearch, AlertTriangle, Locate } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,6 +14,7 @@ import { useStatusLabel } from "@/i18n/status";
 import { useDynamicText } from "@/i18n/dynamic";
 import { watchFieldPosition } from "@/lib/native";
 import { documentationQualityLabel, documentationStatusLabel, documentationSummaryForEquipment } from "@/lib/hvacTop50";
+import { getPrimaryAction } from "@/lib/primaryAction";
 
 function fmtClock(iso?: string) {
   if (!iso) return "-";
@@ -26,10 +27,51 @@ function fmtDur(ms: number) {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
+function routePreviewLabel(travelStartedAt?: string) {
+  return travelStartedAt ? "Refresh directions" : "Preview route";
+}
+
+function visitContextLabel(status: string, travelStartedAt?: string, arrivedAt?: string) {
+  if (arrivedAt) return "On-site visit";
+  if (travelStartedAt || status === "En Route" || status === "Near Destination") return "Travel in progress";
+  if (status === "Follow-Up") return "Follow-up visit";
+  return "Scheduled stop";
+}
+
+function visitContextHelp(status: string, travelStartedAt?: string, arrivedAt?: string) {
+  if (arrivedAt) return "Use this stop to finish diagnosis, approval, parts, and paperwork in order.";
+  if (travelStartedAt || status === "En Route" || status === "Near Destination") return "Travel has started. Open the route, arrive, then move into diagnosis.";
+  if (status === "Follow-Up") return "This visit exists because the prior stop still needs work or office coordination.";
+  return "This job should feel like the technician is about to leave for the first stop, not already on site.";
+}
+
 function confidenceClass(confidence?: string) {
   if (confidence === "high") return "border-success/40 text-success";
   if (confidence === "medium") return "border-info/40 text-info";
   return "border-warning/50 text-warning";
+}
+
+function nextMoveReason(kind: string) {
+  switch (kind) {
+    case "start-travel":
+      return "Leave for the stop first so the visit timeline starts in the right order.";
+    case "confirm-arrival":
+      return "Confirm arrival before diagnosis and paperwork start counting as on-site work.";
+    case "resume-job":
+      return "Clear the pause before adding more field work to the visit.";
+    case "start-diagnosis":
+    case "continue-diagnosis":
+      return "Diagnosis should drive approval, parts, and closeout instead of guessing ahead.";
+    case "request-approval":
+    case "waiting-approval":
+      return "Customer approval is the blocker before parts and repair can move forward cleanly.";
+    case "waiting-parts":
+      return "Track the parts handoff before treating this stop as ready to close.";
+    case "complete-documentation":
+      return "The report is the clean handoff once field work is already done.";
+    default:
+      return "Open the job and continue the next field action.";
+  }
 }
 
 function distanceFt(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -111,6 +153,7 @@ export default function JobDetail() {
   const equipmentDocs = equipment ? documentationSummaryForEquipment(equipment) : undefined;
   const bestEquipmentDoc = equipmentDocs?.best;
   const diag = state.diag[job.id];
+  const nextAction = getPrimaryAction(job, diag);
   const hasReport = diag?.completed;
   const history = state.jobs
     .filter((candidate) => candidate.customerId === job.customerId && candidate.id !== job.id && candidate.status === "Completed")
@@ -122,12 +165,33 @@ export default function JobDetail() {
   const completedDiagSteps = diag?.results.filter((result) => !["skipped", "n/a"].includes(result.answer ?? "")).length ?? 0;
   const reviewRequiredSteps = diag?.invalidatedStepIds?.length ?? 0;
 
-  const onStartTravel = () => {
+  const openMaps = () => {
+    const popup = window.open(mapsUrl, "_blank", "noopener,noreferrer");
+    if (!popup) {
+      window.location.assign(mapsUrl);
+    }
+  };
+
+  const beginTravel = () => {
     updateJob(job.id, { travelStartedAt: new Date().toISOString() });
     setJobStatus(job.id, "En Route");
     toast.success(t("jobDetail.toast.travelStarted"));
+  };
+
+  const onStartTravel = () => {
+    beginTravel();
     if (property?.address) {
-      window.open(mapsUrl, "_blank", "noopener,noreferrer");
+      openMaps();
+    }
+  };
+
+  const copyGateCode = async () => {
+    if (!property?.gateCode) return;
+    try {
+      await navigator.clipboard?.writeText(property.gateCode);
+      toast.success("Gate code copied.");
+    } catch {
+      toast.error("Could not copy gate code.");
     }
   };
 
@@ -213,6 +277,8 @@ export default function JobDetail() {
             <div className="text-xs text-muted-foreground">{new Date(job.scheduledFor).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</div>
             <h1 className="text-lg font-semibold leading-tight">{customer?.name}</h1>
             <div className="mt-1 text-sm text-foreground/90">{tx(job.complaint)}</div>
+            <div className="mt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{visitContextLabel(job.status, job.travelStartedAt, job.arrivedAt)}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{visitContextHelp(job.status, job.travelStartedAt, job.arrivedAt)}</div>
           </div>
           <Badge>{statusLabel(job.status)}</Badge>
         </div>
@@ -224,7 +290,13 @@ export default function JobDetail() {
               <div className="mt-2 flex flex-wrap gap-2">
                 {property?.gateCode ? (
                   <div className="min-w-[120px] rounded-lg bg-background px-3 py-2">
-                    <div className="text-[10px] uppercase tracking-normal text-muted-foreground">{t("jobDetail.gateCode")}</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[10px] uppercase tracking-normal text-muted-foreground">{t("jobDetail.gateCode")}</div>
+                      <button type="button" onClick={copyGateCode} className="inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+                        <ClipboardCopy className="h-3 w-3" />
+                        Copy
+                      </button>
+                    </div>
                     <div className="mt-1 font-mono text-sm font-semibold tracking-[0.2em] text-foreground">{property.gateCode}</div>
                   </div>
                 ) : null}
@@ -244,7 +316,7 @@ export default function JobDetail() {
           ) : null}
           <div className="flex gap-2">
             <a href={`tel:${customer?.phone}`} className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Phone className="mr-1 h-4 w-4" /> {t("jobDetail.call")}</Button></a>
-            <a href={mapsUrl} target="_blank" rel="noreferrer" className="flex-1"><Button variant="outline" className="touch-target h-11 w-full"><Navigation className="mr-1 h-4 w-4" /> {t("jobDetail.directions")}</Button></a>
+            <Button variant="outline" className="touch-target h-11 flex-1" onClick={openMaps}><Navigation className="mr-1 h-4 w-4" /> {routePreviewLabel(job.travelStartedAt)}</Button>
           </div>
         </div>
       </div>
@@ -276,15 +348,48 @@ export default function JobDetail() {
             {(job.pauses?.length ?? 0) > 0 ? <span className="stat-pill bg-muted text-muted-foreground">{t("jobDetail.pauses", { count: job.pauses!.length })}</span> : null}
           </div>
         ) : null}
+        {(property?.gateCode || property?.parkingNotes || property?.accessNotes) ? (
+          <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Arrival essentials</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {property?.gateCode ? `Gate code ${property.gateCode}` : "Access notes ready"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {property?.accessNotes
+                ? tx(property.accessNotes)
+                : property?.parkingNotes
+                  ? property.parkingNotes
+                  : "Keep dispatch access details visible before the tech leaves for the stop."}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-3 grid grid-cols-2 gap-2">
           {!job.travelStartedAt ? (
-            <Button onClick={onStartTravel} className="touch-target col-span-2 min-h-12 h-auto justify-start gap-2 px-4 py-3 text-left">
-              <Navigation className="h-4 w-4 shrink-0" />
-              <span className="flex min-w-0 flex-col">
-                <span>{t("jobDetail.startTravel")}</span>
-                <span className="text-[11px] font-normal opacity-80">{t("jobDetail.startTravelHint")}</span>
-              </span>
-            </Button>
+            property?.address ? (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={beginTravel}
+                className="col-span-2"
+              >
+                <Button className="touch-target min-h-12 h-auto w-full justify-start gap-2 px-4 py-3 text-left">
+                  <Navigation className="h-4 w-4 shrink-0" />
+                  <span className="flex min-w-0 flex-col">
+                    <span>Start travel in Maps</span>
+                    <span className="text-[11px] font-normal opacity-80">Opens directions now and starts travel timing for this stop.</span>
+                  </span>
+                </Button>
+              </a>
+            ) : (
+              <Button onClick={onStartTravel} className="touch-target col-span-2 min-h-12 h-auto justify-start gap-2 px-4 py-3 text-left">
+                <Navigation className="h-4 w-4 shrink-0" />
+                <span className="flex min-w-0 flex-col">
+                  <span>Start travel in Maps</span>
+                  <span className="text-[11px] font-normal opacity-80">Starts travel timing for this stop.</span>
+                </span>
+              </Button>
+            )
           ) : null}
           {job.travelStartedAt && !job.arrivedAt ? (
             <Button onClick={onArriveManual} className="touch-target col-span-2 h-12 bg-accent text-accent-foreground hover:bg-accent/90"><MapPin className="mr-1 h-4 w-4" /> {t("jobDetail.arriveManual")}</Button>
@@ -330,6 +435,53 @@ export default function JobDetail() {
       </section>
 
       <section className="card-elev p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Visit readiness</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Confirm travel, arrival, and source confidence before the tech burns time in the wrong place.
+            </div>
+          </div>
+          <Badge variant="outline">{job.arrivedAt ? "On site" : job.travelStartedAt ? "Traveling" : "Pre-trip"}</Badge>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Travel</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {job.travelStartedAt ? "Route opened" : "Not started"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {job.travelStartedAt
+                ? `Started ${fmtClock(job.travelStartedAt)}.`
+                : "Start travel in Maps before treating this as an active stop."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Arrival</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {job.arrivedAt ? "Confirmed on site" : "Arrival pending"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {job.arrivedAt
+                ? `${fmtClock(job.arrivedAt)}${job.arrivalMethod ? ` via ${job.arrivalMethod}` : ""}.`
+                : "Diagnosis and closeout stay locked behind arrival so the visit timeline stays believable."}
+            </div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Linked source</div>
+            <div className="mt-1 text-sm font-semibold text-foreground">
+              {bestEquipmentDoc ? documentationStatusLabel(bestEquipmentDoc) : "No source linked"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {bestEquipmentDoc
+                ? `${bestEquipmentDoc.documentTitle}. Open equipment specs before trusting exact literature values.`
+                : "The equipment record still needs official or best-effort documentation attached."}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-elev p-4">
         <div className="mb-2 flex items-center justify-between">
           <div className="inline-flex items-center gap-1 text-sm font-semibold"><PackageSearch className="h-4 w-4" /> {t("jobDetail.partsRequests")}</div>
           <Link to={`/app/jobs/${job.id}/parts-request`}><Button size="sm" variant="outline" className="touch-target">{t("jobDetail.addPart")}</Button></Link>
@@ -361,6 +513,9 @@ export default function JobDetail() {
             <div className="inline-flex items-center gap-1 text-sm font-semibold"><History className="h-4 w-4" /> {t("jobDetail.serviceHistory")}</div>
             {equipment ? <Link to={`/app/equipment/${equipment.id}#history`} className="text-xs font-medium text-primary">Open equipment history</Link> : null}
           </div>
+          <div className="mb-3 text-xs text-muted-foreground">
+            Open any prior visit to review the actual complaint, timeline, and outcome instead of reading a dead summary.
+          </div>
           <div className="space-y-2">
             {history.map((previousJob) => (
               <Link key={previousJob.id} to={`/app/jobs/${previousJob.id}`} className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/30">
@@ -376,6 +531,27 @@ export default function JobDetail() {
       ) : null}
 
       <section className="flex flex-col gap-2">
+        <div className="rounded-xl border bg-primary/5 px-4 py-3">
+          <div className="text-sm font-semibold">Best next move</div>
+          <div className="mt-1 text-base font-semibold">{nextAction.label}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {nextAction.helper ?? nextMoveReason(nextAction.kind)}
+          </div>
+          <div className="mt-2 text-[11px] text-muted-foreground">
+            {nextMoveReason(nextAction.kind)}
+          </div>
+        </div>
+        <div className="rounded-xl border bg-muted/20 px-4 py-3">
+          <div className="text-sm font-semibold">Technician next steps</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Move through diagnosis, approval, and the report in order so the visit stays easy to close out on site.
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="stat-pill bg-secondary text-secondary-foreground">1. Diagnose</span>
+            <span className="stat-pill bg-secondary text-secondary-foreground">2. Approval</span>
+            <span className="stat-pill bg-secondary text-secondary-foreground">3. Report</span>
+          </div>
+        </div>
         <Button onClick={onStartDiag} className="touch-target h-14 w-full justify-between text-base" disabled={!job.arrivedAt && job.status !== "Diagnosing"}>
           <span className="inline-flex items-center gap-2">
             <Bot className="h-5 w-5" />
@@ -398,10 +574,10 @@ export default function JobDetail() {
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Link to={`/app/jobs/${job.id}/diagnose?review=1`}>
-                <Button variant="outline" className="touch-target h-10 w-full">Review saved steps</Button>
+                <Button variant="outline" className="touch-target h-10 w-full">Open saved diagnostic steps</Button>
               </Link>
               <Link to={`/app/equipment/${job.equipmentId ?? ""}#specs`}>
-                <Button variant="outline" className="touch-target h-10 w-full">{t("jobDetail.viewSpecifications")}</Button>
+                <Button variant="outline" className="touch-target h-10 w-full">Open equipment specs</Button>
               </Link>
             </div>
           </div>

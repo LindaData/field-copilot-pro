@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useStore } from "@/lib/store";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, ChevronDown, ExternalLink, FileText, Library, Search, ShieldCheck, AlertTriangle } from "lucide-react";
+import { ChevronDown, ExternalLink, FileText, History, Search, ShieldCheck, AlertTriangle, Bot, Wrench, BookOpen } from "lucide-react";
 import type { Spec, ErrorCode, BomItem } from "@/lib/types";
 import { resolveAnswer } from "@/lib/answers/resolver";
 import { findSimilarJobs } from "@/lib/answers/similarJobs";
@@ -20,6 +20,7 @@ import { manufacturerDocsForEquipment, sourceForManufacturerRecord } from "@/lib
 import { documentationQualityLabel, documentationResearchForEquipment, documentationStatusLabel } from "@/lib/hvacTop50";
 
 const GROUP_ORDER: Spec["group"][] = ["Capacity", "Compressor", "Fan", "Refrigeration", "Electrical", "Physical", "Certifications"];
+type ProfileSection = "docs" | "specs" | "assistant" | "history";
 
 function confidenceClass(confidence?: string) {
   if (confidence === "high") return "bg-success/15 text-success";
@@ -27,10 +28,18 @@ function confidenceClass(confidence?: string) {
   return "bg-warning/15 text-warning";
 }
 
+function sectionFromHash(hash: string): ProfileSection {
+  if (hash === "#specs") return "specs";
+  if (hash === "#assistant") return "assistant";
+  if (hash === "#history") return "history";
+  return "docs";
+}
+
 export default function EquipmentProfile() {
   const { id = "" } = useParams();
   const { state, touchEquipment } = useStore();
   const { t } = useTranslation();
+  const location = useLocation();
   const statusLabel = useStatusLabel();
   const tx = useDynamicText();
   const eq = state.equipment.find((e) => e.id === id);
@@ -40,6 +49,7 @@ export default function EquipmentProfile() {
   const [openErr, setOpenErr] = useState<ErrorCode | null>(null);
   const [openBom, setOpenBom] = useState<BomItem | null>(null);
   const [openGroup, setOpenGroup] = useState<string | null>("Capacity");
+  const [activeSection, setActiveSection] = useState<ProfileSection>(() => sectionFromHash(location.hash));
   const touchEquipmentRef = useRef(touchEquipment);
 
   useEffect(() => {
@@ -50,9 +60,17 @@ export default function EquipmentProfile() {
     if (eq?.id) touchEquipmentRef.current(eq.id);
   }, [eq?.id]);
 
+  useEffect(() => {
+    setActiveSection(sectionFromHash(location.hash));
+  }, [location.hash]);
+
   const ctx = useMemo(() => ({ equipment: eq, allEquipment: state.equipment }), [eq, state.equipment]);
   const similarCtx = useMemo(() => ({ equipment: eq, allEquipment: state.equipment, jobs: state.jobs, knowledge: state.knowledge }), [eq, state.equipment, state.jobs, state.knowledge]);
   const eqJobs = useMemo(() => eq ? state.jobs.filter((j) => j.equipmentId === eq.id) : [], [eq, state.jobs]);
+  const completedEqJobs = useMemo(
+    () => eqJobs.filter((job) => job.status === "Completed").sort((a, b) => (b.completedAt ?? b.scheduledFor).localeCompare(a.completedAt ?? a.scheduledFor)),
+    [eqJobs],
+  );
   const manufacturerDocs = useMemo(() => eq ? manufacturerDocsForEquipment(eq) : [], [eq]);
   const researchDocs = useMemo(() => eq ? documentationResearchForEquipment(eq).slice(0, 5) : [], [eq]);
   const quickSpecs = useMemo(() => {
@@ -66,10 +84,25 @@ export default function EquipmentProfile() {
 
   const isVerified = eq.verificationStatus === "Manufacturer Verified";
   const verifiedSpecs = eq.specs.filter((spec) => spec.verificationStatus === "Manufacturer Verified").length;
+  const bestResearchDoc = researchDocs[0];
+  const featuredManufacturerDoc = manufacturerDocs[0];
+  const primaryDocUrl = manufacturerDocs[0]?.url ?? bestResearchDoc?.documentUrl;
+  const criticalSpecs = quickSpecs.slice(0, 4);
+  const latestCompletedJob = completedEqJobs[0];
+  const sourceLead = featuredManufacturerDoc
+    ? "Official manufacturer source"
+    : bestResearchDoc
+      ? "Best-effort source match"
+      : "Needs source review";
   const ask = (text: string) => {
     const answer = resolveAnswer(text, ctx);
     const similar = findSimilarJobs(text, similarCtx);
     setTurn({ question: text, answer: { ...answer, similar } });
+  };
+  const jumpToSection = (section: ProfileSection) => {
+    setActiveSection(section);
+    const nextHash = section === "docs" ? "#docs" : `#${section}`;
+    window.history.replaceState({}, "", `${location.pathname}${nextHash}`);
   };
 
   const docFor = (docId?: string) => docId ? state.docs.find((doc) => doc.id === docId) : undefined;
@@ -98,60 +131,179 @@ export default function EquipmentProfile() {
         <div className="text-xs text-muted-foreground">
           Serial {eq.serial}{eq.installDate ? ` - ${t("equipmentList.installed")} ${eq.installDate}` : ""}{eq.location ? ` - ${eq.location}` : ""}
         </div>
-        {!isVerified ? (
-          <div className="mt-3 rounded-md border border-warning bg-warning/10 p-2 text-xs">
-            {t("equipmentProfile.demoBanner")}
+        <div className={`mt-3 rounded-xl border p-3 text-xs ${isVerified ? "border-success/30 bg-success/5 text-muted-foreground" : "border-warning/40 bg-warning/10 text-muted-foreground"}`}>
+          <div className="font-semibold text-foreground">{isVerified ? t("jobDetail.manufacturerVerifiedTitle") : "Demo equipment record"}</div>
+          <div className="mt-1 leading-relaxed">
+            {isVerified
+              ? t("jobDetail.manufacturerVerifiedBody")
+              : t("equipmentProfile.demoBanner")}
           </div>
-        ) : null}
-        <div className="mt-3 rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
-          <div className="font-semibold text-foreground">{t("jobDetail.manufacturerVerifiedTitle")}</div>
-          <div className="mt-1 leading-relaxed">{t("jobDetail.manufacturerVerifiedBody")}</div>
+          {isVerified ? (
+            <div className="mt-2 rounded-lg border border-success/20 bg-background/70 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              Verified here means this demo record has an official manufacturer source or nameplate-backed value attached. It does not mean every field condition, accessory, or modification is already confirmed.
+            </div>
+          ) : null}
         </div>
-        {eq.manualUrls.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {eq.manualUrls.map((manual) => (
-              <a key={manual.url} href={manual.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border bg-secondary px-2 py-1 text-xs text-secondary-foreground hover:bg-secondary/80">
-                <FileText className="h-3.5 w-3.5" /> {manual.label} <ExternalLink className="h-3 w-3" />
-              </a>
-            ))}
-          </div>
-        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {primaryDocUrl ? (
+            <a
+              href={primaryDocUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium text-primary"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Open best source
+            </a>
+          ) : null}
+          <button type="button" onClick={() => jumpToSection("docs")} className="inline-flex items-center gap-1 rounded-full border bg-secondary/60 px-3 py-1 text-xs font-medium text-secondary-foreground">
+            <BookOpen className="h-3.5 w-3.5" />
+            View docs
+          </button>
+          <button type="button" onClick={() => jumpToSection("history")} className="inline-flex items-center gap-1 rounded-full border bg-secondary/60 px-3 py-1 text-xs font-medium text-secondary-foreground">
+            <History className="h-3.5 w-3.5" />
+            Service history
+          </button>
+        </div>
       </div>
 
       <div className="card-elev p-4">
-        <div className="text-sm font-semibold">At a glance</div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Linked docs</div>
-            <div className="mt-1 text-lg font-semibold">{manufacturerDocs.length + researchDocs.length}</div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Technician brief</div>
+            <div className="mt-1 text-xs text-muted-foreground">Use the strongest source first, grab the critical values, then drill into the section you need.</div>
           </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Related jobs</div>
-            <div className="mt-1 text-lg font-semibold">{eqJobs.length}</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Verified specs</div>
-            <div className="mt-1 text-lg font-semibold">{verifiedSpecs}/{eq.specs.length}</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">Install context</div>
-            <div className="mt-1 text-sm font-semibold">{eq.location ?? "No location tagged"}</div>
+          <div className="shrink-0 text-right text-xs text-muted-foreground">
+            {eqJobs.length} related jobs
           </div>
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          <a href="#docs" className="rounded-full border px-3 py-1 text-xs font-medium">Docs</a>
-          <a href="#specs" className="rounded-full border px-3 py-1 text-xs font-medium">Specs</a>
-          <a href="#assistant" className="rounded-full border px-3 py-1 text-xs font-medium">Ask</a>
-          <a href="#history" className="rounded-full border px-3 py-1 text-xs font-medium">History</a>
+          {[
+            { key: "docs" as const, label: "Docs", icon: BookOpen },
+            { key: "specs" as const, label: "Specs", icon: Wrench },
+            { key: "assistant" as const, label: "Reader", icon: Bot },
+            { key: "history" as const, label: "History", icon: History },
+          ].map((section) => {
+            const Icon = section.icon;
+            return (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => jumpToSection(section.key)}
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${activeSection === section.key ? "bg-primary text-primary-foreground" : "bg-background"}`}
+              >
+                <Icon className="h-3.5 w-3.5" /> {section.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr]">
+          <div className="rounded-xl border bg-muted/10 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Best source for this stop</div>
+            <div className="mt-2 text-sm font-semibold">{sourceLead}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {featuredManufacturerDoc?.title ?? bestResearchDoc?.documentTitle ?? "Attach official literature for this equipment record before trusting source-based values."}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <span className="stat-pill bg-secondary text-secondary-foreground">
+                {featuredManufacturerDoc ? "Manufacturer document" : bestResearchDoc ? documentationQualityLabel(bestResearchDoc) : "No source linked yet"}
+              </span>
+              {bestResearchDoc ? <span className={`stat-pill ${confidenceClass(bestResearchDoc.confidence)}`}>{documentationStatusLabel(bestResearchDoc)}</span> : null}
+              <span className="stat-pill bg-muted text-muted-foreground">{manufacturerDocs.length + researchDocs.length} linked docs</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {primaryDocUrl ? (
+                <a
+                  href={primaryDocUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium text-primary"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Open best source
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => jumpToSection("docs")}
+                className="inline-flex items-center gap-1 rounded-full border bg-background px-3 py-1 text-xs font-medium"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                Open docs queue
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-muted/10 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Visit-critical values</div>
+            <div className="mt-1 text-xs text-muted-foreground">Open the spec detail only when you need traceability or source-page confirmation.</div>
+            <div className="mt-3 grid gap-2">
+              {criticalSpecs.length > 0 ? criticalSpecs.map((spec) => (
+                <button
+                  key={`brief-${spec.key}`}
+                  onClick={() => {
+                    setOpenSpec(spec);
+                    jumpToSection("specs");
+                  }}
+                  className="rounded-xl border bg-background p-3 text-left hover:bg-muted/30"
+                >
+                  <div className="text-[11px] uppercase tracking-normal text-muted-foreground">{spec.label}</div>
+                  <div className="mt-1 text-sm font-semibold">{spec.value}{spec.unit ? ` ${spec.unit}` : ""}</div>
+                </button>
+              )) : (
+                <div className="rounded-xl border border-dashed bg-background p-3 text-xs text-muted-foreground">
+                  No critical spec values are linked yet for this equipment.
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => jumpToSection("specs")}
+              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary"
+            >
+              <Wrench className="h-3.5 w-3.5" />
+              Open full specs
+            </button>
+          </div>
+
+          <div className="rounded-xl border bg-muted/10 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Service pattern</div>
+            <div className="mt-2 text-sm font-semibold">{completedEqJobs.length ? `${completedEqJobs.length} completed visits` : "No completed visits yet"}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {latestCompletedJob
+                ? `${(latestCompletedJob.completedAt ?? latestCompletedJob.scheduledFor).slice(0, 10)} - ${tx(latestCompletedJob.complaint)}`
+                : "Once this equipment has prior completed calls, use them to compare complaint patterns and outcomes."}
+            </div>
+            <div className="mt-3 grid gap-2">
+              <div className="rounded-xl border bg-background p-3">
+                <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Verified specs</div>
+                <div className="mt-1 text-sm font-semibold">{verifiedSpecs}/{eq.specs.length}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{eq.location ?? "No install location tagged"}</div>
+              </div>
+              <div className="rounded-xl border bg-background p-3">
+                <div className="text-[11px] uppercase tracking-normal text-muted-foreground">Last completed status</div>
+                <div className="mt-1 text-sm font-semibold">{latestCompletedJob ? statusLabel(latestCompletedJob.status) : "No completed history"}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{latestCompletedJob ? "Open the history section for the exact timeline and job detail." : "History will populate after completed visits."}</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => jumpToSection("history")}
+              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary"
+            >
+              <History className="h-3.5 w-3.5" />
+              Review service history
+            </button>
+          </div>
         </div>
       </div>
 
-      {(manufacturerDocs.length > 0 || researchDocs.length > 0) ? (
+      {activeSection === "docs" && (manufacturerDocs.length > 0 || researchDocs.length > 0) ? (
         <div id="docs" className="card-elev scroll-mt-24 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">Documentation</div>
-              <p className="mt-1 text-xs text-muted-foreground">Official source pointers first, then best-effort matches tied back to this equipment.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Official source pointers first, then best-effort matches tied back to this equipment. This keeps the tech from scanning a wall of mixed content.</p>
             </div>
             <span className={`stat-pill ${isVerified ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{isVerified ? "Verified" : "Review required"}</span>
           </div>
@@ -201,21 +353,104 @@ export default function EquipmentProfile() {
         </div>
       ) : null}
 
-      {quickSpecs.length > 0 ? (
-        <div className="card-elev p-4">
-          <div className="text-sm font-semibold">Quick facts</div>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {quickSpecs.map((spec) => (
-              <button key={spec.key} onClick={() => setOpenSpec(spec)} className="rounded-lg border p-3 text-left hover:bg-muted/30">
-                <div className="text-[11px] uppercase text-muted-foreground">{spec.label}</div>
-                <div className="mt-1 text-base font-semibold">{spec.value}{spec.unit ? ` ${spec.unit}` : ""}</div>
-                <div className="mt-2"><SourceBadge source={spec.source} compact /></div>
-              </button>
-            ))}
+      {activeSection === "specs" ? (
+      <>
+      <div id="specs" className="scroll-mt-24">
+        <div className="mb-2">
+          <div className="text-sm font-semibold">Specifications and traceability</div>
+          <div className="text-xs text-muted-foreground">Tap a value to see the source, verification state, and linked document.</div>
+        </div>
+        <div className="mb-3 rounded-xl border bg-muted/20 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Critical specs for this visit</div>
+              <div className="mt-1 text-xs text-muted-foreground">Start with the values a technician reaches for first, then open the full group only when needed.</div>
+            </div>
+            <span className={`stat-pill ${isVerified ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+              {verifiedSpecs} verified
+            </span>
+          </div>
+          {criticalSpecs.length > 0 ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {criticalSpecs.map((spec) => (
+                <button
+                  key={`critical-${spec.key}`}
+                  type="button"
+                  onClick={() => setOpenSpec(spec)}
+                  className="rounded-xl border bg-background p-3 text-left hover:bg-muted/30"
+                >
+                  <div className="text-[11px] uppercase tracking-normal text-muted-foreground">{spec.label}</div>
+                  <div className="mt-1 text-sm font-semibold">{spec.value}{spec.unit ? ` ${spec.unit}` : ""}</div>
+                  <div className="mt-2"><SourceBadge source={spec.source} compact /></div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => jumpToSection("docs")}
+              className="rounded-xl border bg-background p-3 text-left hover:bg-muted/30"
+            >
+              <div className="text-sm font-semibold">Open linked documentation</div>
+              <div className="mt-1 text-xs text-muted-foreground">Check the manufacturer or best-effort source tied to this exact record.</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => jumpToSection("history")}
+              className="rounded-xl border bg-background p-3 text-left hover:bg-muted/30"
+            >
+              <div className="text-sm font-semibold">Open service history</div>
+              <div className="mt-1 text-xs text-muted-foreground">Compare prior visits before trusting a single reading in isolation.</div>
+            </button>
           </div>
         </div>
+        <div className="flex flex-col gap-2">
+          {eq.specs.length === 0 ? (
+            <div className="card-elev p-6 text-center text-sm text-muted-foreground">
+              {t("equipmentProfile.noSpecs")} <Link className="underline" to="/app/documents">{t("nav.more")}</Link>.
+            </div>
+          ) : GROUP_ORDER.map((group) => {
+            const items = eq.specs.filter((spec) => spec.group === group);
+            if (items.length === 0) return null;
+            const open = openGroup === group;
+            return (
+              <Collapsible key={group} open={open} onOpenChange={(nextOpen) => setOpenGroup(nextOpen ? group : null)}>
+                <div className="card-elev">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between p-4">
+                    <div className="text-sm font-semibold">{t(`equipmentProfile.groups.${group}`)}</div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {items.length} {items.length === 1 ? t("equipmentProfile.item") : t("equipmentProfile.items")}
+                      <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="border-t px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      {items.map((spec) => (
+                        <button key={spec.key} onClick={() => setOpenSpec(spec)} className="rounded-lg border p-3 text-left hover:bg-muted/40">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">{spec.label}</div>
+                            <div className="text-sm font-semibold text-right">{spec.value}{spec.unit ? ` ${spec.unit}` : ""}</div>
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between gap-2">
+                            <SourceBadge source={spec.source} compact />
+                            <span className="text-[10px] text-muted-foreground">{t("equipmentProfile.details")}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })}
+        </div>
+      </div>
+      </>
       ) : null}
 
+      {activeSection === "assistant" ? (
+      <>
       <div id="assistant" className="card-elev scroll-mt-24 p-4">
         <div className="mb-2 text-sm font-semibold">{t("equipmentProfile.askAbout")}</div>
         <div className="mb-3 rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
@@ -270,58 +505,17 @@ export default function EquipmentProfile() {
           <p className="text-xs text-muted-foreground">{t("equipmentProfile.noBom")}</p>
         )}
       </div>
+      </>
+      ) : null}
 
-      <div id="specs" className="scroll-mt-24">
-        <div className="mb-2">
-          <div className="text-sm font-semibold">Specifications and traceability</div>
-          <div className="text-xs text-muted-foreground">Tap a value to see the source, verification state, and linked document.</div>
-        </div>
-        <div className="flex flex-col gap-2">
-          {eq.specs.length === 0 ? (
-            <div className="card-elev p-6 text-center text-sm text-muted-foreground">
-              {t("equipmentProfile.noSpecs")} <Link className="underline" to="/app/documents">{t("nav.more")}</Link>.
-            </div>
-          ) : GROUP_ORDER.map((group) => {
-            const items = eq.specs.filter((spec) => spec.group === group);
-            if (items.length === 0) return null;
-            const open = openGroup === group;
-            return (
-              <Collapsible key={group} open={open} onOpenChange={(nextOpen) => setOpenGroup(nextOpen ? group : null)}>
-                <div className="card-elev">
-                  <CollapsibleTrigger className="flex w-full items-center justify-between p-4">
-                    <div className="text-sm font-semibold">{t(`equipmentProfile.groups.${group}`)}</div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {items.length} {items.length === 1 ? t("equipmentProfile.item") : t("equipmentProfile.items")}
-                      <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="border-t px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      {items.map((spec) => (
-                        <button key={spec.key} onClick={() => setOpenSpec(spec)} className="rounded-lg border p-3 text-left hover:bg-muted/40">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <div className="text-xs uppercase tracking-wide text-muted-foreground">{spec.label}</div>
-                            <div className="text-sm font-semibold text-right">{spec.value}{spec.unit ? ` ${spec.unit}` : ""}</div>
-                          </div>
-                          <div className="mt-1.5 flex items-center justify-between gap-2">
-                            <SourceBadge source={spec.source} compact />
-                            <span className="text-[10px] text-muted-foreground">{t("equipmentProfile.details")}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            );
-          })}
-        </div>
-      </div>
-
+      {activeSection === "history" ? (
       <div id="history" className="card-elev scroll-mt-24 p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="text-sm font-semibold">{t("equipmentProfile.serviceHistory")}</div>
           <span className="text-xs text-muted-foreground">{eqJobs.length} records</span>
+        </div>
+        <div className="mb-3 text-xs text-muted-foreground">
+          Open a prior visit when you need the actual complaint, completed status, and timeline tied to this equipment.
         </div>
         {eqJobs.length === 0 ? (
           <div className="text-xs text-muted-foreground">{t("equipmentProfile.noPriorJobs")}</div>
@@ -336,6 +530,7 @@ export default function EquipmentProfile() {
           </ul>
         )}
       </div>
+      ) : null}
 
       <Dialog open={!!openSpec} onOpenChange={(open) => !open && setOpenSpec(null)}>
         <DialogContent className="max-w-md">

@@ -8,6 +8,7 @@ export const REVIEW_WEBHOOK_UNREACHABLE_MESSAGE = "Webhook unreachable. Note sav
 export const REVIEW_WEBHOOK_UNREACHABLE_HELP = "Webhook unreachable. Use Copy or retry after Cloudflare deploy is fixed.";
 
 const BUILD_REVIEW_ENDPOINT = String(import.meta.env.VITE_REVIEW_ENDPOINT ?? "").trim();
+const DEFAULT_PRODUCTION_REVIEW_ENDPOINT = "https://soft-unit-ba5d.sergio-mora.workers.dev/review-note";
 
 export type ReviewStatus = "open" | "resolved";
 export type NoteSyncState = "local" | "sending" | "sent" | "error";
@@ -99,9 +100,9 @@ export const REVIEW_KINDS: Array<{ value: ReviewKind; label: string }> = [
 ];
 
 export const REVIEW_PRIORITIES: Array<{ value: ReviewPriority; label: string }> = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Med" },
-  { value: "high", label: "High" },
+  { value: "low", label: "Later" },
+  { value: "medium", label: "Needs fix" },
+  { value: "high", label: "Blocking" },
 ];
 
 export const EMPTY_REVIEW_DRAFT: ReviewDraft = {
@@ -332,6 +333,21 @@ export function getReviewSessionId() {
   return id;
 }
 
+function hostedReviewEndpoint() {
+  if (typeof window === "undefined") return BUILD_REVIEW_ENDPOINT;
+  return hostedReviewEndpointForLocation(window.location.hostname, window.location.pathname, BUILD_REVIEW_ENDPOINT);
+}
+
+export function hostedReviewEndpointForLocation(hostname: string, pathname: string, buildEndpoint = BUILD_REVIEW_ENDPOINT) {
+  if (buildEndpoint) return buildEndpoint;
+
+  const host = hostname.toLowerCase();
+  const isGithubPages = host === "lindadata.github.io";
+  const isFieldCopilotSite = pathname === "/field-copilot-pro" || pathname.startsWith("/field-copilot-pro/");
+
+  return isGithubPages && isFieldCopilotSite ? DEFAULT_PRODUCTION_REVIEW_ENDPOINT : "";
+}
+
 export function getReviewEndpoint(search = typeof window === "undefined" ? "" : window.location.search) {
   if (typeof window === "undefined") return BUILD_REVIEW_ENDPOINT;
   const params = new URLSearchParams(search);
@@ -343,7 +359,7 @@ export function getReviewEndpoint(search = typeof window === "undefined" ? "" : 
     window.localStorage.setItem(REVIEW_ENDPOINT_KEY, fromQuery);
     return fromQuery;
   }
-  return window.localStorage.getItem(REVIEW_ENDPOINT_KEY)?.trim() || BUILD_REVIEW_ENDPOINT;
+  return window.localStorage.getItem(REVIEW_ENDPOINT_KEY)?.trim() || hostedReviewEndpoint();
 }
 
 interface ReviewErrorPayload {
@@ -409,7 +425,9 @@ export function makeActionId() {
 
 export function currentViewport() {
   if (typeof window === "undefined") return undefined;
-  return `${window.innerWidth}x${window.innerHeight}`;
+  const width = Math.round(window.visualViewport?.width ?? window.innerWidth);
+  const height = Math.round(window.visualViewport?.height ?? window.innerHeight);
+  return `${width}x${height}`;
 }
 
 export function matchesReviewSession(itemSessionId: string | undefined, activeSessionId: string) {
