@@ -1082,6 +1082,87 @@ describe("migration baseline", () => {
     }
   });
 
+  it("keeps the compact launcher off the diagnostic bottom actions on mobile", async () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function mockRect(this: HTMLElement) {
+      if (this.getAttribute("data-review-launcher") === "true") {
+        return {
+          x: 281,
+          y: 757,
+          left: 281,
+          top: 757,
+          right: 361,
+          bottom: 834,
+          width: 80,
+          height: 77,
+          toJSON() { return this; },
+        } as DOMRect;
+      }
+
+      if (this.getAttribute("data-review-avoid") === "diagnostics-bottom-actions") {
+        return {
+          x: 0,
+          y: 708,
+          left: 0,
+          top: 708,
+          right: 390,
+          bottom: 844,
+          width: 390,
+          height: 136,
+          toJSON() { return this; },
+        } as DOMRect;
+      }
+
+      return {
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON() { return this; },
+      } as DOMRect;
+    });
+
+    try {
+      const fetchMock = vi.fn(async (url: string | URL | Request) => {
+        if (String(url).includes("/review-messages")) {
+          return { ok: true, json: async () => ({ ok: true, messages: [] }) };
+        }
+        return { ok: true, json: async () => ({ ok: true }) };
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      window.localStorage.setItem("field-copilot-review-launcher-position-v1", JSON.stringify({
+        x: 281,
+        y: 757,
+      }));
+      window.history.pushState(
+        {},
+        "",
+        "/app/jobs/j-2/diagnose?reviewEndpoint=https%3A%2F%2Freviews.example%2Freview-note",
+      );
+
+      render(<App />);
+
+      const reviewButton = await screen.findByRole("button", { name: /review layer, 0 open notes/i });
+      const launcher = reviewButton.closest("[data-review-launcher='true']") as HTMLDivElement | null;
+      expect(launcher).not.toBeNull();
+
+      await waitFor(() => {
+        expect(Number.parseInt(launcher?.style.top ?? "0", 10)).toBeLessThan(708);
+      });
+    } finally {
+      rectSpy.mockRestore();
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: originalHeight });
+    }
+  });
+
   it("moves the desktop review launcher into the gutter instead of covering the bottom app nav", async () => {
     const originalWidth = window.innerWidth;
     const originalHeight = window.innerHeight;

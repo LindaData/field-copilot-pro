@@ -157,7 +157,7 @@ export default function Diagnostics() {
   ) : null;
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-36">
+    <div className="flex flex-col gap-4 p-4 pb-28">
       <div className="card-elev p-3">
         <div className="flex items-center justify-between text-xs">
           <span className="font-medium">{stepLabel}</span>
@@ -311,29 +311,6 @@ export default function Diagnostics() {
           </DropdownMenu>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">This step decides</div>
-            <div className="mt-1 font-medium text-foreground">{step.hypothesis}</div>
-          </div>
-          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Why it matters</div>
-            <div className="mt-1 text-muted-foreground">{step.why ?? "This answer keeps the diagnostic path honest before the next action."}</div>
-          </div>
-          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Next after this answer</div>
-            <div className="mt-1 text-muted-foreground">
-              {step.type === "measurement" && step.measurement
-                ? nextStepPreview(step.measurement.nextStepId)
-                : step.choices?.length
-                  ? nextStepPreview(step.choices[0].nextStepId, step.choices[0].branchLabel)
-                  : step.type === "info-end"
-                    ? "Generates the service report from this diagnostic path."
-                    : "Choose the handoff that matches the on-site decision."}
-            </div>
-          </div>
-        </div>
-
         {step.toolsNeeded ? (
           <div className="mt-3 flex flex-wrap gap-1">
             {step.toolsNeeded.map((toolName) => <span key={toolName} className="stat-pill bg-secondary text-secondary-foreground"><Wrench className="h-3 w-3" /> {toolName}</span>)}
@@ -475,6 +452,29 @@ export default function Diagnostics() {
           ) : null}
         </div>
 
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">This step decides</div>
+            <div className="mt-1 font-medium text-foreground">{step.hypothesis}</div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Why it matters</div>
+            <div className="mt-1 text-muted-foreground">{step.why ?? "Keep the diagnostic path accurate before moving on."}</div>
+          </div>
+          <div className="rounded-xl border bg-muted/10 p-3 text-xs">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-muted-foreground">Next after this answer</div>
+            <div className="mt-1 text-muted-foreground">
+              {step.type === "measurement" && step.measurement
+                ? nextStepPreview(step.measurement.nextStepId)
+                : step.choices?.length
+                  ? nextStepPreview(step.choices[0].nextStepId, step.choices[0].branchLabel)
+                  : step.type === "info-end"
+                    ? "Generates the service report from this diagnostic path."
+                    : "Choose the handoff that matches the on-site decision."}
+            </div>
+          </div>
+        </div>
+
         {(step.why || step.detail) ? (
           <details className="mt-4 rounded-md border bg-muted/30 p-3 text-xs">
             <summary className="inline-flex cursor-pointer items-center gap-1 font-medium">{t("diagnostics.whyThisStep")} <ChevronDown className="h-3 w-3" /></summary>
@@ -497,9 +497,12 @@ export default function Diagnostics() {
         <section className="rounded-xl border bg-muted/20 p-4">
           <div className="text-sm font-semibold">Other actions from this step</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            You do not need to restart the diagnosis just to open specs, route the job to parts, review customer approval, or go back to the job record.
+            Open specs, parts, approval, or the job record without restarting this diagnosis.
           </div>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button variant="destructive" className="touch-target justify-start sm:col-span-2" onClick={escalate}>
+              <ShieldAlert className="mr-1 h-4 w-4" /> {t("diagnostics.stopEscalate")}
+            </Button>
             <Button variant="outline" className="touch-target justify-start" onClick={() => setStepsSheetOpen(true)}>
               <ListChecks className="mr-1 h-4 w-4" /> Open steps breakdown
             </Button>
@@ -524,7 +527,7 @@ export default function Diagnostics() {
         </section>
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-16 z-20 mx-auto w-full max-w-md space-y-2 px-4">
+      <div data-review-avoid="diagnostics-bottom-actions" className="fixed inset-x-0 bottom-16 z-20 mx-auto w-full max-w-md space-y-2 px-4">
         {step.type === "alt-end" ? (
           <div className="rounded-2xl border bg-card/95 p-2 shadow-lg backdrop-blur">
             <div className="grid grid-cols-2 gap-2">
@@ -537,7 +540,7 @@ export default function Diagnostics() {
             </div>
           </div>
         ) : (
-          <>
+          <div className="rounded-2xl border bg-card/95 p-2 shadow-lg backdrop-blur">
             <div className="flex gap-2">
               <Button variant="outline" className="touch-target h-12 flex-1" onClick={onBack}>
                 <ArrowLeft className="mr-1 h-4 w-4" /> {t("diagnostics.back")}
@@ -546,10 +549,7 @@ export default function Diagnostics() {
                 {t("diagnostics.next")} <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
-            <Button variant="destructive" className="touch-target w-full shadow-lg" onClick={escalate}>
-              <ShieldAlert className="mr-2 h-5 w-5" /> {t("diagnostics.stopEscalate")}
-            </Button>
-          </>
+          </div>
         )}
       </div>
 
